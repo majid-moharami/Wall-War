@@ -118,41 +118,26 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Top Player Section
-        if (!gameState.isAiMatch) {
-            // Flipped 180° for Player 2 sitting across the table in Pass & Play
-            PlayerWallControlRow(
-                playerName = "Player 2",
-                pawnColor = WallRushAmber,
-                isTurn = gameState.turn == 1 && gameState.winner == null,
-                wallsLeft = gameState.leftWalls[1],
-                isWallMode = isWallMode,
-                isWallHorizontal = isWallHorizontal,
-                onSelectWallOrientation = onSelectWallOrientation,
-                modifier = Modifier.graphicsLayer { rotationZ = 180f }
+        // Top Players Score Header Bar (P1 & P2 / AI)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            PlayerScoreCard(
+                playerName = "Player 1",
+                wallsLeft = gameState.leftWalls[0],
+                isTurn = gameState.turn == 0 && gameState.winner == null,
+                pawnColor = WallRushPurple,
+                modifier = Modifier.weight(1f)
             )
-        } else {
-            // Players Status Cards Header for VS AI Match
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                PlayerScoreCard(
-                    playerName = "Player 1",
-                    wallsLeft = gameState.leftWalls[0],
-                    isTurn = gameState.turn == 0 && gameState.winner == null,
-                    pawnColor = WallRushPurple,
-                    modifier = Modifier.weight(1f)
-                )
 
-                PlayerScoreCard(
-                    playerName = "AI Bot",
-                    wallsLeft = gameState.leftWalls[1],
-                    isTurn = gameState.turn == 1 && gameState.winner == null,
-                    pawnColor = WallRushAmber,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            PlayerScoreCard(
+                playerName = if (gameState.isAiMatch) "AI Bot" else "Player 2",
+                wallsLeft = gameState.leftWalls[1],
+                isTurn = gameState.turn == 1 && gameState.winner == null,
+                pawnColor = WallRushAmber,
+                modifier = Modifier.weight(1f)
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -177,30 +162,20 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Bottom Player Section
-        if (!gameState.isAiMatch) {
-            // Normal 0° for Player 1 sitting at bottom
-            PlayerWallControlRow(
-                playerName = "Player 1",
-                pawnColor = WallRushPurple,
-                isTurn = gameState.turn == 0 && gameState.winner == null,
-                wallsLeft = gameState.leftWalls[0],
-                isWallMode = isWallMode,
-                isWallHorizontal = isWallHorizontal,
-                onSelectWallOrientation = onSelectWallOrientation
-            )
-        } else {
-            // Player 1 Wall Items for VS AI
-            PlayerWallControlRow(
-                playerName = "Player 1",
-                pawnColor = WallRushPurple,
-                isTurn = gameState.turn == 0 && gameState.winner == null,
-                wallsLeft = gameState.leftWalls[0],
-                isWallMode = isWallMode,
-                isWallHorizontal = isWallHorizontal,
-                onSelectWallOrientation = onSelectWallOrientation
-            )
-        }
+        // Single Active Player Wall Controls Panel (Updates dynamically on turn change)
+        val activeTurn = gameState.turn
+        val activePlayerName = if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val activePawnColor = if (activeTurn == 0) WallRushPurple else WallRushAmber
+
+        PlayerWallControlRow(
+            playerName = activePlayerName,
+            pawnColor = activePawnColor,
+            isTurn = gameState.winner == null,
+            wallsLeft = gameState.leftWalls[activeTurn],
+            isWallMode = isWallMode,
+            isWallHorizontal = isWallHorizontal,
+            onSelectWallOrientation = onSelectWallOrientation
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -333,8 +308,9 @@ fun PlayerWallControlRow(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isTurn) pawnColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = if (isTurn) pawnColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
+        border = if (isTurn) androidx.compose.foundation.BorderStroke(2.dp, pawnColor) else null,
         shape = RoundedCornerShape(20.dp),
         modifier = modifier.fillMaxWidth()
     ) {
@@ -350,17 +326,35 @@ fun PlayerWallControlRow(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(18.dp)
+                        .size(20.dp)
                         .clip(CircleShape)
                         .background(pawnColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
-                    Text(
-                        text = playerName,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = playerName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (isTurn) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(pawnColor)
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = "TURN",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (pawnColor == WallRushAmber) Color.Black else Color.White
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = "Walls: $wallsLeft",
                         style = MaterialTheme.typography.bodySmall,
