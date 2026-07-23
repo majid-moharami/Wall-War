@@ -46,9 +46,9 @@ object AiEngine {
                     val r = opp.r + dr
                     val c = opp.c + dc
                     if (r in 0..state.rows - 2 && c in 0..state.cols - 2) {
-                        val wH = Wall(r, c, isHorizontal = true)
+                        val wH = Wall(r, c, isHorizontal = true, playerOwner = p)
                         if (GameEngine.canPlaceWall(state, p, wH)) return Move.WallPlacement(wH)
-                        val wV = Wall(r, c, isHorizontal = false)
+                        val wV = Wall(r, c, isHorizontal = false, playerOwner = p)
                         if (GameEngine.canPlaceWall(state, p, wV)) return Move.WallPlacement(wV)
                     }
                 }
@@ -85,7 +85,7 @@ object AiEngine {
                     val c = oppP.c + dc
                     if (r in 0..state.rows - 2 && c in 0..state.cols - 2) {
                         for (isHorizontal in listOf(true, false)) {
-                            val candidateWall = Wall(r, c, isHorizontal)
+                            val candidateWall = Wall(r, c, isHorizontal, playerOwner = p)
                             if (GameEngine.canPlaceWall(state, p, candidateWall)) {
                                 val testWalls = state.walls + candidateWall
                                 val newOppDistMap = GameEngine.distToGoal(testWalls, oppGoal, state.cols, state.rows)
@@ -152,7 +152,7 @@ object AiEngine {
             for (r in (opp.r - candRadius).coerceAtLeast(0)..(opp.r + candRadius).coerceAtMost(state.rows - 2)) {
                 for (c in (opp.c - candRadius).coerceAtLeast(0)..(opp.c + candRadius).coerceAtMost(state.cols - 2)) {
                     for (isHorizontal in listOf(true, false)) {
-                        val w = Wall(r, c, isHorizontal)
+                        val w = Wall(r, c, isHorizontal, playerOwner = p)
                         if (GameEngine.canPlaceWall(state, p, w)) {
                             val testWalls = state.walls + w
                             val testOppDist = GameEngine.distToGoal(testWalls, oppGoal, state.cols, state.rows)[opp.r * state.cols + opp.c]

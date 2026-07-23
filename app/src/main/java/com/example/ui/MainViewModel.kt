@@ -134,7 +134,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (_isWallMode.value) {
             // Attempt wall placement
-            val wall = Wall(r, c, _isWallHorizontal.value)
+            val wall = Wall(r, c, _isWallHorizontal.value, playerOwner = state.turn)
             if (GameEngine.canPlaceWall(state, state.turn, wall)) {
                 applyUserMove(Move.WallPlacement(wall))
                 _isWallMode.value = false

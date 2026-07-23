@@ -118,84 +118,191 @@ fun GameBoardComposable(
                 }
             }
 
-            // 2. Draw Placed Walls
+            // 2. Draw Placed Walls with Player-Specific Color Indicators
             for (wall in gameState.walls) {
+                val wallOwnerColor = if (wall.playerOwner == 0) themePawn1 else themePawn2
+                val darkBorder = if (wall.playerOwner == 0) Color(0xFF381E72) else Color(0xFF5C4000)
+
                 if (wall.isHorizontal) {
-                    // Horizontal Wall spans cols: wall.c and wall.c + 1
                     val x = wall.c * (cellW + gapW)
                     val y = wall.r * (cellH + gapH) + cellH + (gapH * 0.1f)
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.8f
 
+                    // Main Wall Body
                     drawRoundRect(
                         brush = Brush.horizontalGradient(
-                            colors = listOf(themeWallColor, themeWallColor.copy(alpha = 0.8f))
+                            colors = listOf(
+                                wallOwnerColor,
+                                wallOwnerColor.copy(alpha = 0.85f),
+                                wallOwnerColor
+                            )
                         ),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(8f, 8f)
                     )
+
+                    // Wall Border Outline
+                    drawRoundRect(
+                        color = darkBorder.copy(alpha = 0.6f),
+                        topLeft = Offset(x, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(8f, 8f),
+                        style = Stroke(width = 2f)
+                    )
+
+                    // Inner Player Badge Stripe
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = 0.45f),
+                        topLeft = Offset(x + 8f, y + wallHeight * 0.35f),
+                        size = Size(wallWidth - 16f, wallHeight * 0.3f),
+                        cornerRadius = CornerRadius(4f, 4f)
+                    )
                 } else {
-                    // Vertical Wall spans rows: wall.r and wall.r + 1
                     val x = wall.c * (cellW + gapW) + cellW + (gapW * 0.1f)
                     val y = wall.r * (cellH + gapH)
                     val wallWidth = gapW * 0.8f
                     val wallHeight = cellH * 2 + gapH
 
+                    // Main Wall Body
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(themeWallColor, themeWallColor.copy(alpha = 0.8f))
+                            colors = listOf(
+                                wallOwnerColor,
+                                wallOwnerColor.copy(alpha = 0.85f),
+                                wallOwnerColor
+                            )
                         ),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(8f, 8f)
                     )
+
+                    // Wall Border Outline
+                    drawRoundRect(
+                        color = darkBorder.copy(alpha = 0.6f),
+                        topLeft = Offset(x, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(8f, 8f),
+                        style = Stroke(width = 2f)
+                    )
+
+                    // Inner Player Badge Stripe
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = 0.45f),
+                        topLeft = Offset(x + wallWidth * 0.35f, y + 8f),
+                        size = Size(wallWidth * 0.3f, wallHeight - 16f),
+                        cornerRadius = CornerRadius(4f, 4f)
+                    )
                 }
             }
 
-            // 3. Draw Player Pawns
+            // 3. Draw Player Pawns (3D Polished Spheres with Custom Player Symbols)
             for (p in gameState.pawns.indices) {
                 val pawnPos = gameState.pawns[p]
                 val centerX = pawnPos.c * (cellW + gapW) + cellW / 2f
                 val centerY = pawnPos.r * (cellH + gapH) + cellH / 2f
-                val pawnRadius = minOf(cellW, cellH) * 0.36f
+                val pawnRadius = minOf(cellW, cellH) * 0.38f
 
-                val pawnColor = if (p == 0) themePawn1 else themePawn2
                 val isTurn = gameState.turn == p && gameState.winner == null
 
-                // Outer aura ring for active turn player
+                // Drop Shadow
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.45f),
+                    radius = pawnRadius * 1.05f,
+                    center = Offset(centerX + 3f, centerY + 5f)
+                )
+
+                // Active Pulse Ring
                 if (isTurn) {
+                    val auraColor = if (p == 0) themePawn1 else themePawn2
                     drawCircle(
-                        color = pawnColor.copy(alpha = 0.3f),
-                        radius = pawnRadius * 1.35f,
+                        color = auraColor.copy(alpha = 0.35f),
+                        radius = pawnRadius * 1.45f,
                         center = Offset(centerX, centerY)
+                    )
+                    drawCircle(
+                        color = auraColor,
+                        radius = pawnRadius * 1.2f,
+                        center = Offset(centerX, centerY),
+                        style = Stroke(width = 3f)
                     )
                 }
 
-                // Main Pawn Base
+                // 3D Gradient Sphere
+                val sphereGradients = if (p == 0) {
+                    listOf(
+                        Color(0xFFFFFFFF),
+                        Color(0xFFE8DEF8),
+                        Color(0xFFD0BCFF),
+                        Color(0xFF7C5CFF),
+                        Color(0xFF280068)
+                    )
+                } else {
+                    listOf(
+                        Color(0xFFFFFFFF),
+                        Color(0xFFFFF9C4),
+                        Color(0xFFFFD700),
+                        Color(0xFFFF9100),
+                        Color(0xFF522800)
+                    )
+                }
+
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(pawnColor, pawnColor.copy(alpha = 0.85f)),
-                        center = Offset(centerX - pawnRadius * 0.3f, centerY - pawnRadius * 0.3f),
-                        radius = pawnRadius * 1.5f
+                        colors = sphereGradients,
+                        center = Offset(centerX - pawnRadius * 0.35f, centerY - pawnRadius * 0.35f),
+                        radius = pawnRadius * 1.6f
                     ),
                     radius = pawnRadius,
                     center = Offset(centerX, centerY)
                 )
 
-                // Glossy inner highlight
+                // Glossy Highlight Arc
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.45f),
-                    radius = pawnRadius * 0.4f,
-                    center = Offset(centerX - pawnRadius * 0.3f, centerY - pawnRadius * 0.3f)
+                    color = Color.White.copy(alpha = 0.6f),
+                    radius = pawnRadius * 0.32f,
+                    center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
                 )
 
-                // Crown insignia inside pawn
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.9f),
-                    radius = pawnRadius * 0.2f,
-                    center = Offset(centerX, centerY)
-                )
+                // Distinctive Symbol Emblem
+                val symbolColor = if (p == 0) Color(0xFF280068) else Color(0xFF3E1F00)
+                if (p == 0) {
+                    // Star Emblem for P1
+                    val path = Path().apply {
+                        val r = pawnRadius * 0.45f
+                        val cx = centerX
+                        val cy = centerY + r * 0.05f
+                        moveTo(cx, cy - r)
+                        lineTo(cx + r * 0.3f, cy - r * 0.2f)
+                        lineTo(cx + r * 0.95f, cy - r * 0.2f)
+                        lineTo(cx + r * 0.4f, cy + r * 0.25f)
+                        lineTo(cx + r * 0.6f, cy + r * 0.9f)
+                        lineTo(cx, cy + r * 0.5f)
+                        lineTo(cx - r * 0.6f, cy + r * 0.9f)
+                        lineTo(cx - r * 0.4f, cy + r * 0.25f)
+                        lineTo(cx - r * 0.95f, cy - r * 0.2f)
+                        lineTo(cx - r * 0.3f, cy - r * 0.2f)
+                        close()
+                    }
+                    drawPath(path = path, color = symbolColor)
+                } else {
+                    // Lightning Bolt Emblem for P2
+                    val path = Path().apply {
+                        val s = pawnRadius * 0.55f
+                        val cx = centerX
+                        val cy = centerY
+                        moveTo(cx + s * 0.1f, cy - s)
+                        lineTo(cx - s * 0.5f, cy + s * 0.1f)
+                        lineTo(cx - s * 0.05f, cy + s * 0.1f)
+                        lineTo(cx - s * 0.25f, cy + s)
+                        lineTo(cx + s * 0.45f, cy - s * 0.15f)
+                        lineTo(cx, cy - s * 0.15f)
+                        close()
+                    }
+                    drawPath(path = path, color = symbolColor)
+                }
             }
         }
     }

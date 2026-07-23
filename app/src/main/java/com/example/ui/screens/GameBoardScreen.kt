@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -117,31 +118,45 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Players Status Cards Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Player 1 Card
-            PlayerScoreCard(
-                playerName = "Player 1",
-                wallsLeft = gameState.leftWalls[0],
-                isTurn = gameState.turn == 0 && gameState.winner == null,
-                pawnColor = WallRushPurple,
-                modifier = Modifier.weight(1f)
-            )
-
-            // Player 2 / AI Card
-            PlayerScoreCard(
-                playerName = if (gameState.isAiMatch) "AI Bot" else "Player 2",
-                wallsLeft = gameState.leftWalls[1],
-                isTurn = gameState.turn == 1 && gameState.winner == null,
+        // Top Player Section
+        if (!gameState.isAiMatch) {
+            // Flipped 180° for Player 2 sitting across the table
+            PlayerWallControlRow(
+                playerName = "Player 2",
                 pawnColor = WallRushAmber,
-                modifier = Modifier.weight(1f)
+                isTurn = gameState.turn == 1 && gameState.winner == null,
+                wallsLeft = gameState.leftWalls[1],
+                isWallMode = isWallMode,
+                isWallHorizontal = isWallHorizontal,
+                onToggleWallMode = onToggleWallMode,
+                onToggleWallOrientation = onToggleWallOrientation,
+                modifier = Modifier.graphicsLayer { rotationZ = 180f }
             )
+        } else {
+            // Players Status Cards Header for VS AI Match
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                PlayerScoreCard(
+                    playerName = "Player 1",
+                    wallsLeft = gameState.leftWalls[0],
+                    isTurn = gameState.turn == 0 && gameState.winner == null,
+                    pawnColor = WallRushPurple,
+                    modifier = Modifier.weight(1f)
+                )
+
+                PlayerScoreCard(
+                    playerName = "AI Bot",
+                    wallsLeft = gameState.leftWalls[1],
+                    isTurn = gameState.turn == 1 && gameState.winner == null,
+                    pawnColor = WallRushAmber,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Center Game Board View
         Box(
@@ -162,55 +177,68 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Wall Controls Bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Wall Mode Toggle Button
-            Button(
-                onClick = onToggleWallMode,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode) WallRushAmber else WallRushPurple
-                ),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(52.dp)
-                    .testTag("btn_wall_mode")
+        // Bottom Player Section
+        if (!gameState.isAiMatch) {
+            // Normal 0° for Player 1 sitting at bottom
+            PlayerWallControlRow(
+                playerName = "Player 1",
+                pawnColor = WallRushPurple,
+                isTurn = gameState.turn == 0 && gameState.winner == null,
+                wallsLeft = gameState.leftWalls[0],
+                isWallMode = isWallMode,
+                isWallHorizontal = isWallHorizontal,
+                onToggleWallMode = onToggleWallMode,
+                onToggleWallOrientation = onToggleWallOrientation
+            )
+        } else {
+            // Wall Controls Bar for VS AI
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.GridOn,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isWallMode) "Step Pawn" else "Place Wall",
-                    fontWeight = FontWeight.Bold
-                )
-            }
+                Button(
+                    onClick = onToggleWallMode,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isWallMode) WallRushAmber else WallRushPurple
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .testTag("btn_wall_mode")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.GridOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isWallMode) "Step Pawn" else "Place Wall",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-            // Wall Orientation Switch Button
-            OutlinedButton(
-                onClick = onToggleWallOrientation,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .height(52.dp)
-                    .testTag("btn_wall_orientation")
-            ) {
-                Icon(
-                    imageVector = if (isWallHorizontal) Icons.Default.CropLandscape else Icons.Default.CropPortrait,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (isWallHorizontal) "Horizontal ──" else "Vertical │",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                OutlinedButton(
+                    onClick = onToggleWallOrientation,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .height(52.dp)
+                        .testTag("btn_wall_orientation")
+                ) {
+                    Icon(
+                        imageVector = if (isWallHorizontal) Icons.Default.CropLandscape else Icons.Default.CropPortrait,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isWallHorizontal) "Horizontal ──" else "Vertical │",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
@@ -326,6 +354,99 @@ fun PlayerScoreCard(
                         .size(8.dp)
                         .clip(CircleShape)
                         .background(pawnColor)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PlayerWallControlRow(
+    playerName: String,
+    pawnColor: Color,
+    isTurn: Boolean,
+    wallsLeft: Int,
+    isWallMode: Boolean,
+    isWallHorizontal: Boolean,
+    onToggleWallMode: () -> Unit,
+    onToggleWallOrientation: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = if (isTurn) pawnColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = RoundedCornerShape(20.dp),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(pawnColor)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = playerName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "Walls: $wallsLeft",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Button(
+                onClick = onToggleWallMode,
+                enabled = isTurn,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isWallMode && isTurn) WallRushAmber else pawnColor
+                ),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(42.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.GridOn,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (isWallMode && isTurn) "Step Pawn" else "Place Wall",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            OutlinedButton(
+                onClick = onToggleWallOrientation,
+                enabled = isTurn,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(42.dp)
+            ) {
+                Icon(
+                    imageVector = if (isWallHorizontal) Icons.Default.CropLandscape else Icons.Default.CropPortrait,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (isWallHorizontal) "Horiz ──" else "Vert │",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

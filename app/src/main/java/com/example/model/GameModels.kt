@@ -19,7 +19,7 @@ enum class OpponentType {
 
 data class Position(val r: Int, val c: Int)
 
-data class Wall(val r: Int, val c: Int, val isHorizontal: Boolean)
+data class Wall(val r: Int, val c: Int, val isHorizontal: Boolean, val playerOwner: Int = 0)
 
 sealed class Move {
     data class PawnStep(val target: Position) : Move()
