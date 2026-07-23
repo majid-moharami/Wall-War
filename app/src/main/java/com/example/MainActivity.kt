@@ -82,11 +82,11 @@ fun WallRushApp(
                     onCellClick = { r, c ->
                         viewModel.selectCell(r, c)
                     },
-                    onToggleWallMode = {
-                        viewModel.toggleWallMode()
+                    onPlaceWall = { r, c, isHorizontal ->
+                        viewModel.placeWall(r, c, isHorizontal)
                     },
-                    onToggleWallOrientation = {
-                        viewModel.toggleWallOrientation()
+                    onSelectWallOrientation = { isHorizontal ->
+                        viewModel.selectWallOrientation(isHorizontal)
                     },
                     onUndoMove = {
                         viewModel.undoMove()

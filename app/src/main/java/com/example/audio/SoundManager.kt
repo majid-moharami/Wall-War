@@ -183,22 +183,28 @@ class SoundManager(private val context: Context) {
     }
 
     fun vibrateShort() {
-        if (!isVibrationEnabled || vibrator == null || !vibrator.hasVibrator()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createOneShot(25, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(25)
-        }
+        if (!isVibrationEnabled || vibrator == null) return
+        try {
+            if (!vibrator.hasVibrator()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createOneShot(25, VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(25)
+            }
+        } catch (_: Exception) {}
     }
 
     fun vibrateSuccess() {
-        if (!isVibrationEnabled || vibrator == null || !vibrator.hasVibrator()) return
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 40, 60, 80), -1))
-        } else {
-            @Suppress("DEPRECATION")
-            vibrator.vibrate(100)
-        }
+        if (!isVibrationEnabled || vibrator == null) return
+        try {
+            if (!vibrator.hasVibrator()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 40, 60, 80), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(100)
+            }
+        } catch (_: Exception) {}
     }
 }

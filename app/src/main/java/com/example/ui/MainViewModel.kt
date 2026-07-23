@@ -121,6 +121,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         soundManager.vibrateShort()
     }
 
+    fun selectWallOrientation(isHorizontal: Boolean) {
+        if (_isWallMode.value && _isWallHorizontal.value == isHorizontal) {
+            _isWallMode.value = false
+        } else {
+            _isWallMode.value = true
+            _isWallHorizontal.value = isHorizontal
+            _selectedPosition.value = null
+        }
+        soundManager.vibrateShort()
+    }
+
+    fun placeWall(r: Int, c: Int, isHorizontal: Boolean) {
+        val state = _gameState.value
+        if (state.isGameOver()) return
+        if (state.isAiMatch && state.turn == 1) return
+
+        val wall = Wall(r, c, isHorizontal, playerOwner = state.turn)
+        if (GameEngine.canPlaceWall(state, state.turn, wall)) {
+            applyUserMove(Move.WallPlacement(wall))
+            _isWallMode.value = false
+        } else {
+            soundManager.playErrorSound()
+        }
+    }
+
     fun setBoardTheme(theme: BoardTheme) {
         _boardTheme.value = theme
     }

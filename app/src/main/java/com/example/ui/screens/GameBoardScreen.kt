@@ -60,8 +60,8 @@ fun GameBoardScreen(
     validHighlights: List<Position>,
     soundManager: SoundManager,
     onCellClick: (r: Int, c: Int) -> Unit,
-    onToggleWallMode: () -> Unit,
-    onToggleWallOrientation: () -> Unit,
+    onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
+    onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
     onUndoMove: () -> Unit,
     onRestart: () -> Unit,
     onBack: () -> Unit,
@@ -120,7 +120,7 @@ fun GameBoardScreen(
 
         // Top Player Section
         if (!gameState.isAiMatch) {
-            // Flipped 180° for Player 2 sitting across the table
+            // Flipped 180° for Player 2 sitting across the table in Pass & Play
             PlayerWallControlRow(
                 playerName = "Player 2",
                 pawnColor = WallRushAmber,
@@ -128,8 +128,7 @@ fun GameBoardScreen(
                 wallsLeft = gameState.leftWalls[1],
                 isWallMode = isWallMode,
                 isWallHorizontal = isWallHorizontal,
-                onToggleWallMode = onToggleWallMode,
-                onToggleWallOrientation = onToggleWallOrientation,
+                onSelectWallOrientation = onSelectWallOrientation,
                 modifier = Modifier.graphicsLayer { rotationZ = 180f }
             )
         } else {
@@ -171,7 +170,8 @@ fun GameBoardScreen(
                 isWallMode = isWallMode,
                 isWallHorizontal = isWallHorizontal,
                 validHighlights = validHighlights,
-                onCellClick = onCellClick
+                onCellClick = onCellClick,
+                onPlaceWall = onPlaceWall
             )
         }
 
@@ -187,59 +187,19 @@ fun GameBoardScreen(
                 wallsLeft = gameState.leftWalls[0],
                 isWallMode = isWallMode,
                 isWallHorizontal = isWallHorizontal,
-                onToggleWallMode = onToggleWallMode,
-                onToggleWallOrientation = onToggleWallOrientation
+                onSelectWallOrientation = onSelectWallOrientation
             )
         } else {
-            // Wall Controls Bar for VS AI
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Button(
-                    onClick = onToggleWallMode,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isWallMode) WallRushAmber else WallRushPurple
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(52.dp)
-                        .testTag("btn_wall_mode")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.GridOn,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (isWallMode) "Step Pawn" else "Place Wall",
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                OutlinedButton(
-                    onClick = onToggleWallOrientation,
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .height(52.dp)
-                        .testTag("btn_wall_orientation")
-                ) {
-                    Icon(
-                        imageVector = if (isWallHorizontal) Icons.Default.CropLandscape else Icons.Default.CropPortrait,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isWallHorizontal) "Horizontal ──" else "Vertical │",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
+            // Player 1 Wall Items for VS AI
+            PlayerWallControlRow(
+                playerName = "Player 1",
+                pawnColor = WallRushPurple,
+                isTurn = gameState.turn == 0 && gameState.winner == null,
+                wallsLeft = gameState.leftWalls[0],
+                isWallMode = isWallMode,
+                isWallHorizontal = isWallHorizontal,
+                onSelectWallOrientation = onSelectWallOrientation
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -368,8 +328,7 @@ fun PlayerWallControlRow(
     wallsLeft: Int,
     isWallMode: Boolean,
     isWallHorizontal: Boolean,
-    onToggleWallMode: () -> Unit,
-    onToggleWallOrientation: () -> Unit,
+    onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -384,13 +343,14 @@ fun PlayerWallControlRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Player Avatar & Stock Info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(16.dp)
+                        .size(18.dp)
                         .clip(CircleShape)
                         .background(pawnColor)
                 )
@@ -409,44 +369,51 @@ fun PlayerWallControlRow(
                 }
             }
 
+            // Horizontal Wall Item Chip
             Button(
-                onClick = onToggleWallMode,
-                enabled = isTurn,
+                onClick = { onSelectWallOrientation(true) },
+                enabled = isTurn && wallsLeft > 0,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && isTurn) WallRushAmber else pawnColor
+                    containerColor = if (isWallMode && isWallHorizontal && isTurn) WallRushAmber else pawnColor.copy(alpha = 0.25f),
+                    contentColor = if (isWallMode && isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.height(42.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.GridOn,
-                    contentDescription = null,
+                    imageVector = Icons.Default.CropLandscape,
+                    contentDescription = "Horizontal Wall Item",
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = if (isWallMode && isTurn) "Step Pawn" else "Place Wall",
-                    fontSize = 12.sp,
+                    text = "── Horiz",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            OutlinedButton(
-                onClick = onToggleWallOrientation,
-                enabled = isTurn,
+            // Vertical Wall Item Chip
+            Button(
+                onClick = { onSelectWallOrientation(false) },
+                enabled = isTurn && wallsLeft > 0,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isWallMode && !isWallHorizontal && isTurn) WallRushAmber else pawnColor.copy(alpha = 0.25f),
+                    contentColor = if (isWallMode && !isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
+                ),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.height(42.dp)
             ) {
                 Icon(
-                    imageVector = if (isWallHorizontal) Icons.Default.CropLandscape else Icons.Default.CropPortrait,
-                    contentDescription = null,
+                    imageVector = Icons.Default.CropPortrait,
+                    contentDescription = "Vertical Wall Item",
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = if (isWallHorizontal) "Horiz ──" else "Vert │",
+                    text = "│ Vert",
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

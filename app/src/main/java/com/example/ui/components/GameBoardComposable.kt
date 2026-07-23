@@ -1,9 +1,7 @@
 package com.example.ui.components
 
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -12,6 +10,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -24,9 +25,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.example.engine.GameEngine
 import com.example.model.BoardTheme
 import com.example.model.GameState
 import com.example.model.Position
+import com.example.model.Wall
+import kotlin.math.roundToInt
 
 @Composable
 fun GameBoardComposable(
@@ -36,6 +40,7 @@ fun GameBoardComposable(
     isWallHorizontal: Boolean,
     validHighlights: List<Position>,
     onCellClick: (r: Int, c: Int) -> Unit,
+    onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val cols = gameState.cols
@@ -47,6 +52,10 @@ fun GameBoardComposable(
     val themePrimary = Color(boardTheme.primaryColor)
     val themePawn1 = Color(0xFF7C5CFF)
     val themePawn2 = Color(0xFFFFB800)
+
+    // Drag-and-drop state for live preview wall placement
+    var activeHoverWall by remember { mutableStateOf<Wall?>(null) }
+    var isValidHover by remember { mutableStateOf(false) }
 
     BoxWithConstraints(
         modifier = modifier
@@ -66,16 +75,58 @@ fun GameBoardComposable(
         val gapW = cellW * gapRatio
         val gapH = cellH * gapRatio
 
+        val stepX = cellW + gapW
+        val stepY = cellH + gapH
+
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(gameState, isWallMode, isWallHorizontal) {
                     detectTapGestures { offset ->
-                        // Convert touch offset to grid cell (r, c)
-                        val c = (offset.x / (cellW + gapW)).toInt().coerceIn(0, cols - 1)
-                        val r = (offset.y / (cellH + gapH)).toInt().coerceIn(0, rows - 1)
-                        onCellClick(r, c)
+                        val currentTurn = gameState.turn
+                        if (isWallMode) {
+                            val targetC = ((offset.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+                            val targetR = ((offset.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                            onPlaceWall(targetR, targetC, isWallHorizontal)
+                        } else {
+                            val c = (offset.x / stepX).toInt().coerceIn(0, cols - 1)
+                            val r = (offset.y / stepY).toInt().coerceIn(0, rows - 1)
+                            onCellClick(r, c)
+                        }
                     }
+                }
+                .pointerInput(gameState, isWallHorizontal) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val currentTurn = gameState.turn
+                            val targetC = ((offset.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+                            val targetR = ((offset.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                            val candidate = Wall(targetR, targetC, isWallHorizontal, currentTurn)
+                            activeHoverWall = candidate
+                            isValidHover = GameEngine.canPlaceWall(gameState, currentTurn, candidate)
+                        },
+                        onDrag = { change, _ ->
+                            val offset = change.position
+                            val currentTurn = gameState.turn
+                            val targetC = ((offset.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+                            val targetR = ((offset.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                            val candidate = Wall(targetR, targetC, isWallHorizontal, currentTurn)
+                            activeHoverWall = candidate
+                            isValidHover = GameEngine.canPlaceWall(gameState, currentTurn, candidate)
+                        },
+                        onDragEnd = {
+                            val wall = activeHoverWall
+                            if (wall != null && isValidHover) {
+                                onPlaceWall(wall.r, wall.c, wall.isHorizontal)
+                            }
+                            activeHoverWall = null
+                            isValidHover = false
+                        },
+                        onDragCancel = {
+                            activeHoverWall = null
+                            isValidHover = false
+                        }
+                    )
                 }
         ) {
             // Draw Outer Board Background
@@ -89,8 +140,8 @@ fun GameBoardComposable(
             // 1. Draw Grid Cells
             for (r in 0 until rows) {
                 for (c in 0 until cols) {
-                    val x = c * (cellW + gapW)
-                    val y = r * (cellH + gapH)
+                    val x = c * stepX
+                    val y = r * stepY
 
                     val isHighlight = validHighlights.contains(Position(r, c))
                     val cellColor = if (isHighlight) {
@@ -124,12 +175,11 @@ fun GameBoardComposable(
                 val darkBorder = if (wall.playerOwner == 0) Color(0xFF381E72) else Color(0xFF5C4000)
 
                 if (wall.isHorizontal) {
-                    val x = wall.c * (cellW + gapW)
-                    val y = wall.r * (cellH + gapH) + cellH + (gapH * 0.1f)
+                    val x = wall.c * stepX
+                    val y = wall.r * stepY + cellH + (gapH * 0.1f)
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.8f
 
-                    // Main Wall Body
                     drawRoundRect(
                         brush = Brush.horizontalGradient(
                             colors = listOf(
@@ -143,7 +193,6 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(8f, 8f)
                     )
 
-                    // Wall Border Outline
                     drawRoundRect(
                         color = darkBorder.copy(alpha = 0.6f),
                         topLeft = Offset(x, y),
@@ -152,7 +201,6 @@ fun GameBoardComposable(
                         style = Stroke(width = 2f)
                     )
 
-                    // Inner Player Badge Stripe
                     drawRoundRect(
                         color = Color.White.copy(alpha = 0.45f),
                         topLeft = Offset(x + 8f, y + wallHeight * 0.35f),
@@ -160,12 +208,11 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(4f, 4f)
                     )
                 } else {
-                    val x = wall.c * (cellW + gapW) + cellW + (gapW * 0.1f)
-                    val y = wall.r * (cellH + gapH)
+                    val x = wall.c * stepX + cellW + (gapW * 0.1f)
+                    val y = wall.r * stepY
                     val wallWidth = gapW * 0.8f
                     val wallHeight = cellH * 2 + gapH
 
-                    // Main Wall Body
                     drawRoundRect(
                         brush = Brush.verticalGradient(
                             colors = listOf(
@@ -179,7 +226,6 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(8f, 8f)
                     )
 
-                    // Wall Border Outline
                     drawRoundRect(
                         color = darkBorder.copy(alpha = 0.6f),
                         topLeft = Offset(x, y),
@@ -188,7 +234,6 @@ fun GameBoardComposable(
                         style = Stroke(width = 2f)
                     )
 
-                    // Inner Player Badge Stripe
                     drawRoundRect(
                         color = Color.White.copy(alpha = 0.45f),
                         topLeft = Offset(x + wallWidth * 0.35f, y + 8f),
@@ -198,11 +243,60 @@ fun GameBoardComposable(
                 }
             }
 
-            // 3. Draw Player Pawns (3D Polished Spheres with Custom Player Symbols)
+            // 3. Live Drag Hover Preview Wall
+            val hover = activeHoverWall
+            if (hover != null) {
+                val previewColor = if (isValidHover) Color(0xFF81C784) else Color(0xFFFFB4AB)
+                val strokeColor = if (isValidHover) Color(0xFF2E7D32) else Color(0xFFB71C1C)
+
+                if (hover.isHorizontal) {
+                    val x = hover.c * stepX
+                    val y = hover.r * stepY + cellH + (gapH * 0.1f)
+                    val wallWidth = cellW * 2 + gapW
+                    val wallHeight = gapH * 0.8f
+
+                    drawRoundRect(
+                        color = previewColor.copy(alpha = 0.75f),
+                        topLeft = Offset(x, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(8f, 8f)
+                    )
+
+                    drawRoundRect(
+                        color = strokeColor,
+                        topLeft = Offset(x, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(8f, 8f),
+                        style = Stroke(width = 4f)
+                    )
+                } else {
+                    val x = hover.c * stepX + cellW + (gapW * 0.1f)
+                    val y = hover.r * stepY
+                    val wallWidth = gapW * 0.8f
+                    val wallHeight = cellH * 2 + gapH
+
+                    drawRoundRect(
+                        color = previewColor.copy(alpha = 0.75f),
+                        topLeft = Offset(x, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(8f, 8f)
+                    )
+
+                    drawRoundRect(
+                        color = strokeColor,
+                        topLeft = Offset(x, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(8f, 8f),
+                        style = Stroke(width = 4f)
+                    )
+                }
+            }
+
+            // 4. Draw Player Pawns (3D Polished Spheres with Custom Player Symbols)
             for (p in gameState.pawns.indices) {
                 val pawnPos = gameState.pawns[p]
-                val centerX = pawnPos.c * (cellW + gapW) + cellW / 2f
-                val centerY = pawnPos.r * (cellH + gapH) + cellH / 2f
+                val centerX = pawnPos.c * stepX + cellW / 2f
+                val centerY = pawnPos.r * stepY + cellH / 2f
                 val pawnRadius = minOf(cellW, cellH) * 0.38f
 
                 val isTurn = gameState.turn == p && gameState.winner == null
@@ -307,3 +401,4 @@ fun GameBoardComposable(
         }
     }
 }
+
