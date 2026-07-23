@@ -1,0 +1,6 @@
+{
+  "name": "WallRush",
+  "description": "Tactical wall-blocking strategy game with Pass & Play, AI challenges, and Race mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
