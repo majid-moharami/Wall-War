@@ -20,16 +20,16 @@ import com.example.ui.screens.HistoryScreen
 import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.RulesScreen
 import com.example.ui.screens.SettingsScreen
-import com.example.ui.theme.WallRushTheme
+import com.example.ui.theme.WallWarTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            WallRushTheme {
+            WallWarTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    WallRushApp(
+                    WallWarApp(
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun WallRushApp(
+fun WallWarApp(
     viewModel: MainViewModel = viewModel(),
     modifier: Modifier = Modifier
 ) {

@@ -34,8 +34,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.MatchRecord
-import com.example.ui.theme.WallRushAmber
-import com.example.ui.theme.WallRushPurple
+import com.example.ui.theme.WallWarAmber
+import com.example.ui.theme.WallWarPurple
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -103,7 +103,7 @@ fun HistoryScreen(
                 title = "Total Games",
                 value = "$totalMatches",
                 icon = Icons.Default.SportsEsports,
-                tint = WallRushPurple,
+                tint = WallWarPurple,
                 modifier = Modifier.weight(1f)
             )
 
@@ -111,7 +111,7 @@ fun HistoryScreen(
                 title = "Win Rate",
                 value = "$winRate%",
                 icon = Icons.Default.EmojiEvents,
-                tint = WallRushAmber,
+                tint = WallWarAmber,
                 modifier = Modifier.weight(1f)
             )
         }

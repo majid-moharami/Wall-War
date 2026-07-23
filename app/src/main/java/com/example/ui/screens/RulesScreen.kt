@@ -33,8 +33,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.ui.theme.WallRushAmber
-import com.example.ui.theme.WallRushPurple
+import com.example.ui.theme.WallWarAmber
+import com.example.ui.theme.WallWarPurple
 
 @Composable
 fun RulesScreen(
@@ -63,7 +63,7 @@ fun RulesScreen(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "How to Play WallRush",
+                text = "How to Play WallWar",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -75,7 +75,7 @@ fun RulesScreen(
             title = "1. The Objective",
             description = "Be the first player to reach any cell on your target goal row across the board.",
             icon = Icons.Default.Navigation,
-            iconTint = WallRushPurple
+            iconTint = WallWarPurple
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -84,7 +84,7 @@ fun RulesScreen(
             title = "2. Turn Actions",
             description = "On your turn, you can either move your pawn 1 square orthogonally OR place 1 wall from your reserve.",
             icon = Icons.Default.GridOn,
-            iconTint = WallRushAmber
+            iconTint = WallWarAmber
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -93,7 +93,7 @@ fun RulesScreen(
             title = "3. Jumping over Opponents",
             description = "When adjacent to your opponent, you can jump directly over them! If a wall is behind them, you can jump diagonally.",
             icon = Icons.Default.SwapCalls,
-            iconTint = WallRushPurple
+            iconTint = WallWarPurple
         )
 
         Spacer(modifier = Modifier.height(14.dp))
@@ -102,7 +102,7 @@ fun RulesScreen(
             title = "4. The Golden Rule (No Trapping)",
             description = "Walls span 2 spaces. You are STRICTLY FORBIDDEN from completely trapping any player. Every player must always have at least ONE clear path to their goal!",
             icon = Icons.Default.Lock,
-            iconTint = WallRushAmber
+            iconTint = WallWarAmber
         )
 
         Spacer(modifier = Modifier.height(24.dp))

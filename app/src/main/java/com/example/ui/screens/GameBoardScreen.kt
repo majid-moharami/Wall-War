@@ -48,8 +48,8 @@ import com.example.model.BoardTheme
 import com.example.model.GameState
 import com.example.model.Position
 import com.example.ui.components.GameBoardComposable
-import com.example.ui.theme.WallRushAmber
-import com.example.ui.theme.WallRushPurple
+import com.example.ui.theme.WallWarAmber
+import com.example.ui.theme.WallWarPurple
 
 @Composable
 fun GameBoardScreen(
@@ -127,7 +127,7 @@ fun GameBoardScreen(
                 playerName = "Player 1",
                 wallsLeft = gameState.leftWalls[0],
                 isTurn = gameState.turn == 0 && gameState.winner == null,
-                pawnColor = WallRushPurple,
+                pawnColor = WallWarPurple,
                 modifier = Modifier.weight(1f)
             )
 
@@ -135,7 +135,7 @@ fun GameBoardScreen(
                 playerName = if (gameState.isAiMatch) "AI Bot" else "Player 2",
                 wallsLeft = gameState.leftWalls[1],
                 isTurn = gameState.turn == 1 && gameState.winner == null,
-                pawnColor = WallRushAmber,
+                pawnColor = WallWarAmber,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -165,7 +165,7 @@ fun GameBoardScreen(
         // Single Active Player Wall Controls Panel (Updates dynamically on turn change)
         val activeTurn = gameState.turn
         val activePlayerName = if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
-        val activePawnColor = if (activeTurn == 0) WallRushPurple else WallRushAmber
+        val activePawnColor = if (activeTurn == 0) WallWarPurple else WallWarAmber
 
         PlayerWallControlRow(
             playerName = activePlayerName,
@@ -231,7 +231,7 @@ fun GameBoardScreen(
             confirmButton = {
                 Button(
                     onClick = onRestart,
-                    colors = ButtonDefaults.buttonColors(containerColor = WallRushPurple)
+                    colors = ButtonDefaults.buttonColors(containerColor = WallWarPurple)
                 ) {
                     Text("Play Again")
                 }
@@ -350,7 +350,7 @@ fun PlayerWallControlRow(
                                     text = "TURN",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = if (pawnColor == WallRushAmber) Color.Black else Color.White
+                                    color = if (pawnColor == WallWarAmber) Color.Black else Color.White
                                 )
                             }
                         }
@@ -368,7 +368,7 @@ fun PlayerWallControlRow(
                 onClick = { onSelectWallOrientation(true) },
                 enabled = isTurn && wallsLeft > 0,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && isWallHorizontal && isTurn) WallRushAmber else pawnColor.copy(alpha = 0.25f),
+                    containerColor = if (isWallMode && isWallHorizontal && isTurn) WallWarAmber else pawnColor.copy(alpha = 0.25f),
                     contentColor = if (isWallMode && isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
@@ -392,7 +392,7 @@ fun PlayerWallControlRow(
                 onClick = { onSelectWallOrientation(false) },
                 enabled = isTurn && wallsLeft > 0,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && !isWallHorizontal && isTurn) WallRushAmber else pawnColor.copy(alpha = 0.25f),
+                    containerColor = if (isWallMode && !isWallHorizontal && isTurn) WallWarAmber else pawnColor.copy(alpha = 0.25f),
                     contentColor = if (isWallMode && !isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),

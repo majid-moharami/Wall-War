@@ -53,9 +53,9 @@ import com.example.model.AiDifficulty
 import com.example.model.GameMode
 import com.example.model.OpponentType
 import com.example.ui.AppScreen
-import com.example.ui.theme.WallRushAmber
-import com.example.ui.theme.WallRushPurple
-import com.example.ui.theme.WallRushPurpleLight
+import com.example.ui.theme.WallWarAmber
+import com.example.ui.theme.WallWarPurple
+import com.example.ui.theme.WallWarPurpleLight
 
 @Composable
 fun HomeScreen(
@@ -92,11 +92,11 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(WallRushPurple),
+                        .background(WallWarPurple),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "WR",
+                        text = "WW",
                         color = Color(0xFF381E72),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 16.sp
@@ -110,7 +110,7 @@ fun HomeScreen(
                         color = Color(0xFF919194)
                     )
                     Text(
-                        text = "WallRush Tactics",
+                        text = "WallWar Tactics",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFE2E2E6)
@@ -130,7 +130,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(WallRushAmber),
+                        .background(WallWarAmber),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -172,7 +172,7 @@ fun HomeScreen(
                         text = "HIGHEST RUSH",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = WallRushPurple
+                        color = WallWarPurple
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -297,7 +297,7 @@ fun HomeScreen(
             onClick = {
                 onStartGame(GameMode.DUEL, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)
             },
-            colors = CardDefaults.cardColors(containerColor = WallRushPurple),
+            colors = CardDefaults.cardColors(containerColor = WallWarPurple),
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier
                 .fillMaxWidth()
@@ -354,7 +354,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.SmartToy,
                         contentDescription = "Play AI",
-                        tint = WallRushPurple,
+                        tint = WallWarPurple,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(modifier = Modifier.width(16.dp))
@@ -394,7 +394,7 @@ fun HomeScreen(
                                     },
                                     label = { Text(diff.displayName) },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = WallRushPurple,
+                                        selectedContainerColor = WallWarPurple,
                                         selectedLabelColor = Color.White
                                     )
                                 )
@@ -427,7 +427,7 @@ fun HomeScreen(
                 Icon(
                     imageVector = Icons.Default.DirectionsRun,
                     contentDescription = "Race Mode",
-                    tint = WallRushAmber,
+                    tint = WallWarAmber,
                     modifier = Modifier.size(28.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -469,7 +469,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.Book,
                         contentDescription = "Rules",
-                        tint = WallRushPurple,
+                        tint = WallWarPurple,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -498,7 +498,7 @@ fun HomeScreen(
                     Icon(
                         imageVector = Icons.Default.BarChart,
                         contentDescription = "Stats",
-                        tint = WallRushAmber,
+                        tint = WallWarAmber,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))

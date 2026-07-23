@@ -45,7 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.audio.SoundManager
 import com.example.model.BoardTheme
-import com.example.ui.theme.WallRushPurple
+import com.example.ui.theme.WallWarPurple
 
 @Composable
 fun SettingsScreen(
@@ -104,7 +104,7 @@ fun SettingsScreen(
                 Icon(
                     imageVector = Icons.Default.VolumeUp,
                     contentDescription = null,
-                    tint = WallRushPurple,
+                    tint = WallWarPurple,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -126,7 +126,7 @@ fun SettingsScreen(
                         isSoundOn = checked
                         soundManager.isSoundEnabled = checked
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = WallRushPurple)
+                    colors = SwitchDefaults.colors(checkedThumbColor = WallWarPurple)
                 )
             }
         }
@@ -148,7 +148,7 @@ fun SettingsScreen(
                 Icon(
                     imageVector = Icons.Default.Vibration,
                     contentDescription = null,
-                    tint = WallRushPurple,
+                    tint = WallWarPurple,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -170,7 +170,7 @@ fun SettingsScreen(
                         isVibroOn = checked
                         soundManager.isVibrationEnabled = checked
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = WallRushPurple)
+                    colors = SwitchDefaults.colors(checkedThumbColor = WallWarPurple)
                 )
             }
         }
@@ -182,7 +182,7 @@ fun SettingsScreen(
             Icon(
                 imageVector = Icons.Default.Palette,
                 contentDescription = null,
-                tint = WallRushPurple,
+                tint = WallWarPurple,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -199,7 +199,7 @@ fun SettingsScreen(
             Card(
                 onClick = { onSelectTheme(theme) },
                 colors = CardDefaults.cardColors(
-                    containerColor = if (selectedTheme == theme) WallRushPurple.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = if (selectedTheme == theme) WallWarPurple.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -227,7 +227,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            tint = WallRushPurple
+                            tint = WallWarPurple
                         )
                     }
                 }
@@ -236,7 +236,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "WallRush Android v1.0 • Modern Compose Engine",
+            text = "WallWar Android v1.0 • Modern Compose Engine",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.align(Alignment.CenterHorizontally)

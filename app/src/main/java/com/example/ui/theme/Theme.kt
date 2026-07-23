@@ -11,43 +11,43 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val DarkColorScheme = darkColorScheme(
-    primary = WallRushPurple,
-    onPrimary = WallRushPurpleDark,
-    primaryContainer = WallRushPurpleContainer,
+    primary = WallWarPurple,
+    onPrimary = WallWarPurpleDark,
+    primaryContainer = WallWarPurpleContainer,
     onPrimaryContainer = Color.White,
-    secondary = WallRushPurpleLight,
-    onSecondary = WallRushPurpleDark,
-    tertiary = WallRushAmber,
+    secondary = WallWarPurpleLight,
+    onSecondary = WallWarPurpleDark,
+    tertiary = WallWarAmber,
     onTertiary = Color.Black,
-    background = WallRushDarkBg,
+    background = WallWarDarkBg,
     onBackground = Color(0xFFE2E2E6),
-    surface = WallRushDarkSurface,
+    surface = WallWarDarkSurface,
     onSurface = Color(0xFFE2E2E6),
-    surfaceVariant = WallRushDarkCard,
+    surfaceVariant = WallWarDarkCard,
     onSurfaceVariant = Color(0xFF919194),
-    outline = WallRushBorder
+    outline = WallWarBorder
 )
 
 private val LightColorScheme = darkColorScheme(
-    primary = WallRushPurple,
-    onPrimary = WallRushPurpleDark,
-    primaryContainer = WallRushPurpleContainer,
+    primary = WallWarPurple,
+    onPrimary = WallWarPurpleDark,
+    primaryContainer = WallWarPurpleContainer,
     onPrimaryContainer = Color.White,
-    secondary = WallRushPurpleLight,
-    onSecondary = WallRushPurpleDark,
-    tertiary = WallRushAmber,
+    secondary = WallWarPurpleLight,
+    onSecondary = WallWarPurpleDark,
+    tertiary = WallWarAmber,
     onTertiary = Color.Black,
-    background = WallRushDarkBg,
+    background = WallWarDarkBg,
     onBackground = Color(0xFFE2E2E6),
-    surface = WallRushDarkSurface,
+    surface = WallWarDarkSurface,
     onSurface = Color(0xFFE2E2E6),
-    surfaceVariant = WallRushDarkCard,
+    surfaceVariant = WallWarDarkCard,
     onSurfaceVariant = Color(0xFF919194),
-    outline = WallRushBorder
+    outline = WallWarBorder
 )
 
 @Composable
-fun WallRushTheme(
+fun WallWarTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
