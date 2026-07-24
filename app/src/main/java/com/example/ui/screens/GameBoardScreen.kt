@@ -149,15 +149,52 @@ fun GameBoardScreen(
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            GameBoardComposable(
-                gameState = gameState,
-                boardTheme = boardTheme,
-                isWallMode = isWallMode,
-                isWallHorizontal = isWallHorizontal,
-                validHighlights = validHighlights,
-                onCellClick = onCellClick,
-                onPlaceWall = onPlaceWall
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                if (isWallMode && gameState.winner == null && !(gameState.isAiMatch && gameState.turn == 1)) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = WallWarAmber.copy(alpha = 0.95f)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .testTag("banner_wall_guide")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isWallHorizontal) "🖐 Drag ── Horiz Wall across board grid" else "🖐 Drag │ Vert Wall across board grid",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            OutlinedButton(
+                                onClick = { onSelectWallOrientation(!isWallHorizontal) },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Text("Flip ↺", fontSize = 10.sp, fontWeight = FontWeight.Black)
+                            }
+                        }
+                    }
+                }
+
+                GameBoardComposable(
+                    gameState = gameState,
+                    boardTheme = boardTheme,
+                    isWallMode = isWallMode,
+                    isWallHorizontal = isWallHorizontal,
+                    validHighlights = validHighlights,
+                    soundManager = soundManager,
+                    onCellClick = onCellClick,
+                    onPlaceWall = onPlaceWall
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))

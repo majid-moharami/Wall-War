@@ -1,8 +1,8 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,15 +21,18 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import com.example.audio.SoundManager
 import com.example.engine.GameEngine
 import com.example.model.BoardTheme
 import com.example.model.GameState
 import com.example.model.Position
 import com.example.model.Wall
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 @Composable
@@ -39,6 +42,7 @@ fun GameBoardComposable(
     isWallMode: Boolean,
     isWallHorizontal: Boolean,
     validHighlights: List<Position>,
+    soundManager: SoundManager,
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
     modifier: Modifier = Modifier
@@ -48,7 +52,6 @@ fun GameBoardComposable(
 
     val themeGridBg = Color(boardTheme.gridBg)
     val themeCellBg = Color(boardTheme.cellBg)
-    val themeWallColor = Color(boardTheme.wallColor)
     val themePrimary = Color(boardTheme.primaryColor)
     val themePawn1 = Color(0xFF7C5CFF)
     val themePawn2 = Color(0xFFFFB800)
@@ -82,51 +85,68 @@ fun GameBoardComposable(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(gameState, isWallMode, isWallHorizontal) {
-                    detectTapGestures { offset ->
-                        val currentTurn = gameState.turn
-                        if (isWallMode) {
-                            val targetC = ((offset.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-                            val targetR = ((offset.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
-                            onPlaceWall(targetR, targetC, isWallHorizontal)
-                        } else {
-                            val c = (offset.x / stepX).toInt().coerceIn(0, cols - 1)
-                            val r = (offset.y / stepY).toInt().coerceIn(0, rows - 1)
-                            onCellClick(r, c)
+                    awaitEachGesture {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val startPos = down.position
+                        var isDrag = false
+
+                        val turn = gameState.turn
+                        var lastR = ((startPos.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                        var lastC = ((startPos.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+
+                        // If in wall mode or AI is not thinking, initialize hover preview
+                        val isTurnDisabled = gameState.isAiMatch && turn == 1 || gameState.winner != null
+                        if (isWallMode && !isTurnDisabled) {
+                            val initialWall = Wall(lastR, lastC, isWallHorizontal, turn)
+                            activeHoverWall = initialWall
+                            isValidHover = GameEngine.canPlaceWall(gameState, turn, initialWall)
+                            soundManager.vibrateShort()
                         }
-                    }
-                }
-                .pointerInput(gameState, isWallHorizontal) {
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            val currentTurn = gameState.turn
-                            val targetC = ((offset.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-                            val targetR = ((offset.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
-                            val candidate = Wall(targetR, targetC, isWallHorizontal, currentTurn)
-                            activeHoverWall = candidate
-                            isValidHover = GameEngine.canPlaceWall(gameState, currentTurn, candidate)
-                        },
-                        onDrag = { change, _ ->
-                            val offset = change.position
-                            val currentTurn = gameState.turn
-                            val targetC = ((offset.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-                            val targetR = ((offset.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
-                            val candidate = Wall(targetR, targetC, isWallHorizontal, currentTurn)
-                            activeHoverWall = candidate
-                            isValidHover = GameEngine.canPlaceWall(gameState, currentTurn, candidate)
-                        },
-                        onDragEnd = {
-                            val wall = activeHoverWall
-                            if (wall != null && isValidHover) {
-                                onPlaceWall(wall.r, wall.c, wall.isHorizontal)
+
+                        do {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull() ?: break
+
+                            if (change.pressed) {
+                                val dist = hypot(change.position.x - startPos.x, change.position.y - startPos.y)
+                                if (dist > 8f) {
+                                    isDrag = true
+                                }
+
+                                if (isWallMode && !isTurnDisabled) {
+                                    val r = ((change.position.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                                    val c = ((change.position.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+
+                                    if (r != lastR || c != lastC || activeHoverWall == null) {
+                                        lastR = r
+                                        lastC = c
+                                        val candidate = Wall(r, c, isWallHorizontal, turn)
+                                        activeHoverWall = candidate
+                                        isValidHover = GameEngine.canPlaceWall(gameState, turn, candidate)
+                                        soundManager.vibrateShort()
+                                    }
+                                    change.consume()
+                                }
+                            } else {
+                                // Pointer up / release gesture
+                                val currentHover = activeHoverWall
+                                if (isWallMode && currentHover != null && !isTurnDisabled) {
+                                    if (isValidHover) {
+                                        onPlaceWall(currentHover.r, currentHover.c, currentHover.isHorizontal)
+                                    } else {
+                                        soundManager.playErrorSound()
+                                    }
+                                    activeHoverWall = null
+                                    isValidHover = false
+                                } else if (!isWallMode && !isTurnDisabled) {
+                                    val cellC = (startPos.x / stepX).toInt().coerceIn(0, cols - 1)
+                                    val cellR = (startPos.y / stepY).toInt().coerceIn(0, rows - 1)
+                                    onCellClick(cellR, cellC)
+                                }
+                                break
                             }
-                            activeHoverWall = null
-                            isValidHover = false
-                        },
-                        onDragCancel = {
-                            activeHoverWall = null
-                            isValidHover = false
-                        }
-                    )
+                        } while (true)
+                    }
                 }
         ) {
             // Draw Outer Board Background
@@ -169,7 +189,28 @@ fun GameBoardComposable(
                 }
             }
 
-            // 2. Draw Placed Walls with Player-Specific Color Indicators
+            // 2. Draw Snap Grid Target Dots when in Wall Mode
+            if (isWallMode && gameState.winner == null) {
+                for (r in 0 until rows - 1) {
+                    for (c in 0 until cols - 1) {
+                        val cx = (c + 1) * stepX - gapW / 2f
+                        val cy = (r + 1) * stepY - gapH / 2f
+
+                        drawCircle(
+                            color = themePrimary.copy(alpha = 0.45f),
+                            radius = gapW * 0.4f,
+                            center = Offset(cx, cy)
+                        )
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.8f),
+                            radius = gapW * 0.2f,
+                            center = Offset(cx, cy)
+                        )
+                    }
+                }
+            }
+
+            // 3. Draw Placed Walls with Player-Specific Color Indicators
             for (wall in gameState.walls) {
                 val wallOwnerColor = if (wall.playerOwner == 0) themePawn1 else themePawn2
                 val darkBorder = if (wall.playerOwner == 0) Color(0xFF381E72) else Color(0xFF5C4000)
@@ -243,56 +284,102 @@ fun GameBoardComposable(
                 }
             }
 
-            // 3. Live Drag Hover Preview Wall
+            // 4. Live Drag Hover Preview Wall with High-Contrast Colors & Badge Icon
             val hover = activeHoverWall
             if (hover != null) {
-                val previewColor = if (isValidHover) Color(0xFF81C784) else Color(0xFFFFB4AB)
-                val strokeColor = if (isValidHover) Color(0xFF2E7D32) else Color(0xFFB71C1C)
+                val previewFill = if (isValidHover) Color(0xFF4CAF50) else Color(0xFFF44336)
+                val previewBorder = if (isValidHover) Color(0xFF1B5E20) else Color(0xFFB71C1C)
 
                 if (hover.isHorizontal) {
                     val x = hover.c * stepX
                     val y = hover.r * stepY + cellH + (gapH * 0.1f)
                     val wallWidth = cellW * 2 + gapW
-                    val wallHeight = gapH * 0.8f
+                    val wallHeight = gapH * 0.85f
+
+                    // Shadow / Glow effect
+                    drawRoundRect(
+                        color = previewFill.copy(alpha = 0.3f),
+                        topLeft = Offset(x - 4f, y - 4f),
+                        size = Size(wallWidth + 8f, wallHeight + 8f),
+                        cornerRadius = CornerRadius(12f, 12f)
+                    )
 
                     drawRoundRect(
-                        color = previewColor.copy(alpha = 0.75f),
+                        color = previewFill.copy(alpha = 0.85f),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(8f, 8f)
                     )
 
                     drawRoundRect(
-                        color = strokeColor,
+                        color = previewBorder,
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(8f, 8f),
                         style = Stroke(width = 4f)
                     )
+
+                    // Draw Checkmark or Cross Emblem
+                    val cx = x + wallWidth / 2f
+                    val cy = y + wallHeight / 2f
+                    if (isValidHover) {
+                        val path = Path().apply {
+                            moveTo(cx - 10f, cy)
+                            lineTo(cx - 3f, cy + 6f)
+                            lineTo(cx + 10f, cy - 6f)
+                        }
+                        drawPath(path, color = Color.White, style = Stroke(width = 4f, cap = StrokeCap.Round))
+                    } else {
+                        drawLine(Color.White, Offset(cx - 7f, cy - 7f), Offset(cx + 7f, cy + 7f), strokeWidth = 4f, cap = StrokeCap.Round)
+                        drawLine(Color.White, Offset(cx + 7f, cy - 7f), Offset(cx - 7f, cy + 7f), strokeWidth = 4f, cap = StrokeCap.Round)
+                    }
                 } else {
                     val x = hover.c * stepX + cellW + (gapW * 0.1f)
                     val y = hover.r * stepY
-                    val wallWidth = gapW * 0.8f
+                    val wallWidth = gapW * 0.85f
                     val wallHeight = cellH * 2 + gapH
 
+                    // Shadow / Glow effect
                     drawRoundRect(
-                        color = previewColor.copy(alpha = 0.75f),
+                        color = previewFill.copy(alpha = 0.3f),
+                        topLeft = Offset(x - 4f, y - 4f),
+                        size = Size(wallWidth + 8f, wallHeight + 8f),
+                        cornerRadius = CornerRadius(12f, 12f)
+                    )
+
+                    drawRoundRect(
+                        color = previewFill.copy(alpha = 0.85f),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(8f, 8f)
                     )
 
                     drawRoundRect(
-                        color = strokeColor,
+                        color = previewBorder,
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(8f, 8f),
                         style = Stroke(width = 4f)
                     )
+
+                    // Draw Checkmark or Cross Emblem
+                    val cx = x + wallWidth / 2f
+                    val cy = y + wallHeight / 2f
+                    if (isValidHover) {
+                        val path = Path().apply {
+                            moveTo(cx - 8f, cy)
+                            lineTo(cx - 2f, cy + 5f)
+                            lineTo(cx + 8f, cy - 5f)
+                        }
+                        drawPath(path, color = Color.White, style = Stroke(width = 4f, cap = StrokeCap.Round))
+                    } else {
+                        drawLine(Color.White, Offset(cx - 6f, cy - 6f), Offset(cx + 6f, cy + 6f), strokeWidth = 4f, cap = StrokeCap.Round)
+                        drawLine(Color.White, Offset(cx + 6f, cy - 6f), Offset(cx - 6f, cy + 6f), strokeWidth = 4f, cap = StrokeCap.Round)
+                    }
                 }
             }
 
-            // 4. Draw Player Pawns (3D Polished Spheres with Custom Player Symbols)
+            // 5. Draw Player Pawns (3D Polished Spheres with Custom Player Symbols)
             for (p in gameState.pawns.indices) {
                 val pawnPos = gameState.pawns[p]
                 val centerX = pawnPos.c * stepX + cellW / 2f
@@ -401,4 +488,5 @@ fun GameBoardComposable(
         }
     }
 }
+
 
