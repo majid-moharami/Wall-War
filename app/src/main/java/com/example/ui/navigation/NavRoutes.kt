@@ -6,7 +6,11 @@ import kotlinx.serialization.Serializable
 object HomeRoute
 
 @Serializable
-object GameBoardRoute
+data class GameBoardRoute(
+    val mode: String = "DUEL",
+    val opponent: String = "AI",
+    val difficulty: String = "NORMAL"
+)
 
 @Serializable
 object RulesRoute

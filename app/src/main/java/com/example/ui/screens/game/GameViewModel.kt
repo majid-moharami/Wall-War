@@ -1,10 +1,13 @@
-package com.example.ui
+package com.example.ui.screens.game
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.navigation.toRoute
 import com.example.audio.SoundManager
 import com.example.data.GameRepository
 import com.example.data.MatchRecord
+import com.example.data.SettingsRepository
 import com.example.engine.AiEngine
 import com.example.engine.GameEngine
 import com.example.model.AiDifficulty
@@ -15,43 +18,32 @@ import com.example.model.Move
 import com.example.model.OpponentType
 import com.example.model.Position
 import com.example.model.Wall
+import com.example.ui.navigation.GameBoardRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
-enum class AppScreen {
-    HOME,
-    GAME_BOARD,
-    RULES,
-    HISTORY,
-    SETTINGS
-}
-
 @HiltViewModel
-class MainViewModel @Inject constructor(
+class GameViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: GameRepository,
-    val soundManager: SoundManager
+    val soundManager: SoundManager,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    val matchHistory: StateFlow<List<MatchRecord>> = repository.allMatches
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val navArgs = savedStateHandle.toRoute<GameBoardRoute>()
 
-    val totalWins: StateFlow<Int> = repository.playerWins
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+    val opponentType = try { OpponentType.valueOf(navArgs.opponent) } catch (_: Exception) { OpponentType.AI }
+    val aiDifficulty = try { AiDifficulty.valueOf(navArgs.difficulty) } catch (_: Exception) { AiDifficulty.NORMAL }
+    val gameMode = try { GameMode.valueOf(navArgs.mode) } catch (_: Exception) { GameMode.DUEL }
 
-    val totalMatchesCount: StateFlow<Int> = repository.totalMatches
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
-
-    private val _currentScreen = MutableStateFlow(AppScreen.HOME)
-    val currentScreen: StateFlow<AppScreen> = _currentScreen.asStateFlow()
+    val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
     private val _gameState = MutableStateFlow(GameEngine.createInitialState())
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
@@ -62,15 +54,6 @@ class MainViewModel @Inject constructor(
     private val _isWallHorizontal = MutableStateFlow(true)
     val isWallHorizontal: StateFlow<Boolean> = _isWallHorizontal.asStateFlow()
 
-    private val _opponentType = MutableStateFlow(OpponentType.AI)
-    val opponentType: StateFlow<OpponentType> = _opponentType.asStateFlow()
-
-    private val _aiDifficulty = MutableStateFlow(AiDifficulty.NORMAL)
-    val aiDifficulty: StateFlow<AiDifficulty> = _aiDifficulty.asStateFlow()
-
-    private val _boardTheme = MutableStateFlow(BoardTheme.ELEGANT_DARK)
-    val boardTheme: StateFlow<BoardTheme> = _boardTheme.asStateFlow()
-
     private val _selectedPosition = MutableStateFlow<Position?>(null)
     val selectedPosition: StateFlow<Position?> = _selectedPosition.asStateFlow()
 
@@ -79,17 +62,15 @@ class MainViewModel @Inject constructor(
 
     private var matchStartTime = System.currentTimeMillis()
 
-    fun navigateTo(screen: AppScreen) {
-        _currentScreen.value = screen
+    init {
+        startNewGame(gameMode, opponentType, aiDifficulty)
     }
 
     fun startNewGame(
-        mode: GameMode = GameMode.DUEL,
-        opponent: OpponentType = OpponentType.AI,
-        difficulty: AiDifficulty = AiDifficulty.NORMAL
+        mode: GameMode = gameMode,
+        opponent: OpponentType = opponentType,
+        difficulty: AiDifficulty = aiDifficulty
     ) {
-        _opponentType.value = opponent
-        _aiDifficulty.value = difficulty
         _isWallMode.value = false
         _selectedPosition.value = null
 
@@ -100,8 +81,6 @@ class MainViewModel @Inject constructor(
         _gameState.value = initialState
         _validMoveHighlights.value = GameEngine.pawnMoves(initialState, initialState.turn)
         matchStartTime = System.currentTimeMillis()
-
-        _currentScreen.value = AppScreen.GAME_BOARD
     }
 
     fun toggleWallMode() {
@@ -109,11 +88,6 @@ class MainViewModel @Inject constructor(
         if (_isWallMode.value) {
             _selectedPosition.value = null
         }
-        soundManager.vibrateShort()
-    }
-
-    fun toggleWallOrientation() {
-        _isWallHorizontal.value = !_isWallHorizontal.value
         soundManager.vibrateShort()
     }
 
@@ -142,19 +116,12 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    fun setBoardTheme(theme: BoardTheme) {
-        _boardTheme.value = theme
-    }
-
     fun selectCell(r: Int, c: Int) {
         val state = _gameState.value
         if (state.isGameOver()) return
-
-        // If it's AI's turn in an AI match, ignore user inputs
         if (state.isAiMatch && state.turn == 1) return
 
         if (_isWallMode.value) {
-            // Attempt wall placement
             val wall = Wall(r, c, _isWallHorizontal.value, playerOwner = state.turn)
             if (GameEngine.canPlaceWall(state, state.turn, wall)) {
                 applyUserMove(Move.WallPlacement(wall))
@@ -163,7 +130,6 @@ class MainViewModel @Inject constructor(
                 soundManager.playErrorSound()
             }
         } else {
-            // Pawn step placement
             val legalMoves = GameEngine.pawnMoves(state, state.turn)
             val clickedTarget = Position(r, c)
             if (legalMoves.contains(clickedTarget)) {
@@ -201,10 +167,9 @@ class MainViewModel @Inject constructor(
             return
         }
 
-        // Trigger AI turn if applicable
         if (state.isAiMatch && state.turn == 1) {
             viewModelScope.launch {
-                delay(400) // Realistic thinking delay
+                delay(400)
                 val aiMove = withContext(Dispatchers.Default) {
                     AiEngine.computeBestMove(state, state.aiDifficulty)
                 }
@@ -231,7 +196,6 @@ class MainViewModel @Inject constructor(
         val state = _gameState.value
         if (state.moveHistory.isEmpty() || state.isGameOver()) return
 
-        // Undo up to 2 moves in AI mode (user move + AI move) or 1 move in local play
         val movesToPop = if (state.isAiMatch && state.moveHistory.size >= 2) 2 else 1
         var replayState = GameEngine.createInitialState(state.mode).copy(
             isAiMatch = state.isAiMatch,
@@ -251,7 +215,7 @@ class MainViewModel @Inject constructor(
 
     fun restartGame() {
         val state = _gameState.value
-        startNewGame(state.mode, _opponentType.value, state.aiDifficulty)
+        startNewGame(state.mode, opponentType, state.aiDifficulty)
     }
 
     private fun saveMatchToHistory(state: GameState) {
@@ -259,7 +223,7 @@ class MainViewModel @Inject constructor(
         val durationSec = (System.currentTimeMillis() - matchStartTime) / 1000
         val wallsCount = state.walls.size
 
-        val opponentStr = when (_opponentType.value) {
+        val opponentStr = when (opponentType) {
             OpponentType.AI -> "AI (${state.aiDifficulty.displayName})"
             OpponentType.LOCAL_PASS_PLAY -> "Pass & Play"
             OpponentType.ONLINE -> "Online Duel"
@@ -276,12 +240,6 @@ class MainViewModel @Inject constructor(
 
         viewModelScope.launch {
             repository.recordMatch(record)
-        }
-    }
-
-    fun clearHistory() {
-        viewModelScope.launch {
-            repository.clearAllHistory()
         }
     }
 }
