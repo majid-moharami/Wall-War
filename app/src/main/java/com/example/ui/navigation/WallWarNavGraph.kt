@@ -29,7 +29,7 @@ fun WallWarNavGraph(
         startDestination = HomeRoute,
         modifier = modifier
     ) {
-        composable<HomeRoute> {
+        composable<HomeRoute> { backStackEntry ->
             val viewModel: HomeViewModel = hiltViewModel()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
@@ -62,7 +62,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<GameBoardRoute> {
+        composable<GameBoardRoute> { backStackEntry ->
             val viewModel: GameViewModel = hiltViewModel()
             val gameState by viewModel.gameState.collectAsStateWithLifecycle()
             val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
@@ -90,7 +90,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<RulesRoute> {
+        composable<RulesRoute> { backStackEntry ->
             RulesScreen(
                 onBack = {
                     if (!navController.popBackStack()) {
@@ -100,7 +100,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<HistoryRoute> {
+        composable<HistoryRoute> { backStackEntry ->
             val viewModel: HistoryViewModel = hiltViewModel()
             val matchHistory by viewModel.matchHistory.collectAsStateWithLifecycle()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
@@ -119,7 +119,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<SettingsRoute> {
+        composable<SettingsRoute> { backStackEntry ->
             val viewModel: SettingsViewModel = hiltViewModel()
             val selectedTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
 
