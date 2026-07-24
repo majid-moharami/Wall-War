@@ -38,18 +38,32 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.audio.SoundManager
+import com.example.engine.GameEngine
 import com.example.model.BoardTheme
 import com.example.model.GameState
 import com.example.model.Position
+import com.example.model.Wall
 import com.example.ui.components.GameBoardComposable
 import com.example.ui.theme.WallWarAmber
 import com.example.ui.theme.WallWarPurple
+import kotlin.math.roundToInt
 
 @Composable
 fun GameBoardScreen(
@@ -67,6 +81,79 @@ fun GameBoardScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var activeDragWall by remember { mutableStateOf<Wall?>(null) }
+    var isValidDrag by remember { mutableStateOf(false) }
+    var boardBoundsInWindow by remember { mutableStateOf<Rect?>(null) }
+
+    val handleStartWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit = { isHorizontal, windowPos ->
+        onSelectWallOrientation(isHorizontal)
+        val bounds = boardBoundsInWindow
+        if (bounds != null) {
+            val boardX = windowPos.x - bounds.left
+            val boardY = windowPos.y - bounds.top
+
+            val cols = gameState.cols
+            val rows = gameState.rows
+            val width = bounds.width
+            val height = bounds.height
+            val gapRatio = 0.18f
+            val cellW = width / (cols + (cols - 1) * gapRatio)
+            val cellH = height / (rows + (rows - 1) * gapRatio)
+            val stepX = cellW + (cellW * gapRatio)
+            val stepY = cellH + (cellH * gapRatio)
+
+            val targetC = ((boardX / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+            val targetR = ((boardY / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+
+            val candidate = Wall(targetR, targetC, isHorizontal, gameState.turn)
+            activeDragWall = candidate
+            isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
+            soundManager.vibrateShort()
+        }
+    }
+
+    val handleUpdateWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit = { isHorizontal, windowPos ->
+        val bounds = boardBoundsInWindow
+        if (bounds != null) {
+            val boardX = windowPos.x - bounds.left
+            val boardY = windowPos.y - bounds.top
+
+            val cols = gameState.cols
+            val rows = gameState.rows
+            val width = bounds.width
+            val height = bounds.height
+            val gapRatio = 0.18f
+            val cellW = width / (cols + (cols - 1) * gapRatio)
+            val cellH = height / (rows + (rows - 1) * gapRatio)
+            val stepX = cellW + (cellW * gapRatio)
+            val stepY = cellH + (cellH * gapRatio)
+
+            val targetC = ((boardX / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+            val targetR = ((boardY / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+
+            val current = activeDragWall
+            if (current == null || current.r != targetR || current.c != targetC || current.isHorizontal != isHorizontal) {
+                val candidate = Wall(targetR, targetC, isHorizontal, gameState.turn)
+                activeDragWall = candidate
+                isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
+                soundManager.vibrateShort()
+            }
+        }
+    }
+
+    val handleEndWallDrag: () -> Unit = {
+        val wall = activeDragWall
+        val valid = isValidDrag
+        if (wall != null) {
+            if (valid) {
+                onPlaceWall(wall.r, wall.c, wall.isHorizontal)
+            } else {
+                soundManager.playErrorSound()
+            }
+        }
+        activeDragWall = null
+        isValidDrag = false
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -146,55 +233,24 @@ fun GameBoardScreen(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    boardBoundsInWindow = coordinates.boundsInWindow()
+                },
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                if (isWallMode && gameState.winner == null && !(gameState.isAiMatch && gameState.turn == 1)) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = WallWarAmber.copy(alpha = 0.95f)
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .padding(bottom = 6.dp)
-                            .testTag("banner_wall_guide")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = if (isWallHorizontal) "🖐 Drag ── Horiz Wall across board grid" else "🖐 Drag │ Vert Wall across board grid",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.Black
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            OutlinedButton(
-                                onClick = { onSelectWallOrientation(!isWallHorizontal) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Black),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Black),
-                                modifier = Modifier.height(28.dp)
-                            ) {
-                                Text("Flip ↺", fontSize = 10.sp, fontWeight = FontWeight.Black)
-                            }
-                        }
-                    }
-                }
-
-                GameBoardComposable(
-                    gameState = gameState,
-                    boardTheme = boardTheme,
-                    isWallMode = isWallMode,
-                    isWallHorizontal = isWallHorizontal,
-                    validHighlights = validHighlights,
-                    soundManager = soundManager,
-                    onCellClick = onCellClick,
-                    onPlaceWall = onPlaceWall
-                )
-            }
+            GameBoardComposable(
+                gameState = gameState,
+                boardTheme = boardTheme,
+                isWallMode = isWallMode,
+                isWallHorizontal = isWallHorizontal,
+                validHighlights = validHighlights,
+                soundManager = soundManager,
+                onCellClick = onCellClick,
+                onPlaceWall = onPlaceWall,
+                externalDragWall = activeDragWall,
+                externalIsValidDrag = isValidDrag
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -211,7 +267,10 @@ fun GameBoardScreen(
             wallsLeft = gameState.leftWalls[activeTurn],
             isWallMode = isWallMode,
             isWallHorizontal = isWallHorizontal,
-            onSelectWallOrientation = onSelectWallOrientation
+            onSelectWallOrientation = onSelectWallOrientation,
+            onStartWallDrag = handleStartWallDrag,
+            onUpdateWallDrag = handleUpdateWallDrag,
+            onEndWallDrag = handleEndWallDrag
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -341,8 +400,14 @@ fun PlayerWallControlRow(
     isWallMode: Boolean,
     isWallHorizontal: Boolean,
     onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
+    onStartWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit,
+    onUpdateWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit,
+    onEndWallDrag: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var horizBounds by remember { mutableStateOf<Rect?>(null) }
+    var vertBounds by remember { mutableStateOf<Rect?>(null) }
+
     Card(
         colors = CardDefaults.cardColors(
             containerColor = if (isTurn) pawnColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -409,7 +474,31 @@ fun PlayerWallControlRow(
                     contentColor = if (isWallMode && isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.height(42.dp)
+                modifier = Modifier
+                    .height(42.dp)
+                    .onGloballyPositioned { horizBounds = it.boundsInWindow() }
+                    .pointerInput(isTurn, wallsLeft) {
+                        if (!isTurn || wallsLeft <= 0) return@pointerInput
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val bounds = horizBounds ?: return@awaitEachGesture
+                            val windowPos = bounds.topLeft + down.position
+                            onStartWallDrag(true, windowPos)
+
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (change.pressed) {
+                                    val currentPos = bounds.topLeft + change.position
+                                    onUpdateWallDrag(true, currentPos)
+                                    change.consume()
+                                } else {
+                                    onEndWallDrag()
+                                    break
+                                }
+                            } while (true)
+                        }
+                    }
             ) {
                 Icon(
                     imageVector = Icons.Default.CropLandscape,
@@ -433,7 +522,31 @@ fun PlayerWallControlRow(
                     contentColor = if (isWallMode && !isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.height(42.dp)
+                modifier = Modifier
+                    .height(42.dp)
+                    .onGloballyPositioned { vertBounds = it.boundsInWindow() }
+                    .pointerInput(isTurn, wallsLeft) {
+                        if (!isTurn || wallsLeft <= 0) return@pointerInput
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val bounds = vertBounds ?: return@awaitEachGesture
+                            val windowPos = bounds.topLeft + down.position
+                            onStartWallDrag(false, windowPos)
+
+                            do {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull() ?: break
+                                if (change.pressed) {
+                                    val currentPos = bounds.topLeft + change.position
+                                    onUpdateWallDrag(false, currentPos)
+                                    change.consume()
+                                } else {
+                                    onEndWallDrag()
+                                    break
+                                }
+                            } while (true)
+                        }
+                    }
             ) {
                 Icon(
                     imageVector = Icons.Default.CropPortrait,

@@ -45,6 +45,8 @@ fun GameBoardComposable(
     soundManager: SoundManager,
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
+    externalDragWall: Wall? = null,
+    externalIsValidDrag: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val cols = gameState.cols
@@ -56,9 +58,12 @@ fun GameBoardComposable(
     val themePawn1 = Color(0xFF7C5CFF)
     val themePawn2 = Color(0xFFFFB800)
 
-    // Drag-and-drop state for live preview wall placement
+    // Internal drag-and-drop state for direct board touches
     var activeHoverWall by remember { mutableStateOf<Wall?>(null) }
     var isValidHover by remember { mutableStateOf(false) }
+
+    val effectiveHoverWall = externalDragWall ?: activeHoverWall
+    val effectiveIsValidHover = if (externalDragWall != null) externalIsValidDrag else isValidHover
 
     BoxWithConstraints(
         modifier = modifier
@@ -189,8 +194,8 @@ fun GameBoardComposable(
                 }
             }
 
-            // 2. Draw Snap Grid Target Dots when in Wall Mode
-            if (isWallMode && gameState.winner == null) {
+            // 2. Draw Snap Grid Target Dots when dragging a wall or in Wall Mode
+            if ((isWallMode || effectiveHoverWall != null) && gameState.winner == null) {
                 for (r in 0 until rows - 1) {
                     for (c in 0 until cols - 1) {
                         val cx = (c + 1) * stepX - gapW / 2f
@@ -285,10 +290,10 @@ fun GameBoardComposable(
             }
 
             // 4. Live Drag Hover Preview Wall with High-Contrast Colors & Badge Icon
-            val hover = activeHoverWall
+            val hover = effectiveHoverWall
             if (hover != null) {
-                val previewFill = if (isValidHover) Color(0xFF4CAF50) else Color(0xFFF44336)
-                val previewBorder = if (isValidHover) Color(0xFF1B5E20) else Color(0xFFB71C1C)
+                val previewFill = if (effectiveIsValidHover) Color(0xFF4CAF50) else Color(0xFFF44336)
+                val previewBorder = if (effectiveIsValidHover) Color(0xFF1B5E20) else Color(0xFFB71C1C)
 
                 if (hover.isHorizontal) {
                     val x = hover.c * stepX
