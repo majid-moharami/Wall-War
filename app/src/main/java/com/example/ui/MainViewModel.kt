@@ -1,10 +1,8 @@
 package com.example.ui
 
-import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.audio.SoundManager
-import com.example.data.AppDatabase
 import com.example.data.GameRepository
 import com.example.data.MatchRecord
 import com.example.engine.AiEngine
@@ -17,6 +15,7 @@ import com.example.model.Move
 import com.example.model.OpponentType
 import com.example.model.Position
 import com.example.model.Wall
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 enum class AppScreen {
     HOME,
@@ -35,15 +35,11 @@ enum class AppScreen {
     SETTINGS
 }
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
-
-    val soundManager = SoundManager(application)
-    private val repository: GameRepository
-
-    init {
-        val db = AppDatabase.getDatabase(application)
-        repository = GameRepository(db.matchDao())
-    }
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val repository: GameRepository,
+    val soundManager: SoundManager
+) : ViewModel() {
 
     val matchHistory: StateFlow<List<MatchRecord>> = repository.allMatches
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
