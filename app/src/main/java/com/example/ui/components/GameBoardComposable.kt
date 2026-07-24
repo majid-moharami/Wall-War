@@ -96,7 +96,8 @@ fun GameBoardComposable(
                         var isDrag = false
 
                         val turn = gameState.turn
-                        var lastR = ((startPos.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                        val fingerOffsetY = stepY * 2.5f
+                        var lastR = (((startPos.y - fingerOffsetY) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
                         var lastC = ((startPos.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
 
                         // If in wall mode or AI is not thinking, initialize hover preview
@@ -119,7 +120,7 @@ fun GameBoardComposable(
                                 }
 
                                 if (isWallMode && !isTurnDisabled) {
-                                    val r = ((change.position.y / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+                                    val r = (((change.position.y - fingerOffsetY) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
                                     val c = ((change.position.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
 
                                     if (r != lastR || c != lastC || activeHoverWall == null) {

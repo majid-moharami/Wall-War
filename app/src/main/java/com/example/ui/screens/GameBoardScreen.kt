@@ -102,8 +102,9 @@ fun GameBoardScreen(
             val stepX = cellW + (cellW * gapRatio)
             val stepY = cellH + (cellH * gapRatio)
 
+            val fingerOffsetUp = stepY * 2.5f
             val targetC = ((boardX / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-            val targetR = ((boardY / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+            val targetR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
 
             val candidate = Wall(targetR, targetC, isHorizontal, gameState.turn)
             activeDragWall = candidate
@@ -128,8 +129,9 @@ fun GameBoardScreen(
             val stepX = cellW + (cellW * gapRatio)
             val stepY = cellH + (cellH * gapRatio)
 
+            val fingerOffsetUp = stepY * 2.5f
             val targetC = ((boardX / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-            val targetR = ((boardY / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+            val targetR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
 
             val current = activeDragWall
             if (current == null || current.r != targetR || current.c != targetC || current.isHorizontal != isHorizontal) {
