@@ -3,8 +3,7 @@ name: Android CI - Build & Send APK to Telegram
 on:
   push:
     branches:
-      - main
-      - master
+      - '**'
   workflow_dispatch:
 
 jobs:
@@ -60,9 +59,10 @@ jobs:
           APK_FILE="${{ steps.find_apk.outputs.apk_path }}"
           COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
           REPO_NAME="${{ github.repository }}"
+          BRANCH_NAME="${{ github.ref_name }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
 
-          CAPTION="🎮 *Wall War - Latest APK Build*%0A%0A📦 *Repository:* \`${REPO_NAME}\`%0A🔖 *Commit:* \`${SHORT_SHA}\`%0A📝 *Message:* ${COMMIT_MSG}"
+          CAPTION="🎮 *Wall War - Latest APK Build*%0A%0A📦 *Repository:* \`${REPO_NAME}\`%0A🌿 *Branch:* \`${BRANCH_NAME}\`%0A🔖 *Commit:* \`${SHORT_SHA}\`%0A📝 *Message:* ${COMMIT_MSG}"
 
           echo "Uploading $APK_FILE to Telegram..."
           curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
