@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">WallWar</string>
+    <string name="app_tagline">Strategic Wall Placement &amp; Pawn Duels</string>
 </resources>
