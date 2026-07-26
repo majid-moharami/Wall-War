@@ -180,47 +180,76 @@ fun GameBoardComposable(
                     }
                 }
         ) {
-            // Draw Outer Board Background
+            // Draw Outer Board Background & Gradient Overlays
             drawRoundRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(themeGridBg, themeGridBg.copy(alpha = 0.9f))
+                    colors = listOf(Color(0xFF151D33), Color(0xFF101628))
                 ),
                 cornerRadius = CornerRadius(24f, 24f)
             )
 
-            // 1. Draw Grid Cells
+            // Outer Border
+            drawRoundRect(
+                color = Color(0xFF283A60),
+                cornerRadius = CornerRadius(24f, 24f),
+                style = Stroke(width = 3f)
+            )
+
+            // 1. Draw Grid Cells & Border Grid Lines
+            val gridBorderColor = Color(0xFF1D2B4A)
+            val cellBgColor = Color(0xFF121B30)
+
             for (r in 0 until rows) {
                 for (c in 0 until cols) {
                     val x = c * stepX
                     val y = r * stepY
 
-                    val isHighlight = validHighlights.contains(Position(r, c))
-                    val cellColor = if (isHighlight) {
-                        themePrimary.copy(alpha = 0.35f)
-                    } else {
-                        themeCellBg
-                    }
-
                     drawRoundRect(
-                        color = cellColor,
+                        color = cellBgColor,
                         topLeft = Offset(x, y),
                         size = Size(cellW, cellH),
-                        cornerRadius = CornerRadius(12f, 12f)
+                        cornerRadius = CornerRadius(8f, 8f)
                     )
 
-                    if (isHighlight) {
-                        drawRoundRect(
-                            color = themePrimary,
-                            topLeft = Offset(x, y),
-                            size = Size(cellW, cellH),
-                            cornerRadius = CornerRadius(12f, 12f),
-                            style = Stroke(width = 4f)
-                        )
-                    }
+                    drawRoundRect(
+                        color = gridBorderColor,
+                        topLeft = Offset(x, y),
+                        size = Size(cellW, cellH),
+                        cornerRadius = CornerRadius(8f, 8f),
+                        style = Stroke(width = 1f)
+                    )
                 }
             }
 
-            // 2. Draw Snap Grid Target Dots when dragging a wall or in Wall Mode
+            // 2. Draw Valid Move Candidate Dots (Small Pulsing / Glowing Dots around Active Pawn)
+            for (pos in validHighlights) {
+                val cx = pos.c * stepX + cellW / 2f
+                val cy = pos.r * stepY + cellH / 2f
+                val dotRadius = minOf(cellW, cellH) * 0.18f
+
+                // Drop shadow
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.4f),
+                    radius = dotRadius * 1.1f,
+                    center = Offset(cx, cy + 2f)
+                )
+
+                // Glow ring
+                drawCircle(
+                    color = Color(0x553B82F6),
+                    radius = dotRadius * 1.6f,
+                    center = Offset(cx, cy)
+                )
+
+                // Candidate dot
+                drawCircle(
+                    color = Color(0xFF3B82F6),
+                    radius = dotRadius,
+                    center = Offset(cx, cy)
+                )
+            }
+
+            // 3. Draw Snap Grid Target Dots when in Wall Mode / Dragging
             if ((isWallMode || effectiveHoverWall != null) && gameState.winner == null) {
                 for (r in 0 until rows - 1) {
                     for (c in 0 until cols - 1) {
@@ -228,189 +257,155 @@ fun GameBoardComposable(
                         val cy = (r + 1) * stepY - gapH / 2f
 
                         drawCircle(
-                            color = themePrimary.copy(alpha = 0.45f),
-                            radius = gapW * 0.4f,
+                            color = Color(0xFF3B82F6).copy(alpha = 0.35f),
+                            radius = gapW * 0.45f,
                             center = Offset(cx, cy)
                         )
                         drawCircle(
-                            color = Color.White.copy(alpha = 0.8f),
-                            radius = gapW * 0.2f,
+                            color = Color.White.copy(alpha = 0.85f),
+                            radius = gapW * 0.22f,
                             center = Offset(cx, cy)
                         )
                     }
                 }
             }
 
-            // 3. Draw Placed Walls with Player-Specific Color Indicators
-            for (wall in gameState.walls) {
-                val wallOwnerColor = if (wall.playerOwner == 0) themePawn1 else themePawn2
-                val darkBorder = if (wall.playerOwner == 0) Color(0xFF381E72) else Color(0xFF5C4000)
+            // 4. Draw Placed Walls (Glowing Neon Blue Pill Capsules)
+            val wallBlue = Color(0xFF3B82F6)
+            val wallShadow = Color.Black.copy(alpha = 0.5f)
 
+            for (wall in gameState.walls) {
                 if (wall.isHorizontal) {
                     val x = wall.c * stepX
-                    val y = wall.r * stepY + cellH + (gapH * 0.1f)
+                    val y = wall.r * stepY + cellH + (gapH * 0.05f)
                     val wallWidth = cellW * 2 + gapW
-                    val wallHeight = gapH * 0.8f
+                    val wallHeight = gapH * 0.9f
 
+                    // Wall Drop Shadow
+                    drawRoundRect(
+                        color = wallShadow,
+                        topLeft = Offset(x, y + 3f),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(10f, 10f)
+                    )
+
+                    // Wall Main Pill
                     drawRoundRect(
                         brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                wallOwnerColor,
-                                wallOwnerColor.copy(alpha = 0.85f),
-                                wallOwnerColor
-                            )
+                            colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
                         ),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
+                        cornerRadius = CornerRadius(10f, 10f)
                     )
 
+                    // Top Highlight Line
                     drawRoundRect(
-                        color = darkBorder.copy(alpha = 0.6f),
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f),
-                        style = Stroke(width = 2f)
-                    )
-
-                    drawRoundRect(
-                        color = Color.White.copy(alpha = 0.45f),
-                        topLeft = Offset(x + 8f, y + wallHeight * 0.35f),
-                        size = Size(wallWidth - 16f, wallHeight * 0.3f),
-                        cornerRadius = CornerRadius(4f, 4f)
+                        color = Color.White.copy(alpha = 0.4f),
+                        topLeft = Offset(x + 4f, y + 2f),
+                        size = Size(wallWidth - 8f, wallHeight * 0.3f),
+                        cornerRadius = CornerRadius(5f, 5f)
                     )
                 } else {
-                    val x = wall.c * stepX + cellW + (gapW * 0.1f)
+                    val x = wall.c * stepX + cellW + (gapW * 0.05f)
                     val y = wall.r * stepY
-                    val wallWidth = gapW * 0.8f
+                    val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
 
+                    // Wall Drop Shadow
+                    drawRoundRect(
+                        color = wallShadow,
+                        topLeft = Offset(x + 3f, y),
+                        size = Size(wallWidth, wallHeight),
+                        cornerRadius = CornerRadius(10f, 10f)
+                    )
+
+                    // Wall Main Pill
                     drawRoundRect(
                         brush = Brush.verticalGradient(
-                            colors = listOf(
-                                wallOwnerColor,
-                                wallOwnerColor.copy(alpha = 0.85f),
-                                wallOwnerColor
-                            )
+                            colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
                         ),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
+                        cornerRadius = CornerRadius(10f, 10f)
                     )
 
+                    // Left Highlight Line
                     drawRoundRect(
-                        color = darkBorder.copy(alpha = 0.6f),
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f),
-                        style = Stroke(width = 2f)
-                    )
-
-                    drawRoundRect(
-                        color = Color.White.copy(alpha = 0.45f),
-                        topLeft = Offset(x + wallWidth * 0.35f, y + 8f),
-                        size = Size(wallWidth * 0.3f, wallHeight - 16f),
-                        cornerRadius = CornerRadius(4f, 4f)
+                        color = Color.White.copy(alpha = 0.4f),
+                        topLeft = Offset(x + 2f, y + 4f),
+                        size = Size(wallWidth * 0.3f, wallHeight - 8f),
+                        cornerRadius = CornerRadius(5f, 5f)
                     )
                 }
             }
 
-            // 4. Live Drag Hover Preview Wall with High-Contrast Colors & Badge Icon
+            // 5. Live Drag Hover Preview Wall
             val hover = effectiveHoverWall
             if (hover != null) {
-                val previewFill = if (effectiveIsValidHover) Color(0xFF4CAF50) else Color(0xFFF44336)
-                val previewBorder = if (effectiveIsValidHover) Color(0xFF1B5E20) else Color(0xFFB71C1C)
+                val previewFill = if (effectiveIsValidHover) Color(0xFF3B82F6) else Color(0xFFEF4444)
+                val previewBorder = if (effectiveIsValidHover) Color(0xFF60A5FA) else Color(0xFFF87171)
 
                 if (hover.isHorizontal) {
                     val x = hover.c * stepX
-                    val y = hover.r * stepY + cellH + (gapH * 0.1f)
+                    val y = hover.r * stepY + cellH + (gapH * 0.05f)
                     val wallWidth = cellW * 2 + gapW
-                    val wallHeight = gapH * 0.85f
+                    val wallHeight = gapH * 0.9f
 
-                    // Shadow / Glow effect
+                    // Glow aura
                     drawRoundRect(
-                        color = previewFill.copy(alpha = 0.3f),
+                        color = previewFill.copy(alpha = 0.35f),
                         topLeft = Offset(x - 4f, y - 4f),
                         size = Size(wallWidth + 8f, wallHeight + 8f),
-                        cornerRadius = CornerRadius(12f, 12f)
+                        cornerRadius = CornerRadius(14f, 14f)
                     )
 
                     drawRoundRect(
                         color = previewFill.copy(alpha = 0.85f),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
+                        cornerRadius = CornerRadius(10f, 10f)
                     )
 
                     drawRoundRect(
                         color = previewBorder,
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f),
-                        style = Stroke(width = 4f)
+                        cornerRadius = CornerRadius(10f, 10f),
+                        style = Stroke(width = 3.5f)
                     )
-
-                    // Draw Checkmark or Cross Emblem
-                    val cx = x + wallWidth / 2f
-                    val cy = y + wallHeight / 2f
-                    if (isValidHover) {
-                        val path = Path().apply {
-                            moveTo(cx - 10f, cy)
-                            lineTo(cx - 3f, cy + 6f)
-                            lineTo(cx + 10f, cy - 6f)
-                        }
-                        drawPath(path, color = Color.White, style = Stroke(width = 4f, cap = StrokeCap.Round))
-                    } else {
-                        drawLine(Color.White, Offset(cx - 7f, cy - 7f), Offset(cx + 7f, cy + 7f), strokeWidth = 4f, cap = StrokeCap.Round)
-                        drawLine(Color.White, Offset(cx + 7f, cy - 7f), Offset(cx - 7f, cy + 7f), strokeWidth = 4f, cap = StrokeCap.Round)
-                    }
                 } else {
-                    val x = hover.c * stepX + cellW + (gapW * 0.1f)
+                    val x = hover.c * stepX + cellW + (gapW * 0.05f)
                     val y = hover.r * stepY
-                    val wallWidth = gapW * 0.85f
+                    val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
 
-                    // Shadow / Glow effect
+                    // Glow aura
                     drawRoundRect(
-                        color = previewFill.copy(alpha = 0.3f),
+                        color = previewFill.copy(alpha = 0.35f),
                         topLeft = Offset(x - 4f, y - 4f),
                         size = Size(wallWidth + 8f, wallHeight + 8f),
-                        cornerRadius = CornerRadius(12f, 12f)
+                        cornerRadius = CornerRadius(14f, 14f)
                     )
 
                     drawRoundRect(
                         color = previewFill.copy(alpha = 0.85f),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f)
+                        cornerRadius = CornerRadius(10f, 10f)
                     )
 
                     drawRoundRect(
                         color = previewBorder,
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(8f, 8f),
-                        style = Stroke(width = 4f)
+                        cornerRadius = CornerRadius(10f, 10f),
+                        style = Stroke(width = 3.5f)
                     )
-
-                    // Draw Checkmark or Cross Emblem
-                    val cx = x + wallWidth / 2f
-                    val cy = y + wallHeight / 2f
-                    if (isValidHover) {
-                        val path = Path().apply {
-                            moveTo(cx - 8f, cy)
-                            lineTo(cx - 2f, cy + 5f)
-                            lineTo(cx + 8f, cy - 5f)
-                        }
-                        drawPath(path, color = Color.White, style = Stroke(width = 4f, cap = StrokeCap.Round))
-                    } else {
-                        drawLine(Color.White, Offset(cx - 6f, cy - 6f), Offset(cx + 6f, cy + 6f), strokeWidth = 4f, cap = StrokeCap.Round)
-                        drawLine(Color.White, Offset(cx + 6f, cy - 6f), Offset(cx - 6f, cy + 6f), strokeWidth = 4f, cap = StrokeCap.Round)
-                    }
                 }
             }
 
-            // 5. Draw Player Pawns (3D Polished Spheres with Custom Player Symbols)
+            // 6. Draw Player Pawns (3D Spheres with White Ring Halo for P1)
             for (p in gameState.pawns.indices) {
                 val pawnPos = gameState.pawns[p]
                 val centerX = pawnPos.c * stepX + cellW / 2f
@@ -421,99 +416,86 @@ fun GameBoardComposable(
 
                 // Drop Shadow
                 drawCircle(
-                    color = Color.Black.copy(alpha = 0.45f),
+                    color = Color.Black.copy(alpha = 0.5f),
                     radius = pawnRadius * 1.05f,
-                    center = Offset(centerX + 3f, centerY + 5f)
+                    center = Offset(centerX + 2f, centerY + 5f)
                 )
 
-                // Active Pulse Ring
-                if (isTurn) {
-                    val auraColor = if (p == 0) themePawn1 else themePawn2
+                if (p == 0) {
+                    // Player 1 (Blue Pawn): Active White Ring Halo
                     drawCircle(
-                        color = auraColor.copy(alpha = 0.35f),
-                        radius = pawnRadius * 1.45f,
+                        color = Color.White,
+                        radius = pawnRadius * 1.25f,
+                        center = Offset(centerX, centerY),
+                        style = Stroke(width = 3.5f)
+                    )
+
+                    // 3D Blue Sphere
+                    val sphereGradients = listOf(
+                        Color(0xFFE0F2FE),
+                        Color(0xFF93C5FD),
+                        Color(0xFF3B82F6),
+                        Color(0xFF1D4ED8),
+                        Color(0xFF1E3A8A)
+                    )
+
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = sphereGradients,
+                            center = Offset(centerX - pawnRadius * 0.35f, centerY - pawnRadius * 0.35f),
+                            radius = pawnRadius * 1.5f
+                        ),
+                        radius = pawnRadius,
                         center = Offset(centerX, centerY)
                     )
+
+                    // Glossy Specular Reflection
                     drawCircle(
-                        color = auraColor,
-                        radius = pawnRadius * 1.2f,
-                        center = Offset(centerX, centerY),
-                        style = Stroke(width = 3f)
-                    )
-                }
-
-                // 3D Gradient Sphere
-                val sphereGradients = if (p == 0) {
-                    listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFE8DEF8),
-                        Color(0xFFD0BCFF),
-                        Color(0xFF7C5CFF),
-                        Color(0xFF280068)
+                        color = Color.White.copy(alpha = 0.7f),
+                        radius = pawnRadius * 0.32f,
+                        center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
                     )
                 } else {
-                    listOf(
-                        Color(0xFFFFFFFF),
-                        Color(0xFFFFF9C4),
-                        Color(0xFFFFD700),
-                        Color(0xFFFF9100),
-                        Color(0xFF522800)
+                    // Player 2 / AI (Red Coral Pawn)
+                    if (isTurn) {
+                        drawCircle(
+                            color = Color(0xFFEF4444).copy(alpha = 0.35f),
+                            radius = pawnRadius * 1.35f,
+                            center = Offset(centerX, centerY)
+                        )
+                        drawCircle(
+                            color = Color(0xFFEF4444),
+                            radius = pawnRadius * 1.2f,
+                            center = Offset(centerX, centerY),
+                            style = Stroke(width = 3f)
+                        )
+                    }
+
+                    // 3D Red Sphere
+                    val sphereGradients = listOf(
+                        Color(0xFFFFE4E6),
+                        Color(0xFFFCA5A5),
+                        Color(0xFFE84560),
+                        Color(0xFFDC2626),
+                        Color(0xFF881337)
                     )
-                }
 
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = sphereGradients,
-                        center = Offset(centerX - pawnRadius * 0.35f, centerY - pawnRadius * 0.35f),
-                        radius = pawnRadius * 1.6f
-                    ),
-                    radius = pawnRadius,
-                    center = Offset(centerX, centerY)
-                )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = sphereGradients,
+                            center = Offset(centerX - pawnRadius * 0.35f, centerY - pawnRadius * 0.35f),
+                            radius = pawnRadius * 1.5f
+                        ),
+                        radius = pawnRadius,
+                        center = Offset(centerX, centerY)
+                    )
 
-                // Glossy Highlight Arc
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.6f),
-                    radius = pawnRadius * 0.32f,
-                    center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
-                )
-
-                // Distinctive Symbol Emblem
-                val symbolColor = if (p == 0) Color(0xFF280068) else Color(0xFF3E1F00)
-                if (p == 0) {
-                    // Star Emblem for P1
-                    val path = Path().apply {
-                        val r = pawnRadius * 0.45f
-                        val cx = centerX
-                        val cy = centerY + r * 0.05f
-                        moveTo(cx, cy - r)
-                        lineTo(cx + r * 0.3f, cy - r * 0.2f)
-                        lineTo(cx + r * 0.95f, cy - r * 0.2f)
-                        lineTo(cx + r * 0.4f, cy + r * 0.25f)
-                        lineTo(cx + r * 0.6f, cy + r * 0.9f)
-                        lineTo(cx, cy + r * 0.5f)
-                        lineTo(cx - r * 0.6f, cy + r * 0.9f)
-                        lineTo(cx - r * 0.4f, cy + r * 0.25f)
-                        lineTo(cx - r * 0.95f, cy - r * 0.2f)
-                        lineTo(cx - r * 0.3f, cy - r * 0.2f)
-                        close()
-                    }
-                    drawPath(path = path, color = symbolColor)
-                } else {
-                    // Lightning Bolt Emblem for P2
-                    val path = Path().apply {
-                        val s = pawnRadius * 0.55f
-                        val cx = centerX
-                        val cy = centerY
-                        moveTo(cx + s * 0.1f, cy - s)
-                        lineTo(cx - s * 0.5f, cy + s * 0.1f)
-                        lineTo(cx - s * 0.05f, cy + s * 0.1f)
-                        lineTo(cx - s * 0.25f, cy + s)
-                        lineTo(cx + s * 0.45f, cy - s * 0.15f)
-                        lineTo(cx, cy - s * 0.15f)
-                        close()
-                    }
-                    drawPath(path = path, color = symbolColor)
+                    // Glossy Specular Reflection
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.7f),
+                        radius = pawnRadius * 0.32f,
+                        center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
+                    )
                 }
             }
         }
