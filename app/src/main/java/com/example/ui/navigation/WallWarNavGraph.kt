@@ -80,6 +80,7 @@ fun WallWarNavGraph(
                 onCellClick = viewModel::selectCell,
                 onPlaceWall = viewModel::placeWall,
                 onSelectWallOrientation = viewModel::selectWallOrientation,
+                onCancelWallMode = viewModel::cancelWallMode,
                 onUndoMove = viewModel::undoMove,
                 onRestart = viewModel::restartGame,
                 onBack = {

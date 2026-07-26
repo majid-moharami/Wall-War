@@ -102,6 +102,10 @@ class GameViewModel @Inject constructor(
         soundManager.vibrateShort()
     }
 
+    fun cancelWallMode() {
+        _isWallMode.value = false
+    }
+
     fun placeWall(r: Int, c: Int, isHorizontal: Boolean) {
         val state = _gameState.value
         if (state.isGameOver()) return

@@ -45,6 +45,7 @@ fun GameBoardComposable(
     soundManager: SoundManager,
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
+    onCancelWallMode: () -> Unit = {},
     externalDragWall: Wall? = null,
     externalIsValidDrag: Boolean = false,
     modifier: Modifier = Modifier
@@ -103,10 +104,16 @@ fun GameBoardComposable(
                         // If in wall mode or AI is not thinking, initialize hover preview
                         val isTurnDisabled = gameState.isAiMatch && turn == 1 || gameState.winner != null
                         if (isWallMode && !isTurnDisabled) {
-                            val initialWall = Wall(lastR, lastC, isWallHorizontal, turn)
-                            activeHoverWall = initialWall
-                            isValidHover = GameEngine.canPlaceWall(gameState, turn, initialWall)
-                            soundManager.vibrateShort()
+                            val rawR = (((startPos.y - fingerOffsetY) / stepY) - 0.5f).roundToInt()
+                            val rawC = ((startPos.x / stepX) - 0.5f).roundToInt()
+                            if (rawR in 0..(rows - 2) && rawC in 0..(cols - 2)) {
+                                lastR = rawR
+                                lastC = rawC
+                                val initialWall = Wall(rawR, rawC, isWallHorizontal, turn)
+                                activeHoverWall = initialWall
+                                isValidHover = GameEngine.canPlaceWall(gameState, turn, initialWall)
+                                soundManager.vibrateShort()
+                            }
                         }
 
                         do {
@@ -120,27 +127,45 @@ fun GameBoardComposable(
                                 }
 
                                 if (isWallMode && !isTurnDisabled) {
-                                    val r = (((change.position.y - fingerOffsetY) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
-                                    val c = ((change.position.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+                                    val rawR = (((change.position.y - fingerOffsetY) / stepY) - 0.5f).roundToInt()
+                                    val rawC = ((change.position.x / stepX) - 0.5f).roundToInt()
 
-                                    if (r != lastR || c != lastC || activeHoverWall == null) {
-                                        lastR = r
-                                        lastC = c
-                                        val candidate = Wall(r, c, isWallHorizontal, turn)
-                                        activeHoverWall = candidate
-                                        isValidHover = GameEngine.canPlaceWall(gameState, turn, candidate)
-                                        soundManager.vibrateShort()
+                                    val marginX = stepX * 0.8f
+                                    val marginY = stepY * 0.8f
+
+                                    val isOutside = change.position.x < -marginX || change.position.x > width + marginX ||
+                                            change.position.y < -marginY || change.position.y > height + fingerOffsetY + marginY ||
+                                            rawC !in 0..(cols - 2) || rawR !in 0..(rows - 2)
+
+                                    if (isOutside) {
+                                        if (activeHoverWall != null) {
+                                            activeHoverWall = null
+                                            isValidHover = false
+                                        }
+                                    } else {
+                                        if (rawR != lastR || rawC != lastC || activeHoverWall == null) {
+                                            lastR = rawR
+                                            lastC = rawC
+                                            val candidate = Wall(rawR, rawC, isWallHorizontal, turn)
+                                            activeHoverWall = candidate
+                                            isValidHover = GameEngine.canPlaceWall(gameState, turn, candidate)
+                                            soundManager.vibrateShort()
+                                        }
                                     }
                                     change.consume()
                                 }
                             } else {
                                 // Pointer up / release gesture
                                 val currentHover = activeHoverWall
-                                if (isWallMode && currentHover != null && !isTurnDisabled) {
-                                    if (isValidHover) {
-                                        onPlaceWall(currentHover.r, currentHover.c, currentHover.isHorizontal)
+                                if (isWallMode && !isTurnDisabled) {
+                                    if (currentHover != null) {
+                                        if (isValidHover) {
+                                            onPlaceWall(currentHover.r, currentHover.c, currentHover.isHorizontal)
+                                        } else {
+                                            soundManager.playErrorSound()
+                                        }
                                     } else {
-                                        soundManager.playErrorSound()
+                                        onCancelWallMode()
                                     }
                                     activeHoverWall = null
                                     isValidHover = false

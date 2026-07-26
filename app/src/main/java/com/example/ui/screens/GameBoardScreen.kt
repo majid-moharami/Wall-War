@@ -76,6 +76,7 @@ fun GameBoardScreen(
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
     onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
+    onCancelWallMode: () -> Unit = {},
     onUndoMove: () -> Unit,
     onRestart: () -> Unit,
     onBack: () -> Unit,
@@ -103,13 +104,25 @@ fun GameBoardScreen(
             val stepY = cellH + (cellH * gapRatio)
 
             val fingerOffsetUp = stepY * 2.5f
-            val targetC = ((boardX / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-            val targetR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+            val rawC = ((boardX / stepX) - 0.5f).roundToInt()
+            val rawR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt()
 
-            val candidate = Wall(targetR, targetC, isHorizontal, gameState.turn)
-            activeDragWall = candidate
-            isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
-            soundManager.vibrateShort()
+            val marginX = stepX * 0.8f
+            val marginY = stepY * 0.8f
+
+            val isOutside = boardX < -marginX || boardX > width + marginX ||
+                    boardY < -marginY || boardY > height + fingerOffsetUp + marginY ||
+                    rawC !in 0..(cols - 2) || rawR !in 0..(rows - 2)
+
+            if (isOutside) {
+                activeDragWall = null
+                isValidDrag = false
+            } else {
+                val candidate = Wall(rawR, rawC, isHorizontal, gameState.turn)
+                activeDragWall = candidate
+                isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
+                soundManager.vibrateShort()
+            }
         }
     }
 
@@ -130,15 +143,29 @@ fun GameBoardScreen(
             val stepY = cellH + (cellH * gapRatio)
 
             val fingerOffsetUp = stepY * 2.5f
-            val targetC = ((boardX / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
-            val targetR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
+            val rawC = ((boardX / stepX) - 0.5f).roundToInt()
+            val rawR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt()
 
-            val current = activeDragWall
-            if (current == null || current.r != targetR || current.c != targetC || current.isHorizontal != isHorizontal) {
-                val candidate = Wall(targetR, targetC, isHorizontal, gameState.turn)
-                activeDragWall = candidate
-                isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
-                soundManager.vibrateShort()
+            val marginX = stepX * 0.8f
+            val marginY = stepY * 0.8f
+
+            val isOutside = boardX < -marginX || boardX > width + marginX ||
+                    boardY < -marginY || boardY > height + fingerOffsetUp + marginY ||
+                    rawC !in 0..(cols - 2) || rawR !in 0..(rows - 2)
+
+            if (isOutside) {
+                if (activeDragWall != null) {
+                    activeDragWall = null
+                    isValidDrag = false
+                }
+            } else {
+                val current = activeDragWall
+                if (current == null || current.r != rawR || current.c != rawC || current.isHorizontal != isHorizontal) {
+                    val candidate = Wall(rawR, rawC, isHorizontal, gameState.turn)
+                    activeDragWall = candidate
+                    isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
+                    soundManager.vibrateShort()
+                }
             }
         }
     }
@@ -152,6 +179,8 @@ fun GameBoardScreen(
             } else {
                 soundManager.playErrorSound()
             }
+        } else {
+            onCancelWallMode()
         }
         activeDragWall = null
         isValidDrag = false
@@ -250,6 +279,7 @@ fun GameBoardScreen(
                 soundManager = soundManager,
                 onCellClick = onCellClick,
                 onPlaceWall = onPlaceWall,
+                onCancelWallMode = onCancelWallMode,
                 externalDragWall = activeDragWall,
                 externalIsValidDrag = isValidDrag
             )
