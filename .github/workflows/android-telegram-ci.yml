@@ -1,0 +1,72 @@
+name: Android CI - Build & Send APK to Telegram
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build_and_send:
+    name: Build Debug APK & Send to Telegram
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Ensure Gradle Wrapper Exists
+        run: |
+          if [ ! -f "./gradlew" ]; then
+            echo "Generating Gradle wrapper..."
+            gradle wrapper
+          fi
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Locate Built APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::No APK file found in app/build/outputs/apk/debug/"
+            exit 1
+          fi
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK_PATH"
+
+      - name: Send APK Document to Telegram
+        if: success()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error::Missing GitHub Secrets 'TELEGRAM_BOT_TOKEN' or 'TELEGRAM_CHAT_ID'."
+            echo "Please add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID under Repository Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+
+          APK_FILE="${{ steps.find_apk.outputs.apk_path }}"
+          COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+          REPO_NAME="${{ github.repository }}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+
+          CAPTION="🎮 *Wall War - Latest APK Build*%0A%0A📦 *Repository:* \`${REPO_NAME}\`%0A🔖 *Commit:* \`${SHORT_SHA}\`%0A📝 *Message:* ${COMMIT_MSG}"
+
+          echo "Uploading $APK_FILE to Telegram..."
+          curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
+               -F document=@"${APK_FILE}" \
+               -F caption="${CAPTION}" \
+               -F parse_mode="Markdown" \
+               "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"

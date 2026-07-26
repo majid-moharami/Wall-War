@@ -28,11 +28,13 @@ import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -342,7 +344,9 @@ fun HomeScreen(
 
         // 2. Play VS AI Card
         Card(
-            onClick = { showAiPicker = !showAiPicker },
+            onClick = {
+                onStartGame(GameMode.DUEL, OpponentType.AI, selectedAiDifficulty)
+            },
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             shape = RoundedCornerShape(20.dp),
             modifier = Modifier
@@ -370,10 +374,12 @@ fun HomeScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null
-                    )
+                    IconButton(onClick = { showAiPicker = !showAiPicker }) {
+                        Icon(
+                            imageVector = if (showAiPicker) Icons.Default.Tune else Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Difficulty options"
+                        )
+                    }
                 }
 
                 AnimatedVisibility(visible = showAiPicker) {

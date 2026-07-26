@@ -16,10 +16,15 @@ object AiEngine {
             return Move.PawnStep(legal.firstOrNull() ?: state.pawns[p])
         }
 
-        return when (difficulty) {
-            AiDifficulty.EASY -> computeEasyMove(state, p)
-            AiDifficulty.NORMAL -> computeNormalMove(state, p)
-            AiDifficulty.PRO -> computeProMove(state, p)
+        return try {
+            when (difficulty) {
+                AiDifficulty.EASY -> computeEasyMove(state, p)
+                AiDifficulty.NORMAL -> computeNormalMove(state, p)
+                AiDifficulty.PRO -> computeProMove(state, p)
+            }
+        } catch (_: Exception) {
+            val legal = GameEngine.pawnMoves(state, p)
+            Move.PawnStep(legal.firstOrNull() ?: state.pawns[p])
         }
     }
 
@@ -55,7 +60,7 @@ object AiEngine {
             }
         }
 
-        val chosen = bestMoves.randomOrNull() ?: moves.randomOrNull() ?: me
+        val chosen = bestMoves.randomOrNull() ?: moves.randomOrNull() ?: moves.firstOrNull() ?: state.pawns[p]
         return Move.PawnStep(chosen)
     }
 
@@ -121,7 +126,8 @@ object AiEngine {
             if (d in 0 until minD) minD = d
         }
         val bestPawnSteps = legalMoves.filter { myDistMap[it.r * state.cols + it.c] == minD }
-        return Move.PawnStep(bestPawnSteps.randomOrNull() ?: legalMoves.firstOrNull() ?: me)
+        val chosenStep = bestPawnSteps.randomOrNull() ?: legalMoves.firstOrNull() ?: me
+        return Move.PawnStep(chosenStep)
     }
 
     private fun computeProMove(state: GameState, p: Int): Move {
@@ -180,6 +186,7 @@ object AiEngine {
             if (d in 0 until minD) minD = d
         }
         val bestSteps = legalMoves.filter { myDistMap[it.r * state.cols + it.c] == minD }
-        return Move.PawnStep(bestSteps.randomOrNull() ?: me)
+        val chosenStep = bestSteps.randomOrNull() ?: legalMoves.firstOrNull() ?: me
+        return Move.PawnStep(chosenStep)
     }
 }

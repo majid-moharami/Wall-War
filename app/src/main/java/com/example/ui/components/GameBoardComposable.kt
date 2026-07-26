@@ -222,6 +222,10 @@ fun GameBoardComposable(
             }
 
             // 2. Draw Valid Move Candidate Dots (Small Pulsing / Glowing Dots around Active Pawn)
+            val currentTurn = gameState.turn
+            val activeColor = if (currentTurn == 0) Color(0xFF3B82F6) else Color(0xFFEF4444)
+            val activeGlowColor = if (currentTurn == 0) Color(0x553B82F6) else Color(0x55EF4444)
+
             for (pos in validHighlights) {
                 val cx = pos.c * stepX + cellW / 2f
                 val cy = pos.r * stepY + cellH / 2f
@@ -236,14 +240,14 @@ fun GameBoardComposable(
 
                 // Glow ring
                 drawCircle(
-                    color = Color(0x553B82F6),
+                    color = activeGlowColor,
                     radius = dotRadius * 1.6f,
                     center = Offset(cx, cy)
                 )
 
                 // Candidate dot
                 drawCircle(
-                    color = Color(0xFF3B82F6),
+                    color = activeColor,
                     radius = dotRadius,
                     center = Offset(cx, cy)
                 )
@@ -251,13 +255,14 @@ fun GameBoardComposable(
 
             // 3. Draw Snap Grid Target Dots when in Wall Mode / Dragging
             if ((isWallMode || effectiveHoverWall != null) && gameState.winner == null) {
+                val snapDotColor = if (gameState.turn == 0) Color(0xFF3B82F6) else Color(0xFFEF4444)
                 for (r in 0 until rows - 1) {
                     for (c in 0 until cols - 1) {
                         val cx = (c + 1) * stepX - gapW / 2f
                         val cy = (r + 1) * stepY - gapH / 2f
 
                         drawCircle(
-                            color = Color(0xFF3B82F6).copy(alpha = 0.35f),
+                            color = snapDotColor.copy(alpha = 0.35f),
                             radius = gapW * 0.45f,
                             center = Offset(cx, cy)
                         )
@@ -270,11 +275,16 @@ fun GameBoardComposable(
                 }
             }
 
-            // 4. Draw Placed Walls (Glowing Neon Blue Pill Capsules)
-            val wallBlue = Color(0xFF3B82F6)
+            // 4. Draw Placed Walls (Glowing Neon Pill Capsules in Player Ball Colors)
             val wallShadow = Color.Black.copy(alpha = 0.5f)
 
             for (wall in gameState.walls) {
+                val wallGradients = if (wall.playerOwner == 0) {
+                    listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
+                } else {
+                    listOf(Color(0xFFDC2626), Color(0xFFEF4444), Color(0xFFFCA5A5), Color(0xFFDC2626))
+                }
+
                 if (wall.isHorizontal) {
                     val x = wall.c * stepX
                     val y = wall.r * stepY + cellH + (gapH * 0.05f)
@@ -291,9 +301,7 @@ fun GameBoardComposable(
 
                     // Wall Main Pill
                     drawRoundRect(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
-                        ),
+                        brush = Brush.horizontalGradient(colors = wallGradients),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(10f, 10f)
@@ -322,9 +330,7 @@ fun GameBoardComposable(
 
                     // Wall Main Pill
                     drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
-                        ),
+                        brush = Brush.verticalGradient(colors = wallGradients),
                         topLeft = Offset(x, y),
                         size = Size(wallWidth, wallHeight),
                         cornerRadius = CornerRadius(10f, 10f)
@@ -343,8 +349,17 @@ fun GameBoardComposable(
             // 5. Live Drag Hover Preview Wall
             val hover = effectiveHoverWall
             if (hover != null) {
-                val previewFill = if (effectiveIsValidHover) Color(0xFF3B82F6) else Color(0xFFEF4444)
-                val previewBorder = if (effectiveIsValidHover) Color(0xFF60A5FA) else Color(0xFFF87171)
+                val isP1 = hover.playerOwner == 0
+                val previewFill = if (effectiveIsValidHover) {
+                    if (isP1) Color(0xFF3B82F6) else Color(0xFFEF4444)
+                } else {
+                    Color(0xFFDC2626)
+                }
+                val previewBorder = if (effectiveIsValidHover) {
+                    if (isP1) Color(0xFF60A5FA) else Color(0xFFFCA5A5)
+                } else {
+                    Color(0xFFF87171)
+                }
 
                 if (hover.isHorizontal) {
                     val x = hover.c * stepX

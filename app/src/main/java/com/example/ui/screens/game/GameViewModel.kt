@@ -79,8 +79,22 @@ class GameViewModel @Inject constructor(
             aiDifficulty = difficulty
         )
         _gameState.value = initialState
-        _validMoveHighlights.value = GameEngine.pawnMoves(initialState, initialState.turn)
+        updateHighlightsForState(initialState)
         matchStartTime = System.currentTimeMillis()
+
+        checkGameEndAndTriggerAiIfNeeded(initialState)
+    }
+
+    private fun updateHighlightsForState(state: GameState) {
+        if (state.isGameOver()) {
+            _validMoveHighlights.value = emptyList()
+            return
+        }
+        if (state.isAiMatch && state.turn == 1) {
+            _validMoveHighlights.value = emptyList()
+        } else {
+            _validMoveHighlights.value = GameEngine.pawnMoves(state, state.turn)
+        }
     }
 
     fun toggleWallMode() {
@@ -141,7 +155,7 @@ class GameViewModel @Inject constructor(
             } else {
                 val myPawn = state.pawns[state.turn]
                 if (r == myPawn.r && c == myPawn.c) {
-                    _validMoveHighlights.value = legalMoves
+                    updateHighlightsForState(state)
                 } else {
                     soundManager.playErrorSound()
                 }
@@ -158,7 +172,7 @@ class GameViewModel @Inject constructor(
         soundManager.vibrateShort()
 
         _gameState.value = nextState
-        _validMoveHighlights.value = GameEngine.pawnMoves(nextState, nextState.turn)
+        updateHighlightsForState(nextState)
 
         checkGameEndAndTriggerAiIfNeeded(nextState)
     }
@@ -173,18 +187,32 @@ class GameViewModel @Inject constructor(
 
         if (state.isAiMatch && state.turn == 1) {
             viewModelScope.launch {
-                delay(400)
-                val aiMove = withContext(Dispatchers.Default) {
-                    AiEngine.computeBestMove(state, state.aiDifficulty)
+                delay(350)
+                val cur = _gameState.value
+                if (cur.isGameOver() || cur.turn != 1) return@launch
+
+                val computedMove = withContext(Dispatchers.Default) {
+                    AiEngine.computeBestMove(cur, cur.aiDifficulty)
                 }
 
-                val postAiState = GameEngine.applyMove(_gameState.value, aiMove)
+                var resolvedMove = computedMove
+                var postAiState = GameEngine.applyMove(_gameState.value, resolvedMove)
+
+                // Safety fallback: if computed move was somehow rejected, force a legal pawn step
+                if (postAiState == null) {
+                    val legalPawnSteps = GameEngine.pawnMoves(_gameState.value, 1)
+                    if (legalPawnSteps.isNotEmpty()) {
+                        resolvedMove = Move.PawnStep(legalPawnSteps.first())
+                        postAiState = GameEngine.applyMove(_gameState.value, resolvedMove)
+                    }
+                }
+
                 if (postAiState != null) {
-                    val isWall = aiMove is Move.WallPlacement
+                    val isWall = resolvedMove is Move.WallPlacement
                     soundManager.playMoveSound(isMine = false, isWall = isWall)
 
                     _gameState.value = postAiState
-                    _validMoveHighlights.value = GameEngine.pawnMoves(postAiState, postAiState.turn)
+                    updateHighlightsForState(postAiState)
 
                     if (postAiState.winner != null) {
                         soundManager.playVictoryFanfare()
@@ -213,7 +241,7 @@ class GameViewModel @Inject constructor(
         }
 
         _gameState.value = replayState
-        _validMoveHighlights.value = GameEngine.pawnMoves(replayState, replayState.turn)
+        updateHighlightsForState(replayState)
         soundManager.vibrateShort()
     }
 
