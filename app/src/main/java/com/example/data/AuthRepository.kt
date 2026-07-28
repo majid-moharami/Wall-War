@@ -6,15 +6,12 @@ import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
-import androidx.credentials.exceptions.GetCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.json.JSONObject
-import java.util.Base64
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -33,13 +30,13 @@ class AuthRepository @Inject constructor(
         val name = prefs.getString("display_name", "Guest Duelist") ?: "Guest Duelist"
         val email = prefs.getString("email", "guest@wallwar.app") ?: "guest@wallwar.app"
         val photoUrl = prefs.getString("photo_url", null)
-        val trophies = prefs.getInt("trophies", 1250)
-        val xp = prefs.getInt("xp", 3450)
-        val level = prefs.getInt("level", 7)
-        val rankTitle = prefs.getString("rank_title", "Neon Knight") ?: "Neon Knight"
-        val wins = prefs.getInt("wins", 14)
-        val totalMatches = prefs.getInt("total_matches", 20)
-        val wallsPlaced = prefs.getInt("walls_placed", 86)
+        val trophies = prefs.getInt("trophies", 0)
+        val xp = prefs.getInt("xp", 0)
+        val level = prefs.getInt("level", 1)
+        val rankTitle = prefs.getString("rank_title", "Novice Duelist") ?: "Novice Duelist"
+        val wins = prefs.getInt("wins", 0)
+        val totalMatches = prefs.getInt("total_matches", 0)
+        val wallsPlaced = prefs.getInt("walls_placed", 0)
 
         return UserProfile(
             isLoggedIn = isLoggedIn,
@@ -78,7 +75,7 @@ class AuthRepository @Inject constructor(
             val googleIdOption = GetGoogleIdOption.Builder()
                 .setFilterByAuthorizedAccounts(false)
                 .setServerClientId(serverClientId ?: "100000000000-samplegoogleclientid.apps.googleusercontent.com")
-                .setAutoSelectEnabled(true)
+                .setAutoSelectEnabled(false)
                 .build()
 
             val request = GetCredentialRequest.Builder()
@@ -91,49 +88,40 @@ class AuthRepository @Inject constructor(
 
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                val idToken = googleIdTokenCredential.idToken
-                val displayName = googleIdTokenCredential.displayName ?: googleIdTokenCredential.id.substringBefore("@")
+                val displayName = googleIdTokenCredential.displayName
+                    ?: googleIdTokenCredential.id.substringBefore("@").replace(".", " ").capitalizeWords()
                 val email = googleIdTokenCredential.id
                 val photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
 
-                val updated = _userProfile.value.copy(
-                    isLoggedIn = true,
-                    displayName = if (displayName.isNotBlank()) displayName else "Google Duelist",
-                    email = email,
-                    photoUrl = photoUrl
-                )
-                saveProfile(updated)
+                signInWithGoogleAccountDetails(displayName, email, photoUrl)
                 true
             } else {
-                loginAsDemoGoogleUser()
-                true
+                false
             }
         } catch (e: Exception) {
-            Log.e("AuthRepository", "Google sign in error: ${e.message}. Using fallback demo Google account.")
-            loginAsDemoGoogleUser()
-            true
+            Log.e("AuthRepository", "Google Credential Manager error: ${e.message}")
+            false
         }
     }
 
-    fun loginAsDemoGoogleUser(name: String = "Majid Moharami", email: String = "majid.moharami79@gmail.com") {
-        val updated = _userProfile.value.copy(
+    fun signInWithGoogleAccountDetails(displayName: String, email: String, photoUrl: String? = null) {
+        val current = _userProfile.value
+        val updated = current.copy(
             isLoggedIn = true,
-            displayName = name,
+            displayName = if (displayName.isNotBlank()) displayName else "Google Duelist",
             email = email,
-            photoUrl = "https://lh3.googleusercontent.com/a/default-user",
-            trophies = _userProfile.value.trophies + 100,
-            rankTitle = "Apex Cybermaster"
+            photoUrl = photoUrl
         )
         saveProfile(updated)
     }
 
     fun signOut() {
-        val updated = _userProfile.value.copy(
+        val current = _userProfile.value
+        val updated = current.copy(
             isLoggedIn = false,
             displayName = "Guest Duelist",
             email = "guest@wallwar.app",
-            photoUrl = null,
-            rankTitle = "Neon Knight"
+            photoUrl = null
         )
         saveProfile(updated)
     }
@@ -148,10 +136,10 @@ class AuthRepository @Inject constructor(
         val newLevel = (newXp / 500) + 1
 
         val newRank = when {
-            newTrophies >= 2000 -> "Apex Cybermaster"
-            newTrophies >= 1500 -> "Neon Grandmaster"
-            newTrophies >= 1000 -> "Neon Knight"
-            else -> "Grid Novice"
+            newTrophies >= 1000 -> "Apex Cybermaster"
+            newTrophies >= 500 -> "Neon Grandmaster"
+            newTrophies >= 200 -> "Neon Knight"
+            else -> "Novice Duelist"
         }
 
         val updated = current.copy(
@@ -164,5 +152,11 @@ class AuthRepository @Inject constructor(
             rankTitle = newRank
         )
         saveProfile(updated)
+    }
+
+    private fun String.capitalizeWords(): String {
+        return split(" ").joinToString(" ") { word ->
+            word.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
     }
 }

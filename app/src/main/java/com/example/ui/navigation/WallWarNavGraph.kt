@@ -81,7 +81,12 @@ fun WallWarNavGraph(
 
             ProfileScreen(
                 userProfile = userProfile,
-                onSignInWithGoogle = { context -> viewModel.signInWithGoogle(context) },
+                onSignInWithGoogle = { context, onFallback ->
+                    viewModel.signInWithGoogle(context, onFallback)
+                },
+                onConfirmGoogleAccount = { name, email ->
+                    viewModel.confirmGoogleAccount(name, email)
+                },
                 onSignOut = viewModel::signOut,
                 onNavigateToHistory = { navController.navigate(HistoryRoute) },
                 onNavigateToSettings = { navController.navigate(SettingsRoute) }

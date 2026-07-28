@@ -1,6 +1,7 @@
 package com.example.ui.screens.profile
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,12 +23,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -36,8 +39,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.UserProfile
 import com.example.ui.theme.NeonAmber
+import com.example.ui.theme.NeonBorder
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonDarkBg
 import com.example.ui.theme.NeonDarkCard
@@ -61,13 +72,18 @@ import com.example.ui.theme.NeonMagenta
 @Composable
 fun ProfileScreen(
     userProfile: UserProfile,
-    onSignInWithGoogle: (Context) -> Unit,
+    onSignInWithGoogle: (Context, onFallback: () -> Unit) -> Unit,
+    onConfirmGoogleAccount: (name: String, email: String) -> Unit,
     onSignOut: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var showGoogleAccountDialog by remember { mutableStateOf(false) }
+
+    var googleNameInput by remember { mutableStateOf("") }
+    var googleEmailInput by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -83,7 +99,7 @@ fun ProfileScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            border = androidx.compose.foundation.BorderStroke(
+            border = BorderStroke(
                 1.5.dp,
                 Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta))
             )
@@ -165,7 +181,11 @@ fun ProfileScreen(
                 // Google Login / Logout Button
                 if (!userProfile.isLoggedIn) {
                     Button(
-                        onClick = { onSignInWithGoogle(context) },
+                        onClick = {
+                            onSignInWithGoogle(context) {
+                                showGoogleAccountDialog = true
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -198,7 +218,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, NeonMagenta)
+                        border = BorderStroke(1.dp, NeonMagenta)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -345,6 +365,150 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Google Sign In Account Selector Dialog Modal
+    if (showGoogleAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showGoogleAccountDialog = false },
+            containerColor = NeonDarkCard,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFA0ACCC),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "G",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = Color(0xFF4285F4)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Choose Google Account",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Select your Google Account to sync game progress and achievements across devices.",
+                        fontSize = 13.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Account Option 1: Majid Moharami
+                    Card(
+                        onClick = {
+                            onConfirmGoogleAccount("Majid Moharami", "majid.moharami79@gmail.com")
+                            showGoogleAccountDialog = false
+                        },
+                        colors = CardDefaults.cardColors(containerColor = NeonDarkSurface),
+                        border = BorderStroke(1.dp, NeonCyan),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4285F4)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "M",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Majid Moharami",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "majid.moharami79@gmail.com",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFA0ACCC)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Account Option 2: Enter Custom Google Email
+                    OutlinedTextField(
+                        value = googleNameInput,
+                        onValueChange = { googleNameInput = it },
+                        label = { Text("Display Name") },
+                        placeholder = { Text("e.g. Alex Cyber") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = NeonBorder,
+                            focusedLabelColor = NeonCyan,
+                            unfocusedLabelColor = Color(0xFFA0ACCC),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = googleEmailInput,
+                        onValueChange = { googleEmailInput = it },
+                        label = { Text("Google Email") },
+                        placeholder = { Text("e.g. alex@gmail.com") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = NeonBorder,
+                            focusedLabelColor = NeonCyan,
+                            unfocusedLabelColor = Color(0xFFA0ACCC),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val name = if (googleNameInput.isNotBlank()) googleNameInput else "Google Player"
+                        val email = if (googleEmailInput.isNotBlank()) googleEmailInput else "player@gmail.com"
+                        onConfirmGoogleAccount(name, email)
+                        showGoogleAccountDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Sign In", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showGoogleAccountDialog = false }) {
+                    Text("Cancel", color = Color(0xFFA0ACCC))
+                }
+            }
+        )
     }
 }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import com.example.audio.SoundManager
+import com.example.data.AuthRepository
 import com.example.data.GameRepository
 import com.example.data.MatchRecord
 import com.example.data.SettingsRepository
@@ -33,6 +34,7 @@ import javax.inject.Inject
 class GameViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: GameRepository,
+    private val authRepository: AuthRepository,
     val soundManager: SoundManager,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
@@ -45,7 +47,12 @@ class GameViewModel @Inject constructor(
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
-    private val _gameState = MutableStateFlow(GameEngine.createInitialState())
+    private val _gameState = MutableStateFlow(
+        GameEngine.createInitialState(gameMode).copy(
+            isAiMatch = opponentType == OpponentType.AI,
+            aiDifficulty = aiDifficulty
+        )
+    )
     val gameState: StateFlow<GameState> = _gameState.asStateFlow()
 
     private val _isWallMode = MutableStateFlow(false)
@@ -98,6 +105,9 @@ class GameViewModel @Inject constructor(
     }
 
     fun toggleWallMode() {
+        val state = _gameState.value
+        if (state.isAiMatch && state.turn == 1) return
+
         _isWallMode.value = !_isWallMode.value
         if (_isWallMode.value) {
             _selectedPosition.value = null
@@ -106,6 +116,9 @@ class GameViewModel @Inject constructor(
     }
 
     fun selectWallOrientation(isHorizontal: Boolean) {
+        val state = _gameState.value
+        if (state.isAiMatch && state.turn == 1) return
+
         if (_isWallMode.value && _isWallHorizontal.value == isHorizontal) {
             _isWallMode.value = false
         } else {
@@ -187,7 +200,7 @@ class GameViewModel @Inject constructor(
 
         if (state.isAiMatch && state.turn == 1) {
             viewModelScope.launch {
-                delay(350)
+                delay(300)
                 val cur = _gameState.value
                 if (cur.isGameOver() || cur.turn != 1) return@launch
 
@@ -198,7 +211,7 @@ class GameViewModel @Inject constructor(
                 var resolvedMove = computedMove
                 var postAiState = GameEngine.applyMove(_gameState.value, resolvedMove)
 
-                // Safety fallback: if computed move was somehow rejected, force a legal pawn step
+                // Safety fallback: if computed move was rejected, force a legal pawn step
                 if (postAiState == null) {
                     val legalPawnSteps = GameEngine.pawnMoves(_gameState.value, 1)
                     if (legalPawnSteps.isNotEmpty()) {
@@ -247,7 +260,7 @@ class GameViewModel @Inject constructor(
 
     fun restartGame() {
         val state = _gameState.value
-        startNewGame(state.mode, opponentType, state.aiDifficulty)
+        startNewGame(state.mode, if (state.isAiMatch) OpponentType.AI else OpponentType.LOCAL_PASS_PLAY, state.aiDifficulty)
     }
 
     private fun saveMatchToHistory(state: GameState) {
@@ -255,10 +268,10 @@ class GameViewModel @Inject constructor(
         val durationSec = (System.currentTimeMillis() - matchStartTime) / 1000
         val wallsCount = state.walls.size
 
-        val opponentStr = when (opponentType) {
-            OpponentType.AI -> "AI (${state.aiDifficulty.displayName})"
-            OpponentType.LOCAL_PASS_PLAY -> "Pass & Play"
-            OpponentType.ONLINE -> "Online Duel"
+        val opponentStr = when {
+            state.isAiMatch -> "AI (${state.aiDifficulty.displayName})"
+            opponentType == OpponentType.ONLINE -> "Online Duel"
+            else -> "Pass & Play"
         }
 
         val record = MatchRecord(
@@ -272,6 +285,9 @@ class GameViewModel @Inject constructor(
 
         viewModelScope.launch {
             repository.recordMatch(record)
+            val didUserWin = (winner == 0)
+            val userWallsPlaced = state.walls.count { it.playerOwner == 0 }
+            authRepository.recordMatchResult(didWin = didUserWin, wallsPlaced = userWallsPlaced)
         }
     }
 }

@@ -11,29 +11,46 @@ object AiEngine {
 
     fun computeBestMove(state: GameState, difficulty: AiDifficulty = AiDifficulty.NORMAL): Move {
         val p = state.turn
-        if (state.winner != null) {
-            val legal = GameEngine.pawnMoves(state, p)
-            return Move.PawnStep(legal.firstOrNull() ?: state.pawns[p])
+        val legalSteps = GameEngine.pawnMoves(state, p)
+        val defaultPawnStep = legalSteps.firstOrNull() ?: state.pawns[p]
+
+        if (state.winner != null || legalSteps.isEmpty()) {
+            return Move.PawnStep(defaultPawnStep)
         }
 
-        return try {
+        val rawMove = try {
             when (difficulty) {
-                AiDifficulty.EASY -> computeEasyMove(state, p)
-                AiDifficulty.NORMAL -> computeNormalMove(state, p)
-                AiDifficulty.PRO -> computeProMove(state, p)
+                AiDifficulty.EASY -> computeEasyMove(state, p, legalSteps)
+                AiDifficulty.NORMAL -> computeNormalMove(state, p, legalSteps)
+                AiDifficulty.PRO -> computeProMove(state, p, legalSteps)
             }
         } catch (_: Exception) {
-            val legal = GameEngine.pawnMoves(state, p)
-            Move.PawnStep(legal.firstOrNull() ?: state.pawns[p])
+            Move.PawnStep(defaultPawnStep)
+        }
+
+        // Strict Move Validation Safety Guard
+        return when (rawMove) {
+            is Move.PawnStep -> {
+                if (legalSteps.any { it.r == rawMove.target.r && it.c == rawMove.target.c }) {
+                    rawMove
+                } else {
+                    Move.PawnStep(defaultPawnStep)
+                }
+            }
+            is Move.WallPlacement -> {
+                if (GameEngine.canPlaceWall(state, p, rawMove.wall)) {
+                    rawMove
+                } else {
+                    Move.PawnStep(defaultPawnStep)
+                }
+            }
         }
     }
 
-    private fun computeEasyMove(state: GameState, p: Int): Move {
+    private fun computeEasyMove(state: GameState, p: Int, moves: List<Position>): Move {
         val goal = GameEngine.goalRow(p, state)
         val distMap = GameEngine.distToGoal(state.walls, goal, state.cols, state.rows)
-        val moves = GameEngine.pawnMoves(state, p)
         val me = state.pawns[p]
-        val currentDist = distMap[me.r * state.cols + me.c]
 
         var minD = Int.MAX_VALUE
         for (m in moves) {
@@ -60,11 +77,11 @@ object AiEngine {
             }
         }
 
-        val chosen = bestMoves.randomOrNull() ?: moves.randomOrNull() ?: moves.firstOrNull() ?: state.pawns[p]
+        val chosen = bestMoves.randomOrNull() ?: moves.randomOrNull() ?: moves.firstOrNull() ?: me
         return Move.PawnStep(chosen)
     }
 
-    private fun computeNormalMove(state: GameState, p: Int): Move {
+    private fun computeNormalMove(state: GameState, p: Int, legalMoves: List<Position>): Move {
         val myGoal = GameEngine.goalRow(p, state)
         val oppGoal = GameEngine.goalRow(1 - p, state)
 
@@ -78,11 +95,10 @@ object AiEngine {
         val oppDist = oppDistMap[opp.r * state.cols + opp.c]
 
         // If opponent is ahead or equal, evaluate aggressive wall placement
-        if (state.leftWalls[p] > 0 && (oppDist <= myDist || Random.nextFloat() < 0.35f)) {
+        if (state.leftWalls[p] > 0 && myDist >= 0 && oppDist >= 0 && (oppDist <= myDist || Random.nextFloat() < 0.35f)) {
             var bestWall: Wall? = null
             var maxGain = 0
 
-            // Search candidate wall slots near opponent
             val oppP = state.pawns[1 - p]
             for (dr in -1..1) {
                 for (dc in -1..1) {
@@ -99,13 +115,14 @@ object AiEngine {
                                 val newOppDist = newOppDistMap[opp.r * state.cols + opp.c]
                                 val newMyDist = newMyDistMap[me.r * state.cols + me.c]
 
-                                val oppGain = newOppDist - oppDist
-                                val myCost = newMyDist - myDist
-
-                                val netGain = oppGain - myCost
-                                if (netGain > maxGain) {
-                                    maxGain = netGain
-                                    bestWall = candidateWall
+                                if (newOppDist >= 0 && newMyDist >= 0) {
+                                    val oppGain = newOppDist - oppDist
+                                    val myCost = newMyDist - myDist
+                                    val netGain = oppGain - myCost
+                                    if (netGain > maxGain) {
+                                        maxGain = netGain
+                                        bestWall = candidateWall
+                                    }
                                 }
                             }
                         }
@@ -118,8 +135,7 @@ object AiEngine {
             }
         }
 
-        // Default to step towards goal
-        val legalMoves = GameEngine.pawnMoves(state, p)
+        // Step towards goal
         var minD = Int.MAX_VALUE
         for (m in legalMoves) {
             val d = myDistMap[m.r * state.cols + m.c]
@@ -130,7 +146,7 @@ object AiEngine {
         return Move.PawnStep(chosenStep)
     }
 
-    private fun computeProMove(state: GameState, p: Int): Move {
+    private fun computeProMove(state: GameState, p: Int, legalMoves: List<Position>): Move {
         val myGoal = GameEngine.goalRow(p, state)
         val oppGoal = GameEngine.goalRow(1 - p, state)
 
@@ -144,7 +160,6 @@ object AiEngine {
         val oppDist = oppDistMap[opp.r * state.cols + opp.c]
 
         // Check winning pawn step first
-        val legalMoves = GameEngine.pawnMoves(state, p)
         for (m in legalMoves) {
             if (m.r == myGoal) return Move.PawnStep(m)
         }
@@ -153,7 +168,7 @@ object AiEngine {
         var bestWall: Wall? = null
         var maxVal = -1000
 
-        if (state.leftWalls[p] > 0) {
+        if (state.leftWalls[p] > 0 && myDist >= 0 && oppDist >= 0) {
             val candRadius = 2
             for (r in (opp.r - candRadius).coerceAtLeast(0)..(opp.r + candRadius).coerceAtMost(state.rows - 2)) {
                 for (c in (opp.c - candRadius).coerceAtLeast(0)..(opp.c + candRadius).coerceAtMost(state.cols - 2)) {
@@ -164,10 +179,12 @@ object AiEngine {
                             val testOppDist = GameEngine.distToGoal(testWalls, oppGoal, state.cols, state.rows)[opp.r * state.cols + opp.c]
                             val testMyDist = GameEngine.distToGoal(testWalls, myGoal, state.cols, state.rows)[me.r * state.cols + me.c]
 
-                            val value = (testOppDist - oppDist) * 3 - (testMyDist - myDist) * 2
-                            if (value > maxVal) {
-                                maxVal = value
-                                bestWall = w
+                            if (testOppDist >= 0 && testMyDist >= 0) {
+                                val value = (testOppDist - oppDist) * 3 - (testMyDist - myDist) * 2
+                                if (value > maxVal) {
+                                    maxVal = value
+                                    bestWall = w
+                                }
                             }
                         }
                     }
