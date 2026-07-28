@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">WallWar</string>
     <string name="app_tagline">Strategic Wall Placement &amp; Pawn Duels</string>
-    <string name="default_web_client_id">100000000000-samplewebclientid.apps.googleusercontent.com</string>
+    <!-- Replace default_web_client_id with your Web Client ID from Google Cloud Console or add google-services.json -->
+    <string name="default_web_client_id"></string>
 </resources>

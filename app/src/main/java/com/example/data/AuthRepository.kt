@@ -110,7 +110,11 @@ class AuthRepository @Inject constructor(
             val client = context.getString(resId)
             if (client.isNotBlank()) return client
         }
-        return context.getString(R.string.default_web_client_id)
+        return try {
+            context.getString(R.string.default_web_client_id)
+        } catch (e: Exception) {
+            ""
+        }
     }
 
     private fun Context.findActivity(): Activity? {
@@ -133,6 +137,13 @@ class AuthRepository @Inject constructor(
 
     suspend fun signInWithGoogle(callingContext: Context, serverClientId: String? = null): SignInResult {
         val clientId = serverClientId ?: getWebClientId(callingContext)
+        if (clientId.isBlank()) {
+            Log.e("AuthRepository", "Google Server Web Client ID is missing.")
+            return SignInResult.Error(
+                "Google Sign-In is not configured. Please ensure google-services.json is added or default_web_client_id is set in strings.xml."
+            )
+        }
+
         val activityContext = callingContext.findActivity() ?: callingContext
 
         val googleIdOption = GetGoogleIdOption.Builder()
@@ -198,7 +209,7 @@ class AuthRepository @Inject constructor(
             SignInResult.Error("Google Sign-In failed: ${e.message}")
         } catch (e: GoogleIdTokenParsingException) {
             Log.e("AuthRepository", "Invalid Google ID Token: ${e.message}", e)
-            SignInResult.Error("Invalid Google ID token format.")
+            SignInResult.Error("Failed to parse Google ID token.")
         } catch (e: Exception) {
             Log.e("AuthRepository", "Authentication error: ${e.message}", e)
             SignInResult.Error("Sign in failed: ${e.localizedMessage ?: e.message}")
