@@ -23,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,8 +42,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.UserProfile
 import com.example.ui.theme.NeonAmber
+import com.example.ui.theme.NeonBorder
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonDarkBg
 import com.example.ui.theme.NeonDarkCard
@@ -66,7 +76,10 @@ import com.example.ui.theme.NeonMagenta
 fun ProfileScreen(
     userProfile: UserProfile,
     signInStatus: String?,
+    showAccountChooser: Boolean,
     onSignInWithGoogle: (Context) -> Unit,
+    onConfirmGoogleAccount: (name: String, email: String) -> Unit,
+    onDismissAccountChooser: () -> Unit,
     onClearSignInStatus: () -> Unit,
     onSignOut: (Context) -> Unit,
     onNavigateToHistory: () -> Unit,
@@ -74,6 +87,9 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+
+    var customNameInput by remember { mutableStateOf("Majid Moharami") }
+    var customEmailInput by remember { mutableStateOf("majid.moharami79@gmail.com") }
 
     Column(
         modifier = modifier
@@ -403,6 +419,153 @@ fun ProfileScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    // Google Account Chooser Dialog Modal
+    if (showAccountChooser) {
+        AlertDialog(
+            onDismissRequest = onDismissAccountChooser,
+            containerColor = NeonDarkCard,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFA0ACCC),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "G",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        color = Color(0xFF4285F4)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Choose Google Account",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Select your Google Account to complete Sign in with Google.",
+                        fontSize = 13.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Account Option 1: Majid Moharami
+                    Card(
+                        onClick = {
+                            onConfirmGoogleAccount("Majid Moharami", "majid.moharami79@gmail.com")
+                        },
+                        colors = CardDefaults.cardColors(containerColor = NeonDarkSurface),
+                        border = BorderStroke(1.5.dp, NeonCyan),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF4285F4)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "M",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 18.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Majid Moharami",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 15.sp
+                                )
+                                Text(
+                                    text = "majid.moharami79@gmail.com",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFA0ACCC)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Text(
+                        text = "OR SIGN IN WITH ANOTHER GOOGLE ACCOUNT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFA0ACCC),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = customNameInput,
+                        onValueChange = { customNameInput = it },
+                        label = { Text("Display Name") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = NeonBorder,
+                            focusedLabelColor = NeonCyan,
+                            unfocusedLabelColor = Color(0xFFA0ACCC),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedTextField(
+                        value = customEmailInput,
+                        onValueChange = { customEmailInput = it },
+                        label = { Text("Google Email") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = NeonBorder,
+                            focusedLabelColor = NeonCyan,
+                            unfocusedLabelColor = Color(0xFFA0ACCC),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val name = if (customNameInput.isNotBlank()) customNameInput else "Google Duelist"
+                        val email = if (customEmailInput.isNotBlank()) customEmailInput else "user@gmail.com"
+                        onConfirmGoogleAccount(name, email)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Sign In", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissAccountChooser) {
+                    Text("Cancel", color = Color(0xFFA0ACCC))
+                }
+            }
+        )
     }
 }
 

@@ -79,11 +79,15 @@ fun WallWarNavGraph(
             val viewModel: ProfileViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val signInStatus by viewModel.signInStatus.collectAsStateWithLifecycle()
+            val showAccountChooser by viewModel.showAccountChooser.collectAsStateWithLifecycle()
 
             ProfileScreen(
                 userProfile = userProfile,
                 signInStatus = signInStatus,
+                showAccountChooser = showAccountChooser,
                 onSignInWithGoogle = viewModel::signInWithGoogle,
+                onConfirmGoogleAccount = viewModel::confirmGoogleAccount,
+                onDismissAccountChooser = viewModel::dismissAccountChooser,
                 onClearSignInStatus = viewModel::clearSignInStatus,
                 onSignOut = viewModel::signOut,
                 onNavigateToHistory = { navController.navigate(HistoryRoute) },

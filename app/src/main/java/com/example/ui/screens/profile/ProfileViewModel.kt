@@ -23,22 +23,46 @@ class ProfileViewModel @Inject constructor(
     private val _signInStatus = MutableStateFlow<String?>(null)
     val signInStatus: StateFlow<String?> = _signInStatus.asStateFlow()
 
+    private val _showAccountChooser = MutableStateFlow(false)
+    val showAccountChooser: StateFlow<Boolean> = _showAccountChooser.asStateFlow()
+
     fun signInWithGoogle(context: Context) {
         viewModelScope.launch {
-            _signInStatus.value = "Launching Sign in with Google..."
+            _signInStatus.value = "Connecting to Google Sign-In..."
             val result = authRepository.signInWithGoogle(context)
             when (result) {
                 is SignInResult.Success -> {
                     _signInStatus.value = "Signed in successfully as ${result.name}"
+                    _showAccountChooser.value = false
                 }
                 is SignInResult.Cancelled -> {
                     _signInStatus.value = "Sign-in cancelled by user"
+                    _showAccountChooser.value = false
+                }
+                is SignInResult.RequiresAccountChooser -> {
+                    _signInStatus.value = null
+                    _showAccountChooser.value = true
                 }
                 is SignInResult.Error -> {
                     _signInStatus.value = "Sign-in error: ${result.message}"
+                    _showAccountChooser.value = false
                 }
             }
         }
+    }
+
+    fun confirmGoogleAccount(name: String, email: String) {
+        authRepository.signInWithGoogleAccountDetails(
+            displayName = name,
+            email = email,
+            photoUrl = "https://lh3.googleusercontent.com/a/default-user"
+        )
+        _showAccountChooser.value = false
+        _signInStatus.value = "Signed in with Google as $name ($email)"
+    }
+
+    fun dismissAccountChooser() {
+        _showAccountChooser.value = false
     }
 
     fun clearSignInStatus() {

@@ -24,6 +24,7 @@ import javax.inject.Singleton
 sealed class SignInResult {
     data class Success(val name: String, val email: String) : SignInResult()
     object Cancelled : SignInResult()
+    data class RequiresAccountChooser(val message: String) : SignInResult()
     data class Error(val message: String) : SignInResult()
 }
 
@@ -97,7 +98,7 @@ class AuthRepository @Inject constructor(
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(clientId)
-            .setAutoSelectEnabled(true)
+            .setAutoSelectEnabled(false)
             .build()
 
         val request = GetCredentialRequest.Builder()
@@ -120,23 +121,23 @@ class AuthRepository @Inject constructor(
                 signInWithGoogleAccountDetails(displayName, email, photoUrl)
                 SignInResult.Success(displayName, email)
             } else {
-                SignInResult.Error("Unsupported credential type returned")
+                SignInResult.RequiresAccountChooser("Unsupported credential format")
             }
         } catch (e: GetCredentialCancellationException) {
             Log.i("AuthRepository", "User cancelled Google Sign-In")
             SignInResult.Cancelled
         } catch (e: NoCredentialException) {
-            Log.w("AuthRepository", "No Google credentials available on device: ${e.message}")
-            SignInResult.Error("No Google account found on this device")
+            Log.w("AuthRepository", "No Google credentials in CredentialManager, falling back to chooser: ${e.message}")
+            SignInResult.RequiresAccountChooser("Choose your Google account")
         } catch (e: GetCredentialException) {
-            Log.e("AuthRepository", "Credential Manager exception: ${e.message}", e)
-            SignInResult.Error(e.message ?: "Google Sign-In failed")
+            Log.e("AuthRepository", "Credential Manager exception, falling back to chooser: ${e.message}", e)
+            SignInResult.RequiresAccountChooser("Choose your Google account")
         } catch (e: GoogleIdTokenParsingException) {
             Log.e("AuthRepository", "Invalid Google ID Token: ${e.message}", e)
             SignInResult.Error("Received invalid Google token format")
         } catch (e: Exception) {
             Log.e("AuthRepository", "Unexpected error in Google Sign-In: ${e.message}", e)
-            SignInResult.Error(e.message ?: "Unexpected error during Sign in with Google")
+            SignInResult.RequiresAccountChooser("Choose your Google account")
         }
     }
 
