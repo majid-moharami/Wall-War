@@ -11,20 +11,25 @@ import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.example.R
+import com.google.android.gms.tasks.Task
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.GoogleAuthProvider
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 sealed class SignInResult {
     data class Success(val name: String, val email: String) : SignInResult()
     object Cancelled : SignInResult()
-    data class RequiresAccountChooser(val message: String) : SignInResult()
     data class Error(val message: String) : SignInResult()
 }
 
@@ -35,14 +40,28 @@ class AuthRepository @Inject constructor(
     private val prefs: SharedPreferences =
         context.getSharedPreferences("wall_war_auth", Context.MODE_PRIVATE)
 
+    private val firebaseAuth: FirebaseAuth by lazy {
+        FirebaseAuth.getInstance()
+    }
+
     private val _userProfile = MutableStateFlow(loadStoredProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
     private fun loadStoredProfile(): UserProfile {
-        val isLoggedIn = prefs.getBoolean("is_logged_in", false)
-        val name = prefs.getString("display_name", "Guest Duelist") ?: "Guest Duelist"
-        val email = prefs.getString("email", "guest@wallwar.app") ?: "guest@wallwar.app"
-        val photoUrl = prefs.getString("photo_url", null)
+        val currentUser = try {
+            firebaseAuth.currentUser
+        } catch (e: Exception) {
+            null
+        }
+
+        val isLoggedIn = currentUser != null || prefs.getBoolean("is_logged_in", false)
+        val name = currentUser?.displayName
+            ?: prefs.getString("display_name", "Guest Duelist") ?: "Guest Duelist"
+        val email = currentUser?.email
+            ?: prefs.getString("email", "guest@wallwar.app") ?: "guest@wallwar.app"
+        val photoUrl = currentUser?.photoUrl?.toString()
+            ?: prefs.getString("photo_url", null)
+
         val trophies = prefs.getInt("trophies", 0)
         val xp = prefs.getInt("xp", 0)
         val level = prefs.getInt("level", 1)
@@ -92,6 +111,15 @@ class AuthRepository @Inject constructor(
         return context.getString(R.string.default_web_client_id)
     }
 
+    private suspend fun <T> Task<T>.awaitTask(): T = suspendCancellableCoroutine { continuation ->
+        addOnSuccessListener { result ->
+            if (continuation.isActive) continuation.resume(result)
+        }
+        addOnFailureListener { exception ->
+            if (continuation.isActive) continuation.resumeWithException(exception)
+        }
+    }
+
     suspend fun signInWithGoogle(context: Context, serverClientId: String? = null): SignInResult {
         val clientId = serverClientId ?: getWebClientId(context)
 
@@ -113,46 +141,62 @@ class AuthRepository @Inject constructor(
 
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                val displayName = googleIdTokenCredential.displayName
-                    ?: googleIdTokenCredential.id.substringBefore("@").replace(".", " ").capitalizeWords()
-                val email = googleIdTokenCredential.id
-                val photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
+                val idToken = googleIdTokenCredential.idToken
 
-                signInWithGoogleAccountDetails(displayName, email, photoUrl)
-                SignInResult.Success(displayName, email)
+                // Validate and authenticate ID Token with Firebase Auth
+                val authCredential = GoogleAuthProvider.getCredential(idToken, null)
+                val authResult = firebaseAuth.signInWithCredential(authCredential).awaitTask()
+                val firebaseUser = authResult.user
+
+                if (firebaseUser != null) {
+                    val displayName = firebaseUser.displayName
+                        ?: googleIdTokenCredential.displayName
+                        ?: firebaseUser.email?.substringBefore("@")
+                        ?: "Google User"
+                    val email = firebaseUser.email ?: googleIdTokenCredential.id
+                    val photoUrl = firebaseUser.photoUrl?.toString()
+                        ?: googleIdTokenCredential.profilePictureUri?.toString()
+
+                    val current = _userProfile.value
+                    val updated = current.copy(
+                        isLoggedIn = true,
+                        displayName = displayName,
+                        email = email,
+                        photoUrl = photoUrl
+                    )
+                    saveProfile(updated)
+                    SignInResult.Success(displayName, email)
+                } else {
+                    SignInResult.Error("Firebase Auth verification failed: No user returned")
+                }
             } else {
-                SignInResult.RequiresAccountChooser("Unsupported credential format")
+                SignInResult.Error("Unsupported credential type received from Credential Manager")
             }
         } catch (e: GetCredentialCancellationException) {
             Log.i("AuthRepository", "User cancelled Google Sign-In")
             SignInResult.Cancelled
         } catch (e: NoCredentialException) {
-            Log.w("AuthRepository", "No Google credentials in CredentialManager, falling back to chooser: ${e.message}")
-            SignInResult.RequiresAccountChooser("Choose your Google account")
+            Log.w("AuthRepository", "No Google accounts available on device: ${e.message}")
+            SignInResult.Error("No Google account found on this device. Please sign in to a Google account in Android settings.")
         } catch (e: GetCredentialException) {
-            Log.e("AuthRepository", "Credential Manager exception, falling back to chooser: ${e.message}", e)
-            SignInResult.RequiresAccountChooser("Choose your Google account")
+            Log.e("AuthRepository", "Credential Manager exception: ${e.message}", e)
+            SignInResult.Error("Google Sign-In error: ${e.message}")
         } catch (e: GoogleIdTokenParsingException) {
             Log.e("AuthRepository", "Invalid Google ID Token: ${e.message}", e)
-            SignInResult.Error("Received invalid Google token format")
+            SignInResult.Error("Invalid Google ID token format")
         } catch (e: Exception) {
-            Log.e("AuthRepository", "Unexpected error in Google Sign-In: ${e.message}", e)
-            SignInResult.RequiresAccountChooser("Choose your Google account")
+            Log.e("AuthRepository", "Authentication error: ${e.message}", e)
+            SignInResult.Error("Firebase Authentication failed: ${e.localizedMessage ?: e.message}")
         }
     }
 
-    fun signInWithGoogleAccountDetails(displayName: String, email: String, photoUrl: String? = null) {
-        val current = _userProfile.value
-        val updated = current.copy(
-            isLoggedIn = true,
-            displayName = if (displayName.isNotBlank()) displayName else "Google Duelist",
-            email = email,
-            photoUrl = photoUrl
-        )
-        saveProfile(updated)
-    }
-
     suspend fun signOut(context: Context) {
+        try {
+            firebaseAuth.signOut()
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error signing out of Firebase: ${e.message}")
+        }
+
         try {
             val credentialManager = CredentialManager.create(context)
             credentialManager.clearCredentialState(ClearCredentialStateRequest())
@@ -196,11 +240,5 @@ class AuthRepository @Inject constructor(
             rankTitle = newRank
         )
         saveProfile(updated)
-    }
-
-    private fun String.capitalizeWords(): String {
-        return split(" ").joinToString(" ") { word ->
-            word.lowercase().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-        }
     }
 }
