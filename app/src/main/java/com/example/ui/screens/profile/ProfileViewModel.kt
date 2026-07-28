@@ -25,17 +25,17 @@ class ProfileViewModel @Inject constructor(
 
     fun signInWithGoogle(context: Context) {
         viewModelScope.launch {
-            _signInStatus.value = "Authenticating with Google & Firebase..."
+            _signInStatus.value = "Launching Google Sign-In..."
             val result = authRepository.signInWithGoogle(context)
             when (result) {
                 is SignInResult.Success -> {
                     _signInStatus.value = "Signed in as ${result.name} (${result.email})"
                 }
                 is SignInResult.Cancelled -> {
-                    _signInStatus.value = "Sign-in cancelled by user"
+                    _signInStatus.value = "Sign-in cancelled"
                 }
                 is SignInResult.Error -> {
-                    _signInStatus.value = "Authentication error: ${result.message}"
+                    _signInStatus.value = result.message
                 }
             }
         }

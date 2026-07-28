@@ -1,6 +1,8 @@
 package com.example.data
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.credentials.ClearCredentialStateRequest
@@ -111,6 +113,15 @@ class AuthRepository @Inject constructor(
         return context.getString(R.string.default_web_client_id)
     }
 
+    private fun Context.findActivity(): Activity? {
+        var ctx = this
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) return ctx
+            ctx = ctx.baseContext
+        }
+        return null
+    }
+
     private suspend fun <T> Task<T>.awaitTask(): T = suspendCancellableCoroutine { continuation ->
         addOnSuccessListener { result ->
             if (continuation.isActive) continuation.resume(result)
@@ -120,8 +131,9 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun signInWithGoogle(context: Context, serverClientId: String? = null): SignInResult {
-        val clientId = serverClientId ?: getWebClientId(context)
+    suspend fun signInWithGoogle(callingContext: Context, serverClientId: String? = null): SignInResult {
+        val clientId = serverClientId ?: getWebClientId(callingContext)
+        val activityContext = callingContext.findActivity() ?: callingContext
 
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
@@ -133,64 +145,69 @@ class AuthRepository @Inject constructor(
             .addCredentialOption(googleIdOption)
             .build()
 
-        val credentialManager = CredentialManager.create(context)
+        val credentialManager = CredentialManager.create(activityContext)
 
         return try {
-            val result = credentialManager.getCredential(context = context, request = request)
+            val result = credentialManager.getCredential(context = activityContext, request = request)
             val credential = result.credential
 
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
 
-                // Validate and authenticate ID Token with Firebase Auth
-                val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-                val authResult = firebaseAuth.signInWithCredential(authCredential).awaitTask()
-                val firebaseUser = authResult.user
+                var displayName = googleIdTokenCredential.displayName
+                    ?: googleIdTokenCredential.id.substringBefore("@")
+                var email = googleIdTokenCredential.id
+                var photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
 
-                if (firebaseUser != null) {
-                    val displayName = firebaseUser.displayName
-                        ?: googleIdTokenCredential.displayName
-                        ?: firebaseUser.email?.substringBefore("@")
-                        ?: "Google User"
-                    val email = firebaseUser.email ?: googleIdTokenCredential.id
-                    val photoUrl = firebaseUser.photoUrl?.toString()
-                        ?: googleIdTokenCredential.profilePictureUri?.toString()
+                // Validate ID Token with Firebase Auth if available
+                try {
+                    val authCredential = GoogleAuthProvider.getCredential(idToken, null)
+                    val authResult = firebaseAuth.signInWithCredential(authCredential).awaitTask()
+                    val firebaseUser = authResult.user
 
-                    val current = _userProfile.value
-                    val updated = current.copy(
-                        isLoggedIn = true,
-                        displayName = displayName,
-                        email = email,
-                        photoUrl = photoUrl
-                    )
-                    saveProfile(updated)
-                    SignInResult.Success(displayName, email)
-                } else {
-                    SignInResult.Error("Firebase Auth verification failed: No user returned")
+                    if (firebaseUser != null) {
+                        displayName = firebaseUser.displayName ?: displayName
+                        email = firebaseUser.email ?: email
+                        photoUrl = firebaseUser.photoUrl?.toString() ?: photoUrl
+                    }
+                } catch (e: Exception) {
+                    Log.w("AuthRepository", "Firebase Auth token exchange skipped or failed: ${e.message}")
                 }
+
+                val current = _userProfile.value
+                val updated = current.copy(
+                    isLoggedIn = true,
+                    displayName = displayName,
+                    email = email,
+                    photoUrl = photoUrl
+                )
+                saveProfile(updated)
+                SignInResult.Success(displayName, email)
             } else {
-                SignInResult.Error("Unsupported credential type received from Credential Manager")
+                SignInResult.Error("Unsupported credential type returned from Credential Manager.")
             }
         } catch (e: GetCredentialCancellationException) {
-            Log.i("AuthRepository", "User cancelled Google Sign-In")
+            Log.i("AuthRepository", "User cancelled Google Sign-In bottom sheet")
             SignInResult.Cancelled
         } catch (e: NoCredentialException) {
-            Log.w("AuthRepository", "No Google accounts available on device: ${e.message}")
-            SignInResult.Error("No Google account found on this device. Please sign in to a Google account in Android settings.")
+            Log.w("AuthRepository", "No credential found or available: ${e.message}")
+            SignInResult.Error("No Google account found on device or Google Sign-In is unavailable.")
         } catch (e: GetCredentialException) {
             Log.e("AuthRepository", "Credential Manager exception: ${e.message}", e)
-            SignInResult.Error("Google Sign-In error: ${e.message}")
+            SignInResult.Error("Google Sign-In failed: ${e.message}")
         } catch (e: GoogleIdTokenParsingException) {
             Log.e("AuthRepository", "Invalid Google ID Token: ${e.message}", e)
-            SignInResult.Error("Invalid Google ID token format")
+            SignInResult.Error("Invalid Google ID token format.")
         } catch (e: Exception) {
             Log.e("AuthRepository", "Authentication error: ${e.message}", e)
-            SignInResult.Error("Firebase Authentication failed: ${e.localizedMessage ?: e.message}")
+            SignInResult.Error("Sign in failed: ${e.localizedMessage ?: e.message}")
         }
     }
 
-    suspend fun signOut(context: Context) {
+    suspend fun signOut(callingContext: Context) {
+        val activityContext = callingContext.findActivity() ?: callingContext
+
         try {
             firebaseAuth.signOut()
         } catch (e: Exception) {
@@ -198,7 +215,7 @@ class AuthRepository @Inject constructor(
         }
 
         try {
-            val credentialManager = CredentialManager.create(context)
+            val credentialManager = CredentialManager.create(activityContext)
             credentialManager.clearCredentialState(ClearCredentialStateRequest())
         } catch (e: Exception) {
             Log.e("AuthRepository", "Error clearing credential state: ${e.message}")

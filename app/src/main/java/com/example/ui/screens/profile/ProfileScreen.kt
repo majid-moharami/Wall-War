@@ -92,7 +92,7 @@ fun ProfileScreen(
                     .padding(bottom = 12.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (signInStatus.contains("error", ignoreCase = true)) {
+                    containerColor = if (signInStatus.contains("error", ignoreCase = true) || signInStatus.contains("failed", ignoreCase = true)) {
                         Color(0xFF3E1A24)
                     } else {
                         NeonDarkSurface
@@ -100,7 +100,7 @@ fun ProfileScreen(
                 ),
                 border = BorderStroke(
                     1.dp,
-                    if (signInStatus.contains("error", ignoreCase = true)) NeonMagenta else NeonCyan
+                    if (signInStatus.contains("error", ignoreCase = true) || signInStatus.contains("failed", ignoreCase = true)) NeonMagenta else NeonCyan
                 )
             ) {
                 Row(
@@ -112,7 +112,7 @@ fun ProfileScreen(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = "Status",
-                        tint = if (signInStatus.contains("error", ignoreCase = true)) NeonMagenta else NeonCyan,
+                        tint = if (signInStatus.contains("error", ignoreCase = true) || signInStatus.contains("failed", ignoreCase = true)) NeonMagenta else NeonCyan,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -211,7 +211,7 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (userProfile.isLoggedIn) "Google & Firebase Verified" else "Guest Duelist",
+                        text = if (userProfile.isLoggedIn) "Google Verified" else "Guest Duelist",
                         color = if (userProfile.isLoggedIn) NeonEmerald else Color(0xFFA0ACCC),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
