@@ -1,6 +1,10 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,11 +22,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CropLandscape
 import androidx.compose.material.icons.filled.CropPortrait
-import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -34,19 +37,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -61,8 +62,14 @@ import com.example.model.GameState
 import com.example.model.Position
 import com.example.model.Wall
 import com.example.ui.components.GameBoardComposable
-import com.example.ui.theme.WallWarAmber
-import com.example.ui.theme.WallWarPurple
+import com.example.ui.theme.NeonAmber
+import com.example.ui.theme.NeonBorder
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonDarkBg
+import com.example.ui.theme.NeonDarkCard
+import com.example.ui.theme.NeonDarkSurface
+import com.example.ui.theme.NeonMagenta
+import com.example.ui.theme.NeonPurple
 import kotlin.math.roundToInt
 
 @Composable
@@ -185,10 +192,11 @@ fun GameBoardScreen(
         activeDragWall = null
         isValidDrag = false
     }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(NeonDarkBg)
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -198,39 +206,62 @@ fun GameBoardScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.testTag("btn_back")
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(NeonDarkCard)
+                    .border(1.dp, NeonBorder, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
-                )
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.testTag("btn_back")
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color.White
+                    )
+                }
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = gameState.mode.displayName,
+                    text = gameState.mode.displayName.uppercase(),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    letterSpacing = 1.sp
                 )
                 Text(
                     text = if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = NeonCyan,
+                    fontWeight = FontWeight.Bold
                 )
             }
 
-            IconButton(
-                onClick = {
-                    soundManager.isSoundEnabled = !soundManager.isSoundEnabled
-                },
-                modifier = Modifier.testTag("btn_sound_toggle")
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(NeonDarkCard)
+                    .border(1.dp, NeonBorder, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (soundManager.isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                    contentDescription = "Sound Toggle"
-                )
+                IconButton(
+                    onClick = {
+                        soundManager.isSoundEnabled = !soundManager.isSoundEnabled
+                    },
+                    modifier = Modifier.testTag("btn_sound_toggle")
+                ) {
+                    Icon(
+                        imageVector = if (soundManager.isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                        contentDescription = "Sound Toggle",
+                        tint = if (soundManager.isSoundEnabled) NeonCyan else Color(0xFFA0ACCC)
+                    )
+                }
             }
         }
 
@@ -239,13 +270,13 @@ fun GameBoardScreen(
         // Top Players Score Header Bar (P1 & P2 / AI)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             PlayerScoreCard(
                 playerName = "Player 1",
                 wallsLeft = gameState.leftWalls[0],
                 isTurn = gameState.turn == 0 && gameState.winner == null,
-                pawnColor = WallWarPurple,
+                pawnColor = NeonCyan,
                 modifier = Modifier.weight(1f)
             )
 
@@ -253,7 +284,7 @@ fun GameBoardScreen(
                 playerName = if (gameState.isAiMatch) "AI Bot" else "Player 2",
                 wallsLeft = gameState.leftWalls[1],
                 isTurn = gameState.turn == 1 && gameState.winner == null,
-                pawnColor = WallWarAmber,
+                pawnColor = NeonMagenta,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -287,10 +318,10 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Single Active Player Wall Controls Panel (Updates dynamically on turn change)
+        // Single Active Player Wall Controls Panel
         val activeTurn = gameState.turn
         val activePlayerName = if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
-        val activePawnColor = if (activeTurn == 0) WallWarPurple else WallWarAmber
+        val activePawnColor = if (activeTurn == 0) NeonCyan else NeonMagenta
 
         PlayerWallControlRow(
             playerName = activePlayerName,
@@ -312,25 +343,49 @@ fun GameBoardScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
-            IconButton(
+            OutlinedButton(
                 onClick = onUndoMove,
                 enabled = gameState.moveHistory.isNotEmpty() && gameState.winner == null,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, if (gameState.moveHistory.isNotEmpty()) NeonCyan else NeonBorder),
                 modifier = Modifier.testTag("btn_undo")
             ) {
-                Icon(
-                    imageVector = Icons.Default.Undo,
-                    contentDescription = "Undo"
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Undo,
+                        contentDescription = "Undo",
+                        tint = if (gameState.moveHistory.isNotEmpty()) NeonCyan else Color(0xFFA0ACCC),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Undo Move",
+                        color = if (gameState.moveHistory.isNotEmpty()) NeonCyan else Color(0xFFA0ACCC),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            IconButton(
+            OutlinedButton(
                 onClick = onRestart,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, NeonAmber),
                 modifier = Modifier.testTag("btn_restart")
             ) {
-                Icon(
-                    imageVector = Icons.Default.Refresh,
-                    contentDescription = "Restart"
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Restart",
+                        tint = NeonAmber,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Restart",
+                        color = NeonAmber,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
@@ -341,32 +396,41 @@ fun GameBoardScreen(
 
         AlertDialog(
             onDismissRequest = {},
+            containerColor = NeonDarkCard,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFA0ACCC),
             title = {
                 Text(
                     text = "🏆 $winnerName Wins!",
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
                 )
             },
             text = {
                 Column {
-                    Text("Congratulations! You mastered the walls.")
+                    Text("Masterful strategy! You breached the board defense.")
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Total Moves: ${gameState.moveHistory.size}")
-                    Text("Walls Placed: ${gameState.walls.size}")
+                    Text("Total Moves: ${gameState.moveHistory.size}", fontWeight = FontWeight.SemiBold, color = NeonCyan)
+                    Text("Walls Placed: ${gameState.walls.size}", fontWeight = FontWeight.SemiBold, color = NeonMagenta)
                 }
             },
             confirmButton = {
                 Button(
                     onClick = onRestart,
-                    colors = ButtonDefaults.buttonColors(containerColor = WallWarPurple)
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Play Again")
+                    Text("Play Again", fontWeight = FontWeight.ExtraBold)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = onBack) {
-                    Text("Main Menu")
+                OutlinedButton(
+                    onClick = onBack,
+                    border = BorderStroke(1.dp, NeonBorder),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Main Menu", color = Color.White)
                 }
             }
         )
@@ -383,9 +447,13 @@ fun PlayerScoreCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isTurn) pawnColor.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+            containerColor = NeonDarkCard
         ),
-        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(
+            width = if (isTurn) 2.dp else 1.dp,
+            color = if (isTurn) pawnColor else NeonBorder
+        ),
+        shape = RoundedCornerShape(14.dp),
         modifier = modifier
     ) {
         Row(
@@ -403,21 +471,29 @@ fun PlayerScoreCard(
                 Text(
                     text = playerName,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
                 )
                 Text(
                     text = "Walls: $wallsLeft",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFFA0ACCC)
                 )
             }
             if (isTurn) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(4.dp))
                         .background(pawnColor)
-                )
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "TURN",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.Black
+                    )
+                }
             }
         }
     }
@@ -442,14 +518,17 @@ fun PlayerWallControlRow(
 
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = if (isTurn) pawnColor.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            containerColor = NeonDarkCard
         ),
-        border = if (isTurn) androidx.compose.foundation.BorderStroke(2.dp, pawnColor) else null,
-        shape = RoundedCornerShape(20.dp),
+        border = BorderStroke(
+            width = if (isTurn) 1.5.dp else 1.dp,
+            color = if (isTurn) pawnColor else NeonBorder
+        ),
+        shape = RoundedCornerShape(18.dp),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -460,31 +539,32 @@ fun PlayerWallControlRow(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(20.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
                         .background(pawnColor)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = playerName,
                             style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                         if (isTurn) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(RoundedCornerShape(4.dp))
                                     .background(pawnColor)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
                             ) {
                                 Text(
                                     text = "TURN",
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = if (pawnColor == WallWarAmber) Color.Black else Color.White
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color.Black
                                 )
                             }
                         }
@@ -492,20 +572,21 @@ fun PlayerWallControlRow(
                     Text(
                         text = "Walls: $wallsLeft",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFA0ACCC)
                     )
                 }
             }
 
-            // Horizontal Wall Item Chip
+            // Horizontal Wall Item Button
             Button(
                 onClick = { onSelectWallOrientation(true) },
                 enabled = isTurn && wallsLeft > 0,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && isWallHorizontal && isTurn) WallWarAmber else pawnColor.copy(alpha = 0.25f),
-                    contentColor = if (isWallMode && isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
+                    containerColor = if (isWallMode && isWallHorizontal && isTurn) NeonCyan else NeonDarkSurface,
+                    contentColor = if (isWallMode && isWallHorizontal && isTurn) Color.Black else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, if (isWallMode && isWallHorizontal && isTurn) NeonCyan else NeonBorder),
                 modifier = Modifier
                     .height(42.dp)
                     .onGloballyPositioned { horizBounds = it.boundsInWindow() }
@@ -545,15 +626,16 @@ fun PlayerWallControlRow(
                 )
             }
 
-            // Vertical Wall Item Chip
+            // Vertical Wall Item Button
             Button(
                 onClick = { onSelectWallOrientation(false) },
                 enabled = isTurn && wallsLeft > 0,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && !isWallHorizontal && isTurn) WallWarAmber else pawnColor.copy(alpha = 0.25f),
-                    contentColor = if (isWallMode && !isWallHorizontal && isTurn) Color(0xFF381E72) else Color.White
+                    containerColor = if (isWallMode && !isWallHorizontal && isTurn) NeonMagenta else NeonDarkSurface,
+                    contentColor = if (isWallMode && !isWallHorizontal && isTurn) Color.White else Color.White
                 ),
                 shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, if (isWallMode && !isWallHorizontal && isTurn) NeonMagenta else NeonBorder),
                 modifier = Modifier
                     .height(42.dp)
                     .onGloballyPositioned { vertBounds = it.boundsInWindow() }

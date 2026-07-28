@@ -1,8 +1,9 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +25,6 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Tune
@@ -55,9 +54,15 @@ import com.example.model.AiDifficulty
 import com.example.model.GameMode
 import com.example.model.OpponentType
 import com.example.ui.AppScreen
-import com.example.ui.theme.WallWarAmber
-import com.example.ui.theme.WallWarPurple
-import com.example.ui.theme.WallWarPurpleLight
+import com.example.ui.theme.NeonAmber
+import com.example.ui.theme.NeonBorder
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonDarkBg
+import com.example.ui.theme.NeonDarkCard
+import com.example.ui.theme.NeonDarkSurface
+import com.example.ui.theme.NeonEmerald
+import com.example.ui.theme.NeonMagenta
+import com.example.ui.theme.NeonPurple
 
 @Composable
 fun HomeScreen(
@@ -73,12 +78,12 @@ fun HomeScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(NeonDarkBg)
             .verticalScroll(rememberScrollState())
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Header Area
         Row(
@@ -92,30 +97,32 @@ fun HomeScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(WallWarPurple),
+                        .background(NeonDarkSurface)
+                        .border(2.dp, NeonCyan, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "WW",
-                        color = Color(0xFF381E72),
+                        color = NeonCyan,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 16.sp
                     )
                 }
                 Column {
                     Text(
-                        text = "RACER LEVEL 14",
+                        text = "TACTICAL ARENA",
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF919194)
+                        color = NeonCyan,
+                        letterSpacing = 1.2.sp
                     )
                     Text(
                         text = "WallWar Tactics",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFE2E2E6)
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
                     )
                 }
             }
@@ -125,26 +132,28 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(Color(0xFF1C1B1F))
+                    .background(NeonDarkSurface)
+                    .border(1.dp, NeonAmber.copy(alpha = 0.5f), CircleShape)
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(22.dp)
                         .clip(CircleShape)
-                        .background(WallWarAmber),
+                        .background(NeonAmber.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "⚡",
-                        fontSize = 12.sp
+                        fontSize = 11.sp
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "2,450",
+                    text = "${2450 + totalWins * 50}",
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE6E1E5)
+                    color = NeonAmber,
+                    fontSize = 13.sp
                 )
             }
         }
@@ -153,38 +162,36 @@ fun HomeScreen(
 
         // High Rush Hero Section
         Card(
-            shape = RoundedCornerShape(32.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            border = BorderStroke(
+                1.5.dp,
+                Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta))
+            ),
+            modifier = Modifier.fillMaxWidth()
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(Color(0xFF381E72), Color(0xFF1A1C1E))
-                        )
-                    )
-                    .padding(24.dp)
+                    .padding(20.dp)
             ) {
                 Column {
                     Text(
-                        text = "HIGHEST RUSH",
+                        text = "HIGHEST RUSH & RATING",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
-                        color = WallWarPurple
+                        color = NeonCyan,
+                        letterSpacing = 1.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = if (totalMatches > 0) "${(totalWins * 1280 + 1200)}" else "12,840",
-                        fontSize = 44.sp,
+                        fontSize = 38.sp,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
                         letterSpacing = (-1).sp
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -192,14 +199,27 @@ fun HomeScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF81C784).copy(alpha = 0.2f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .background(NeonEmerald.copy(alpha = 0.15f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = "Win Rate: ${if (totalMatches > 0) (totalWins * 100 / totalMatches) else 100}%",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF81C784)
+                                color = NeonEmerald
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(NeonAmber.copy(alpha = 0.15f))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Total Wins: $totalWins",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonAmber
                             )
                         }
                     }
@@ -207,45 +227,46 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Quick Stats Bento Grid
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1B1F)),
-                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier
                     .weight(1f)
-                    .height(110.dp)
+                    .height(100.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(14.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF44474E)),
+                            .clip(CircleShape)
+                            .background(NeonAmber.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("🏆", fontSize = 14.sp)
                     }
                     Column {
                         Text(
-                            text = "Rank",
+                            text = "Global Rank",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF919194)
+                            color = Color(0xFFA0ACCC)
                         )
                         Text(
                             text = "Top 4%",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
                     }
@@ -253,37 +274,38 @@ fun HomeScreen(
             }
 
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1B1F)),
-                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier
                     .weight(1f)
-                    .height(110.dp)
+                    .height(100.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(14.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF44474E)),
+                            .clip(CircleShape)
+                            .background(NeonMagenta.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text("🔥", fontSize = 14.sp)
                     }
                     Column {
                         Text(
-                            text = "Streak",
+                            text = "Daily Streak",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF919194)
+                            color = Color(0xFFA0ACCC)
                         )
                         Text(
                             text = "8 Days",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
                     }
@@ -293,14 +315,24 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Cards Section
+        Text(
+            text = "SELECT BATTLE MODE",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color(0xFFA0ACCC),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .align(Alignment.Start)
+                .padding(bottom = 10.dp)
+        )
+
         // 1. Quick Match Card (Primary Pass & Play)
         Card(
             onClick = {
                 onStartGame(GameMode.DUEL, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)
             },
-            colors = CardDefaults.cardColors(containerColor = WallWarPurple),
-            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonCyan, NeonPurple))),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("btn_quick_match")
@@ -308,85 +340,104 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.FlashOn,
-                    contentDescription = "Quick Match",
-                    tint = Color(0xFF381E72),
-                    modifier = Modifier.size(32.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(NeonCyan.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FlashOn,
+                        contentDescription = "Quick Match",
+                        tint = NeonCyan,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Quick Pass & Play",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF381E72)
+                        color = Color.White
                     )
                     Text(
                         text = "2 Players on 1 Phone",
                         style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF381E72).copy(alpha = 0.8f)
+                        color = Color(0xFFA0ACCC)
                     )
                 }
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = Color(0xFF381E72)
+                    tint = NeonCyan
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 2. Play VS AI Card
         Card(
             onClick = {
                 onStartGame(GameMode.DUEL, OpponentType.AI, selectedAiDifficulty)
             },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.dp, NeonBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("btn_vs_ai")
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(modifier = Modifier.padding(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.SmartToy,
-                        contentDescription = "Play AI",
-                        tint = WallWarPurple,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(NeonMagenta.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = "Play AI",
+                            tint = NeonMagenta,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Play VS AI",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                         Text(
-                            text = "Challenge computer (${selectedAiDifficulty.displayName})",
+                            text = "Challenge AI (${selectedAiDifficulty.displayName})",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFFA0ACCC)
                         )
                     }
                     IconButton(onClick = { showAiPicker = !showAiPicker }) {
                         Icon(
                             imageVector = if (showAiPicker) Icons.Default.Tune else Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Difficulty options"
+                            contentDescription = "Difficulty options",
+                            tint = NeonMagenta
                         )
                     }
                 }
 
                 AnimatedVisibility(visible = showAiPicker) {
-                    Column(modifier = Modifier.padding(top = 16.dp)) {
+                    Column(modifier = Modifier.padding(top = 14.dp)) {
                         Text(
-                            text = "Select AI Difficulty:",
+                            text = "AI Difficulty Level:",
                             style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
@@ -398,10 +449,17 @@ fun HomeScreen(
                                         selectedAiDifficulty = diff
                                         onStartGame(GameMode.DUEL, OpponentType.AI, diff)
                                     },
-                                    label = { Text(diff.displayName) },
+                                    label = {
+                                        Text(
+                                            text = diff.displayName,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    },
                                     colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = WallWarPurple,
-                                        selectedLabelColor = Color.White
+                                        selectedContainerColor = NeonMagenta,
+                                        selectedLabelColor = Color.White,
+                                        containerColor = NeonDarkSurface,
+                                        labelColor = Color(0xFFA0ACCC)
                                     )
                                 )
                             }
@@ -411,15 +469,16 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // 3. Wall Race Mode (9x13 fast board)
         Card(
             onClick = {
                 onStartGame(GameMode.RACE, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)
             },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.dp, NeonBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("btn_wall_race")
@@ -427,108 +486,139 @@ fun HomeScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.DirectionsRun,
-                    contentDescription = "Race Mode",
-                    tint = WallWarAmber,
-                    modifier = Modifier.size(28.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(NeonAmber.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.DirectionsRun,
+                        contentDescription = "Race Mode",
+                        tint = NeonAmber,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Wall Race Mode",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                     Text(
-                        text = "9x13 Board - Race to top with 15 walls",
+                        text = "9x13 Board • Race to top with 15 walls",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFA0ACCC)
                     )
                 }
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null
+                    contentDescription = null,
+                    tint = NeonAmber
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Two Column Grid: How to Play & Statistics
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Card(
                 onClick = { onNavigate(AppScreen.RULES) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier
                     .weight(1f)
                     .testTag("btn_how_to_play")
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Book,
-                        contentDescription = "Rules",
-                        tint = WallWarPurple,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(NeonCyan.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Book,
+                            contentDescription = "Rules",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
                         text = "How to Play",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                     Text(
                         text = "Rules & Guides",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFA0ACCC)
                     )
                 }
             }
 
             Card(
                 onClick = { onNavigate(AppScreen.HISTORY) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier
                     .weight(1f)
                     .testTag("btn_stats_history")
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.BarChart,
-                        contentDescription = "Stats",
-                        tint = WallWarAmber,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(NeonAmber.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.BarChart,
+                            contentDescription = "Stats",
+                            tint = NeonAmber,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "Statistics",
+                        text = "Match History",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                     Text(
-                        text = "$totalWins W / $totalMatches Games",
+                        text = "$totalWins W / $totalMatches Matches",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFFA0ACCC)
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         // Settings Button
         Card(
             onClick = { onNavigate(AppScreen.SETTINGS) },
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            shape = RoundedCornerShape(16.dp),
+            border = BorderStroke(1.dp, NeonBorder),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("btn_settings")
@@ -539,21 +629,32 @@ fun HomeScreen(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(NeonPurple.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        tint = NeonPurple,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(14.dp))
                 Text(
-                    text = "Settings & Themes",
+                    text = "Settings & Board Themes",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
+                    color = Color.White,
                     modifier = Modifier.weight(1f)
                 )
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null
+                    contentDescription = null,
+                    tint = Color(0xFFA0ACCC)
                 )
             }
         }

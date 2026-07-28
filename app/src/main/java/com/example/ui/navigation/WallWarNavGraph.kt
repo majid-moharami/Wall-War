@@ -17,6 +17,10 @@ import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.game.GameViewModel
 import com.example.ui.screens.history.HistoryViewModel
 import com.example.ui.screens.home.HomeViewModel
+import com.example.ui.screens.profile.ProfileScreen
+import com.example.ui.screens.profile.ProfileViewModel
+import com.example.ui.screens.ranking.RankingScreen
+import com.example.ui.screens.ranking.RankingViewModel
 import com.example.ui.screens.settings.SettingsViewModel
 
 @Composable
@@ -29,7 +33,7 @@ fun WallWarNavGraph(
         startDestination = HomeRoute,
         modifier = modifier
     ) {
-        composable<HomeRoute> { backStackEntry ->
+        composable<HomeRoute> {
             val viewModel: HomeViewModel = hiltViewModel()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
@@ -48,9 +52,7 @@ fun WallWarNavGraph(
                 },
                 onNavigate = { targetScreen ->
                     when (targetScreen) {
-                        AppScreen.GAME_BOARD -> navController.navigate(
-                            GameBoardRoute()
-                        )
+                        AppScreen.GAME_BOARD -> navController.navigate(GameBoardRoute())
                         AppScreen.RULES -> navController.navigate(RulesRoute)
                         AppScreen.HISTORY -> navController.navigate(HistoryRoute)
                         AppScreen.SETTINGS -> navController.navigate(SettingsRoute)
@@ -62,7 +64,31 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<GameBoardRoute> { backStackEntry ->
+        composable<RankingRoute> {
+            val viewModel: RankingViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val leaderboard by viewModel.leaderboard.collectAsStateWithLifecycle()
+
+            RankingScreen(
+                userProfile = userProfile,
+                leaderboard = leaderboard
+            )
+        }
+
+        composable<ProfileRoute> {
+            val viewModel: ProfileViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+
+            ProfileScreen(
+                userProfile = userProfile,
+                onSignInWithGoogle = { context -> viewModel.signInWithGoogle(context) },
+                onSignOut = viewModel::signOut,
+                onNavigateToHistory = { navController.navigate(HistoryRoute) },
+                onNavigateToSettings = { navController.navigate(SettingsRoute) }
+            )
+        }
+
+        composable<GameBoardRoute> {
             val viewModel: GameViewModel = hiltViewModel()
             val gameState by viewModel.gameState.collectAsStateWithLifecycle()
             val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
@@ -91,7 +117,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<RulesRoute> { backStackEntry ->
+        composable<RulesRoute> {
             RulesScreen(
                 onBack = {
                     if (!navController.popBackStack()) {
@@ -101,7 +127,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<HistoryRoute> { backStackEntry ->
+        composable<HistoryRoute> {
             val viewModel: HistoryViewModel = hiltViewModel()
             val matchHistory by viewModel.matchHistory.collectAsStateWithLifecycle()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
@@ -120,7 +146,7 @@ fun WallWarNavGraph(
             )
         }
 
-        composable<SettingsRoute> { backStackEntry ->
+        composable<SettingsRoute> {
             val viewModel: SettingsViewModel = hiltViewModel()
             val selectedTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
 

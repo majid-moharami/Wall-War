@@ -1,0 +1,384 @@
+package com.example.ui.screens.ranking
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.data.UserProfile
+import com.example.ui.theme.NeonAmber
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonDarkBg
+import com.example.ui.theme.NeonDarkCard
+import com.example.ui.theme.NeonDarkSurface
+import com.example.ui.theme.NeonEmerald
+import com.example.ui.theme.NeonMagenta
+import com.example.ui.theme.NeonPurple
+
+@Composable
+fun RankingScreen(
+    userProfile: UserProfile,
+    leaderboard: List<LeaderboardPlayer>,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(NeonDarkBg)
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "GLOBAL LEADERBOARD",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NeonCyan,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp
+                )
+                Text(
+                    text = "Ranking Arena",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Brush.horizontalGradient(listOf(NeonMagenta, NeonPurple)))
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = "League",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Season 1",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Top 3 Podium
+        if (leaderboard.size >= 3) {
+            PodiumSection(
+                p1 = leaderboard.firstOrNull { it.rank == 1 } ?: leaderboard[0],
+                p2 = leaderboard.firstOrNull { it.rank == 2 } ?: leaderboard[1],
+                p3 = leaderboard.firstOrNull { it.rank == 3 } ?: leaderboard[2]
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "ALL DUELISTS",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color(0xFFA0ACCC),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        // Leaderboard List
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            items(leaderboard, key = { it.name + it.rank }) { player ->
+                LeaderboardCard(player = player)
+            }
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PodiumSection(
+    p1: LeaderboardPlayer,
+    p2: LeaderboardPlayer,
+    p3: LeaderboardPlayer
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        // 2nd Place
+        PodiumCard(
+            player = p2,
+            rankColor = Color(0xFFC0C0C0),
+            heightDp = 130,
+            modifier = Modifier.weight(1f)
+        )
+
+        // 1st Place
+        PodiumCard(
+            player = p1,
+            rankColor = NeonAmber,
+            heightDp = 160,
+            modifier = Modifier.weight(1f)
+        )
+
+        // 3rd Place
+        PodiumCard(
+            player = p3,
+            rankColor = Color(0xFFCD7F32),
+            heightDp = 115,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun PodiumCard(
+    player: LeaderboardPlayer,
+    rankColor: Color,
+    heightDp: Int,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+        border = androidx.compose.foundation.BorderStroke(
+            width = if (player.isUser) 2.dp else 1.dp,
+            color = if (player.isUser) NeonCyan else rankColor.copy(alpha = 0.6f)
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(heightDp.dp)
+                .padding(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, rankColor, CircleShape)
+                    .background(NeonDarkSurface),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!player.avatarUrl.isNull_or_empty()) {
+                    AsyncImage(
+                        model = player.avatarUrl,
+                        contentDescription = player.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = player.name,
+                        tint = rankColor
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "#${player.rank}",
+                fontWeight = FontWeight.ExtraBold,
+                color = rankColor,
+                fontSize = 14.sp
+            )
+
+            Text(
+                text = player.name,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                fontSize = 11.sp,
+                maxLines = 1
+            )
+
+            Text(
+                text = "${player.trophies} 🏆",
+                fontWeight = FontWeight.SemiBold,
+                color = NeonAmber,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
+private fun String?.isNull_or_empty(): Boolean = this == null || this.trim().isEmpty()
+
+@Composable
+private fun LeaderboardCard(player: LeaderboardPlayer) {
+    val borderColor = if (player.isUser) NeonCyan else Color.Transparent
+    val cardBg = if (player.isUser) Color(0xFF1F2642) else NeonDarkCard
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = if (player.isUser) androidx.compose.foundation.BorderStroke(1.5.dp, borderColor) else null
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Rank Number
+            Box(
+                modifier = Modifier
+                    .width(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "#${player.rank}",
+                    fontWeight = FontWeight.ExtraBold,
+                    color = when (player.rank) {
+                        1 -> NeonAmber
+                        2 -> Color(0xFFC0C0C0)
+                        3 -> Color(0xFFCD7F32)
+                        else -> Color(0xFFA0ACCC)
+                    },
+                    fontSize = 14.sp
+                )
+            }
+
+            // Avatar
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(NeonDarkSurface)
+                    .border(1.dp, if (player.isUser) NeonCyan else Color(0xFF2E375A), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!player.avatarUrl.isNull_or_empty()) {
+                    AsyncImage(
+                        model = player.avatarUrl,
+                        contentDescription = player.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = player.name,
+                        tint = NeonCyan
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Player Info
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = player.name,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        maxLines = 1
+                    )
+                    if (player.isUser) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(NeonCyan)
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "YOU",
+                                color = Color.Black,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = player.title,
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "•  Lvl ${player.level}",
+                        color = NeonEmerald,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            // Trophy & Win Rate
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "${player.trophies} 🏆",
+                    fontWeight = FontWeight.Bold,
+                    color = NeonAmber,
+                    fontSize = 13.sp
+                )
+                Text(
+                    text = "${player.winRate}% Win",
+                    color = Color(0xFFA0ACCC),
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}

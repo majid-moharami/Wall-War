@@ -2,23 +2,35 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val WallWarPurple = Color(0xFFD0BCFF)
-val WallWarPurpleLight = Color(0xFFE8DEF8)
-val WallWarPurpleDark = Color(0xFF381E72)
-val WallWarPurpleContainer = Color(0xFF4F378B)
+// Futuristic Neon Color Palette
+val NeonCyan = Color(0xFF00F0FF)
+val NeonCyanGlow = Color(0x6600F0FF)
+val NeonMagenta = Color(0xFFFF007F)
+val NeonMagentaGlow = Color(0x66FF007F)
+val NeonEmerald = Color(0xFF00FF88)
+val NeonEmeraldGlow = Color(0x6600FF88)
+val NeonAmber = Color(0xFFFFB800)
+val NeonPurple = Color(0xFFA100FF)
+val NeonPurpleGlow = Color(0x66A100FF)
 
-val WallWarAmber = Color(0xFFFFD700)
-val WallWarAmberLight = Color(0xFFFFE066)
+val NeonDarkBg = Color(0xFF0B0D17)
+val NeonDarkSurface = Color(0xFF121526)
+val NeonDarkCard = Color(0xFF181C30)
+val NeonBorder = Color(0xFF262E4A)
+val NeonBorderGlow = Color(0x4000F0FF)
 
-val WallWarDarkBg = Color(0xFF111318)
-val WallWarDarkSurface = Color(0xFF1C1B1F)
-val WallWarDarkCard = Color(0xFF25232A)
-val WallWarBorder = Color(0xFF44474E)
+val WallWarPurple = NeonPurple
+val WallWarPurpleLight = Color(0xFFD48BFF)
+val WallWarPurpleDark = Color(0xFF320066)
+val WallWarPurpleContainer = Color(0xFF4A0099)
 
-val WallWarLightBg = Color(0xFF111318)
-val WallWarLightSurface = Color(0xFF1C1B1F)
-val WallWarLightCard = Color(0xFF25232A)
+val WallWarAmber = NeonAmber
+val WallWarAmberLight = Color(0xFFFFD566)
 
-val WallRed = Color(0xFFFFB4AB)
-val WallGreen = Color(0xFF81C784)
+val WallWarDarkBg = NeonDarkBg
+val WallWarDarkSurface = NeonDarkSurface
+val WallWarDarkCard = NeonDarkCard
+val WallWarBorder = NeonBorder
 
+val WallRed = NeonMagenta
+val WallGreen = NeonEmerald
