@@ -4,9 +4,12 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AuthRepository
+import com.example.data.SignInResult
 import com.example.data.UserProfile
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -17,24 +20,35 @@ class ProfileViewModel @Inject constructor(
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
 
-    fun signInWithGoogle(context: Context, onFallbackRequired: () -> Unit) {
+    private val _signInStatus = MutableStateFlow<String?>(null)
+    val signInStatus: StateFlow<String?> = _signInStatus.asStateFlow()
+
+    fun signInWithGoogle(context: Context) {
         viewModelScope.launch {
-            val success = authRepository.signInWithGoogle(context)
-            if (!success) {
-                onFallbackRequired()
+            _signInStatus.value = "Launching Sign in with Google..."
+            val result = authRepository.signInWithGoogle(context)
+            when (result) {
+                is SignInResult.Success -> {
+                    _signInStatus.value = "Signed in successfully as ${result.name}"
+                }
+                is SignInResult.Cancelled -> {
+                    _signInStatus.value = "Sign-in cancelled by user"
+                }
+                is SignInResult.Error -> {
+                    _signInStatus.value = "Sign-in error: ${result.message}"
+                }
             }
         }
     }
 
-    fun confirmGoogleAccount(name: String, email: String) {
-        authRepository.signInWithGoogleAccountDetails(
-            displayName = name,
-            email = email,
-            photoUrl = "https://lh3.googleusercontent.com/a/default-user"
-        )
+    fun clearSignInStatus() {
+        _signInStatus.value = null
     }
 
-    fun signOut() {
-        authRepository.signOut()
+    fun signOut(context: Context) {
+        viewModelScope.launch {
+            authRepository.signOut(context)
+            _signInStatus.value = "Signed out successfully"
+        }
     }
 }

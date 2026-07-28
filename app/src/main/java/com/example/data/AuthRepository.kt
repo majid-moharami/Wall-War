@@ -3,17 +3,29 @@ package com.example.data
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import com.example.R
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
+
+sealed class SignInResult {
+    data class Success(val name: String, val email: String) : SignInResult()
+    object Cancelled : SignInResult()
+    data class Error(val message: String) : SignInResult()
+}
 
 @Singleton
 class AuthRepository @Inject constructor(
@@ -70,20 +82,32 @@ class AuthRepository @Inject constructor(
         _userProfile.value = profile
     }
 
-    suspend fun signInWithGoogle(context: Context, serverClientId: String? = null): Boolean {
+    private fun getWebClientId(context: Context): String {
+        val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+        if (resId != 0) {
+            val client = context.getString(resId)
+            if (client.isNotBlank()) return client
+        }
+        return context.getString(R.string.default_web_client_id)
+    }
+
+    suspend fun signInWithGoogle(context: Context, serverClientId: String? = null): SignInResult {
+        val clientId = serverClientId ?: getWebClientId(context)
+
+        val googleIdOption = GetGoogleIdOption.Builder()
+            .setFilterByAuthorizedAccounts(false)
+            .setServerClientId(clientId)
+            .setAutoSelectEnabled(true)
+            .build()
+
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
+
+        val credentialManager = CredentialManager.create(context)
+
         return try {
-            val googleIdOption = GetGoogleIdOption.Builder()
-                .setFilterByAuthorizedAccounts(false)
-                .setServerClientId(serverClientId ?: "100000000000-samplegoogleclientid.apps.googleusercontent.com")
-                .setAutoSelectEnabled(false)
-                .build()
-
-            val request = GetCredentialRequest.Builder()
-                .addCredentialOption(googleIdOption)
-                .build()
-
-            val credentialManager = CredentialManager.create(context)
-            val result = credentialManager.getCredential(context, request)
+            val result = credentialManager.getCredential(context = context, request = request)
             val credential = result.credential
 
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
@@ -94,13 +118,25 @@ class AuthRepository @Inject constructor(
                 val photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
 
                 signInWithGoogleAccountDetails(displayName, email, photoUrl)
-                true
+                SignInResult.Success(displayName, email)
             } else {
-                false
+                SignInResult.Error("Unsupported credential type returned")
             }
+        } catch (e: GetCredentialCancellationException) {
+            Log.i("AuthRepository", "User cancelled Google Sign-In")
+            SignInResult.Cancelled
+        } catch (e: NoCredentialException) {
+            Log.w("AuthRepository", "No Google credentials available on device: ${e.message}")
+            SignInResult.Error("No Google account found on this device")
+        } catch (e: GetCredentialException) {
+            Log.e("AuthRepository", "Credential Manager exception: ${e.message}", e)
+            SignInResult.Error(e.message ?: "Google Sign-In failed")
+        } catch (e: GoogleIdTokenParsingException) {
+            Log.e("AuthRepository", "Invalid Google ID Token: ${e.message}", e)
+            SignInResult.Error("Received invalid Google token format")
         } catch (e: Exception) {
-            Log.e("AuthRepository", "Google Credential Manager error: ${e.message}")
-            false
+            Log.e("AuthRepository", "Unexpected error in Google Sign-In: ${e.message}", e)
+            SignInResult.Error(e.message ?: "Unexpected error during Sign in with Google")
         }
     }
 
@@ -115,7 +151,14 @@ class AuthRepository @Inject constructor(
         saveProfile(updated)
     }
 
-    fun signOut() {
+    suspend fun signOut(context: Context) {
+        try {
+            val credentialManager = CredentialManager.create(context)
+            credentialManager.clearCredentialState(ClearCredentialStateRequest())
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error clearing credential state: ${e.message}")
+        }
+
         val current = _userProfile.value
         val updated = current.copy(
             isLoggedIn = false,
