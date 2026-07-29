@@ -32,6 +32,8 @@ import com.example.model.BoardTheme
 import com.example.model.GameState
 import com.example.model.Position
 import com.example.model.Wall
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonPurple
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
@@ -63,7 +65,7 @@ fun GameBoardComposable(
     var activeHoverWall by remember { mutableStateOf<Wall?>(null) }
     var isValidHover by remember { mutableStateOf(false) }
 
-    val effectiveHoverWall = externalDragWall ?: activeHoverWall
+    val effectiveHoverWall = if (isWallMode || externalDragWall != null) (externalDragWall ?: activeHoverWall) else null
     val effectiveIsValidHover = if (externalDragWall != null) externalIsValidDrag else isValidHover
 
     BoxWithConstraints(
@@ -163,6 +165,7 @@ fun GameBoardComposable(
                                             onPlaceWall(currentHover.r, currentHover.c, currentHover.isHorizontal)
                                         } else {
                                             soundManager.playErrorSound()
+                                            onCancelWallMode()
                                         }
                                     } else {
                                         onCancelWallMode()
@@ -221,35 +224,36 @@ fun GameBoardComposable(
                 }
             }
 
-            // 2. Draw Valid Move Candidate Dots (Small Pulsing / Glowing Dots around Active Pawn)
-            val currentTurn = gameState.turn
-            val activeColor = if (currentTurn == 0) Color(0xFF3B82F6) else Color(0xFFEF4444)
-            val activeGlowColor = if (currentTurn == 0) Color(0x553B82F6) else Color(0x55EF4444)
-
+            // 2. Draw Valid Move Candidate Cells (Border with Quick Pass & Play style from HomeScreen)
             for (pos in validHighlights) {
-                val cx = pos.c * stepX + cellW / 2f
-                val cy = pos.r * stepY + cellH / 2f
-                val dotRadius = minOf(cellW, cellH) * 0.18f
+                val x = pos.c * stepX
+                val y = pos.r * stepY
 
-                // Drop shadow
-                drawCircle(
-                    color = Color.Black.copy(alpha = 0.4f),
-                    radius = dotRadius * 1.1f,
-                    center = Offset(cx, cy + 2f)
+                val cellGradientBrush = Brush.horizontalGradient(
+                    colors = listOf(NeonCyan, NeonPurple),
+                    startX = x,
+                    endX = x + cellW
                 )
 
-                // Glow ring
-                drawCircle(
-                    color = activeGlowColor,
-                    radius = dotRadius * 1.6f,
-                    center = Offset(cx, cy)
+                // Subtle inner glow overlay
+                drawRoundRect(
+                    brush = Brush.linearGradient(
+                        colors = listOf(NeonCyan.copy(alpha = 0.15f), NeonPurple.copy(alpha = 0.15f)),
+                        start = Offset(x, y),
+                        end = Offset(x + cellW, y + cellH)
+                    ),
+                    topLeft = Offset(x, y),
+                    size = Size(cellW, cellH),
+                    cornerRadius = CornerRadius(8f, 8f)
                 )
 
-                // Candidate dot
-                drawCircle(
-                    color = activeColor,
-                    radius = dotRadius,
-                    center = Offset(cx, cy)
+                // High-visibility gradient border matching Quick Pass & Play on HomeScreen
+                drawRoundRect(
+                    brush = cellGradientBrush,
+                    topLeft = Offset(x, y),
+                    size = Size(cellW, cellH),
+                    cornerRadius = CornerRadius(8f, 8f),
+                    style = Stroke(width = 2.dp.toPx())
                 )
             }
 

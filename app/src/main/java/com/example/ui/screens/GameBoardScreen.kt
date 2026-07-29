@@ -185,6 +185,7 @@ fun GameBoardScreen(
                 onPlaceWall(wall.r, wall.c, wall.isHorizontal)
             } else {
                 soundManager.playErrorSound()
+                onCancelWallMode()
             }
         } else {
             onCancelWallMode()

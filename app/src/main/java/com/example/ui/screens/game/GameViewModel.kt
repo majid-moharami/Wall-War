@@ -141,10 +141,10 @@ class GameViewModel @Inject constructor(
         val wall = Wall(r, c, isHorizontal, playerOwner = state.turn)
         if (GameEngine.canPlaceWall(state, state.turn, wall)) {
             applyUserMove(Move.WallPlacement(wall))
-            _isWallMode.value = false
         } else {
             soundManager.playErrorSound()
         }
+        _isWallMode.value = false
     }
 
     fun selectCell(r: Int, c: Int) {
@@ -156,10 +156,10 @@ class GameViewModel @Inject constructor(
             val wall = Wall(r, c, _isWallHorizontal.value, playerOwner = state.turn)
             if (GameEngine.canPlaceWall(state, state.turn, wall)) {
                 applyUserMove(Move.WallPlacement(wall))
-                _isWallMode.value = false
             } else {
                 soundManager.playErrorSound()
             }
+            _isWallMode.value = false
         } else {
             val legalMoves = GameEngine.pawnMoves(state, state.turn)
             val clickedTarget = Position(r, c)

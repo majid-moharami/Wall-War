@@ -60,16 +60,20 @@ fun MainContainerScreen() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val currentRouteClassName = currentDestination?.route ?: ""
-    val isGameActive = currentRouteClassName.contains("GameBoardRoute")
-
     val tabs = listOf(BottomTab.Home, BottomTab.Ranking, BottomTab.Profile)
+
+    val showBottomBar = currentDestination?.hierarchy?.any { destination ->
+        tabs.any { tab ->
+            val simpleName = tab.route::class.simpleName ?: ""
+            simpleName.isNotEmpty() && destination.route?.contains(simpleName) == true
+        }
+    } == true
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         containerColor = NeonDarkBg,
         bottomBar = {
-            if (!isGameActive) {
+            if (showBottomBar) {
                 Surface(
                     color = NeonDarkSurface,
                     tonalElevation = 8.dp
