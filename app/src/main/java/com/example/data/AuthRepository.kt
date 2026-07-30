@@ -23,7 +23,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import com.example.data.nakama.NakamaRepository
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -37,7 +39,8 @@ sealed class SignInResult {
 
 @Singleton
 class AuthRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val nakamaRepository: NakamaRepository
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("wall_war_auth", Context.MODE_PRIVATE)
@@ -48,6 +51,41 @@ class AuthRepository @Inject constructor(
 
     private val _userProfile = MutableStateFlow(loadStoredProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
+
+    init {
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.ensureAuthenticatedGuest()
+            syncFromNakamaServer()
+        }
+    }
+
+    suspend fun syncFromNakamaServer() {
+        val stats = nakamaRepository.fetchUserProfileFromNakama()
+        if (stats != null) {
+            val current = _userProfile.value
+            val trophies = stats.optInt("trophies", current.trophies)
+            val coins = stats.optInt("coins", current.coins)
+            val wins = stats.optInt("wins", current.wins)
+            val totalMatches = stats.optInt("totalMatches", current.totalMatches)
+            val wallsPlaced = stats.optInt("wallsPlaced", current.wallsPlaced)
+            val level = stats.optInt("level", current.level)
+            val xp = stats.optInt("xp", current.xp)
+            val rankTitle = stats.optString("rankTitle", current.rankTitle)
+
+            val updated = current.copy(
+                trophies = trophies,
+                coins = coins,
+                wins = wins,
+                totalMatches = totalMatches,
+                wallsPlaced = wallsPlaced,
+                level = level,
+                xp = xp,
+                rankTitle = rankTitle,
+                nakamaUserId = nakamaRepository.getNakamaUserId()
+            )
+            saveProfile(updated)
+        }
+    }
 
     private fun loadStoredProfile(): UserProfile {
         val currentUser = try {
@@ -71,6 +109,7 @@ class AuthRepository @Inject constructor(
         val wins = prefs.getInt("wins", 0)
         val totalMatches = prefs.getInt("total_matches", 0)
         val wallsPlaced = prefs.getInt("walls_placed", 0)
+        val coins = prefs.getInt("coins", 150)
 
         return UserProfile(
             isLoggedIn = isLoggedIn,
@@ -83,7 +122,8 @@ class AuthRepository @Inject constructor(
             rankTitle = rankTitle,
             wins = wins,
             totalMatches = totalMatches,
-            wallsPlaced = wallsPlaced
+            wallsPlaced = wallsPlaced,
+            coins = coins
         )
     }
 
@@ -100,8 +140,14 @@ class AuthRepository @Inject constructor(
             .putInt("wins", profile.wins)
             .putInt("total_matches", profile.totalMatches)
             .putInt("walls_placed", profile.wallsPlaced)
+            .putInt("coins", profile.coins)
             .apply()
         _userProfile.value = profile
+
+        // Sync to Nakama
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncUserProfileToNakama(profile)
+        }
     }
 
     private fun getWebClientId(context: Context): String {
@@ -186,6 +232,13 @@ class AuthRepository @Inject constructor(
                     Log.w("AuthRepository", "Firebase Auth token exchange skipped or failed: ${e.message}")
                 }
 
+                // Authenticate with Nakama Server
+                try {
+                    nakamaRepository.authenticateWithGoogle(idToken, displayName)
+                } catch (e: Exception) {
+                    Log.w("AuthRepository", "Nakama Google authentication skipped: ${e.message}")
+                }
+
                 val current = _userProfile.value
                 val updated = current.copy(
                     isLoggedIn = true,
@@ -249,6 +302,7 @@ class AuthRepository @Inject constructor(
         val newWalls = current.wallsPlaced + wallsPlaced
         val newXp = current.xp + if (didWin) 150 else 50
         val newTrophies = (current.trophies + if (didWin) 25 else -10).coerceAtLeast(0)
+        val newCoins = current.coins + if (didWin) 75 else 20
         val newLevel = (newXp / 500) + 1
 
         val newRank = when {
@@ -265,8 +319,22 @@ class AuthRepository @Inject constructor(
             xp = newXp,
             trophies = newTrophies,
             level = newLevel,
-            rankTitle = newRank
+            rankTitle = newRank,
+            coins = newCoins
         )
         saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.recordMatchHistoryToNakama(
+                MatchRecord(
+                    modeName = "Tactical Match",
+                    opponentName = "Opponent",
+                    winnerPlayer = if (didWin) 0 else 1,
+                    totalMoves = 10,
+                    totalWallsPlaced = wallsPlaced,
+                    durationSeconds = 60L
+                )
+            )
+        }
     }
 }

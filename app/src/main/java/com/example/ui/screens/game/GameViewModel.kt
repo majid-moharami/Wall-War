@@ -3,12 +3,14 @@ package com.example.ui.screens.game
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.navigation.toRoute
 import com.example.audio.SoundManager
 import com.example.data.AuthRepository
 import com.example.data.GameRepository
 import com.example.data.MatchRecord
 import com.example.data.SettingsRepository
+import com.example.data.nakama.NakamaRepository
+import com.example.data.nakama.OnlineMatchEvent
+import com.example.data.nakama.OnlineMatchState
 import com.example.engine.AiEngine
 import com.example.engine.GameEngine
 import com.example.model.AiDifficulty
@@ -19,9 +21,7 @@ import com.example.model.Move
 import com.example.model.OpponentType
 import com.example.model.Position
 import com.example.model.Wall
-import com.example.ui.navigation.GameBoardRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,19 +33,44 @@ import javax.inject.Inject
 @HiltViewModel
 class GameViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: GameRepository,
     private val authRepository: AuthRepository,
+    private val gameRepository: GameRepository,
+    private val nakamaRepository: NakamaRepository,
     val soundManager: SoundManager,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val navArgs = savedStateHandle.toRoute<GameBoardRoute>()
+    val gameMode: GameMode = try {
+        GameMode.valueOf(savedStateHandle.get<String>("mode") ?: GameMode.DUEL.name)
+    } catch (_: Exception) {
+        GameMode.DUEL
+    }
 
-    val opponentType = try { OpponentType.valueOf(navArgs.opponent) } catch (_: Exception) { OpponentType.AI }
-    val aiDifficulty = try { AiDifficulty.valueOf(navArgs.difficulty) } catch (_: Exception) { AiDifficulty.NORMAL }
-    val gameMode = try { GameMode.valueOf(navArgs.mode) } catch (_: Exception) { GameMode.DUEL }
+    val opponentType: OpponentType = try {
+        OpponentType.valueOf(savedStateHandle.get<String>("opponent") ?: OpponentType.AI.name)
+    } catch (_: Exception) {
+        OpponentType.AI
+    }
+
+    val aiDifficulty: AiDifficulty = try {
+        AiDifficulty.valueOf(savedStateHandle.get<String>("difficulty") ?: AiDifficulty.NORMAL.name)
+    } catch (_: Exception) {
+        AiDifficulty.NORMAL
+    }
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
+
+    // Nakama Online State
+    val onlineMatchState: StateFlow<OnlineMatchState> = nakamaRepository.matchState
+
+    private val _onlineOpponentName = MutableStateFlow("Searching...")
+    val onlineOpponentName: StateFlow<String> = _onlineOpponentName.asStateFlow()
+
+    private val _myPlayerIndex = MutableStateFlow(0)
+    val myPlayerIndex: StateFlow<Int> = _myPlayerIndex.asStateFlow()
+
+    private val _onlineErrorMessage = MutableStateFlow<String?>(null)
+    val onlineErrorMessage: StateFlow<String?> = _onlineErrorMessage.asStateFlow()
 
     private val _gameState = MutableStateFlow(
         GameEngine.createInitialState(gameMode).copy(
@@ -67,29 +92,56 @@ class GameViewModel @Inject constructor(
     private val _validMoveHighlights = MutableStateFlow<List<Position>>(emptyList())
     val validMoveHighlights: StateFlow<List<Position>> = _validMoveHighlights.asStateFlow()
 
-    private var matchStartTime = System.currentTimeMillis()
+    private var matchStartTime: Long = System.currentTimeMillis()
 
     init {
-        startNewGame(gameMode, opponentType, aiDifficulty)
-    }
-
-    fun startNewGame(
-        mode: GameMode = gameMode,
-        opponent: OpponentType = opponentType,
-        difficulty: AiDifficulty = aiDifficulty
-    ) {
-        _isWallMode.value = false
-        _selectedPosition.value = null
-
-        val initialState = GameEngine.createInitialState(mode).copy(
-            isAiMatch = opponent == OpponentType.AI,
-            aiDifficulty = difficulty
-        )
-        _gameState.value = initialState
+        val initialState = _gameState.value
         updateHighlightsForState(initialState)
         matchStartTime = System.currentTimeMillis()
 
-        checkGameEndAndTriggerAiIfNeeded(initialState)
+        if (opponentType == OpponentType.ONLINE) {
+            startOnlineMatchmaking()
+
+            viewModelScope.launch {
+                nakamaRepository.matchEvents.collect { event ->
+                    when (event) {
+                        is OnlineMatchEvent.MatchFound -> {
+                            _onlineOpponentName.value = event.opponentName
+                            _myPlayerIndex.value = event.selfPlayerIndex
+                            _onlineErrorMessage.value = null
+                        }
+                        is OnlineMatchEvent.OpponentMove -> {
+                            applyRemoteMove(event.move)
+                        }
+                        is OnlineMatchEvent.Error -> {
+                            _onlineErrorMessage.value = event.message
+                        }
+                        is OnlineMatchEvent.OpponentSurrendered -> {
+                            val winner = if (_myPlayerIndex.value == 0) 0 else 1
+                            val next = _gameState.value.copy(winner = winner)
+                            _gameState.value = next
+                            soundManager.playVictoryFanfare()
+                            saveMatchToHistory(next)
+                        }
+                        else -> {}
+                    }
+                }
+            }
+        } else {
+            checkGameEndAndTriggerAiIfNeeded(initialState)
+        }
+    }
+
+    fun startOnlineMatchmaking() {
+        _onlineErrorMessage.value = null
+        val username = authRepository.userProfile.value.displayName
+        nakamaRepository.startOnlineMatchmaking(username)
+    }
+
+    fun cancelOnlineMatchmaking() {
+        if (opponentType == OpponentType.ONLINE) {
+            nakamaRepository.cancelMatchmaking()
+        }
     }
 
     private fun updateHighlightsForState(state: GameState) {
@@ -97,27 +149,39 @@ class GameViewModel @Inject constructor(
             _validMoveHighlights.value = emptyList()
             return
         }
+
+        // If AI's turn, clear user highlights
         if (state.isAiMatch && state.turn == 1) {
             _validMoveHighlights.value = emptyList()
-        } else {
-            _validMoveHighlights.value = GameEngine.pawnMoves(state, state.turn)
+            return
         }
+
+        // If Online match and NOT my turn, clear highlights
+        if (opponentType == OpponentType.ONLINE) {
+            if (onlineMatchState.value != OnlineMatchState.IN_MATCH || state.turn != _myPlayerIndex.value) {
+                _validMoveHighlights.value = emptyList()
+                return
+            }
+        }
+
+        _validMoveHighlights.value = GameEngine.pawnMoves(state, state.turn)
     }
 
     fun toggleWallMode() {
         val state = _gameState.value
         if (state.isAiMatch && state.turn == 1) return
+        if (opponentType == OpponentType.ONLINE && state.turn != _myPlayerIndex.value) return
 
         _isWallMode.value = !_isWallMode.value
         if (_isWallMode.value) {
             _selectedPosition.value = null
         }
-        soundManager.vibrateShort()
     }
 
     fun selectWallOrientation(isHorizontal: Boolean) {
         val state = _gameState.value
         if (state.isAiMatch && state.turn == 1) return
+        if (opponentType == OpponentType.ONLINE && state.turn != _myPlayerIndex.value) return
 
         if (_isWallMode.value && _isWallHorizontal.value == isHorizontal) {
             _isWallMode.value = false
@@ -126,53 +190,65 @@ class GameViewModel @Inject constructor(
             _isWallHorizontal.value = isHorizontal
             _selectedPosition.value = null
         }
-        soundManager.vibrateShort()
-    }
-
-    fun cancelWallMode() {
-        _isWallMode.value = false
     }
 
     fun placeWall(r: Int, c: Int, isHorizontal: Boolean) {
         val state = _gameState.value
         if (state.isGameOver()) return
         if (state.isAiMatch && state.turn == 1) return
+        if (opponentType == OpponentType.ONLINE && (onlineMatchState.value != OnlineMatchState.IN_MATCH || state.turn != _myPlayerIndex.value)) return
 
         val wall = Wall(r, c, isHorizontal, playerOwner = state.turn)
         if (GameEngine.canPlaceWall(state, state.turn, wall)) {
-            applyUserMove(Move.WallPlacement(wall))
+            val move = Move.WallPlacement(wall)
+            applyUserMove(move)
+            if (opponentType == OpponentType.ONLINE) {
+                nakamaRepository.sendOnlineMove(move)
+            }
+            _isWallMode.value = false
         } else {
             soundManager.playErrorSound()
         }
-        _isWallMode.value = false
     }
 
     fun selectCell(r: Int, c: Int) {
         val state = _gameState.value
         if (state.isGameOver()) return
         if (state.isAiMatch && state.turn == 1) return
+        if (opponentType == OpponentType.ONLINE && (onlineMatchState.value != OnlineMatchState.IN_MATCH || state.turn != _myPlayerIndex.value)) return
 
         if (_isWallMode.value) {
             val wall = Wall(r, c, _isWallHorizontal.value, playerOwner = state.turn)
             if (GameEngine.canPlaceWall(state, state.turn, wall)) {
-                applyUserMove(Move.WallPlacement(wall))
+                val move = Move.WallPlacement(wall)
+                applyUserMove(move)
+                if (opponentType == OpponentType.ONLINE) {
+                    nakamaRepository.sendOnlineMove(move)
+                }
+                _isWallMode.value = false
             } else {
                 soundManager.playErrorSound()
             }
-            _isWallMode.value = false
-        } else {
-            val legalMoves = GameEngine.pawnMoves(state, state.turn)
-            val clickedTarget = Position(r, c)
-            if (legalMoves.contains(clickedTarget)) {
-                applyUserMove(Move.PawnStep(clickedTarget))
-            } else {
-                val myPawn = state.pawns[state.turn]
-                if (r == myPawn.r && c == myPawn.c) {
-                    updateHighlightsForState(state)
-                } else {
-                    soundManager.playErrorSound()
-                }
+            return
+        }
+
+        val target = Position(r, c)
+        val pPos = state.pawns[state.turn]
+
+        if (target == pPos) {
+            _selectedPosition.value = if (_selectedPosition.value == target) null else target
+            return
+        }
+
+        if (_validMoveHighlights.value.contains(target)) {
+            val move = Move.PawnStep(target)
+            applyUserMove(move)
+            if (opponentType == OpponentType.ONLINE) {
+                nakamaRepository.sendOnlineMove(move)
             }
+            _selectedPosition.value = null
+        } else {
+            _selectedPosition.value = target
         }
     }
 
@@ -185,12 +261,34 @@ class GameViewModel @Inject constructor(
         soundManager.vibrateShort()
 
         _gameState.value = nextState
-        updateHighlightsForState(nextState)
 
         checkGameEndAndTriggerAiIfNeeded(nextState)
     }
 
+    private fun applyRemoteMove(move: Move) {
+        val currentState = _gameState.value
+        val nextState = GameEngine.applyMove(currentState, move) ?: return
+
+        val isWall = move is Move.WallPlacement
+        soundManager.playMoveSound(isMine = false, isWall = isWall)
+
+        _gameState.value = nextState
+        updateHighlightsForState(nextState)
+
+        if (nextState.winner != null) {
+            if (nextState.winner == _myPlayerIndex.value) {
+                soundManager.playVictoryFanfare()
+                soundManager.vibrateSuccess()
+            } else {
+                soundManager.playErrorSound()
+            }
+            saveMatchToHistory(nextState)
+        }
+    }
+
     private fun checkGameEndAndTriggerAiIfNeeded(state: GameState) {
+        updateHighlightsForState(state)
+
         if (state.winner != null) {
             soundManager.playVictoryFanfare()
             soundManager.vibrateSuccess()
@@ -200,37 +298,25 @@ class GameViewModel @Inject constructor(
 
         if (state.isAiMatch && state.turn == 1) {
             viewModelScope.launch {
-                delay(300)
-                val cur = _gameState.value
-                if (cur.isGameOver() || cur.turn != 1) return@launch
-
-                val computedMove = withContext(Dispatchers.Default) {
-                    AiEngine.computeBestMove(cur, cur.aiDifficulty)
+                delay(400) // Small delay for realistic feel
+                val aiMove = withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    AiEngine.computeBestMove(state, state.aiDifficulty)
                 }
-
-                var resolvedMove = computedMove
-                var postAiState = GameEngine.applyMove(_gameState.value, resolvedMove)
-
-                // Safety fallback: if computed move was rejected, force a legal pawn step
-                if (postAiState == null) {
-                    val legalPawnSteps = GameEngine.pawnMoves(_gameState.value, 1)
-                    if (legalPawnSteps.isNotEmpty()) {
-                        resolvedMove = Move.PawnStep(legalPawnSteps.first())
-                        postAiState = GameEngine.applyMove(_gameState.value, resolvedMove)
-                    }
-                }
-
-                if (postAiState != null) {
-                    val isWall = resolvedMove is Move.WallPlacement
+                val afterAiState = GameEngine.applyMove(_gameState.value, aiMove)
+                if (afterAiState != null) {
+                    val isWall = aiMove is Move.WallPlacement
                     soundManager.playMoveSound(isMine = false, isWall = isWall)
+                    _gameState.value = afterAiState
+                    updateHighlightsForState(afterAiState)
 
-                    _gameState.value = postAiState
-                    updateHighlightsForState(postAiState)
-
-                    if (postAiState.winner != null) {
-                        soundManager.playVictoryFanfare()
-                        soundManager.vibrateSuccess()
-                        saveMatchToHistory(postAiState)
+                    if (afterAiState.winner != null) {
+                        if (afterAiState.winner == 0) {
+                            soundManager.playVictoryFanfare()
+                            soundManager.vibrateSuccess()
+                        } else {
+                            soundManager.playErrorSound()
+                        }
+                        saveMatchToHistory(afterAiState)
                     }
                 }
             }
@@ -238,56 +324,84 @@ class GameViewModel @Inject constructor(
     }
 
     fun undoMove() {
+        if (opponentType == OpponentType.ONLINE) return // No undo in online multiplayer
+
         val state = _gameState.value
-        if (state.moveHistory.isEmpty() || state.isGameOver()) return
+        if (state.moveHistory.isEmpty()) return
 
-        val movesToPop = if (state.isAiMatch && state.moveHistory.size >= 2) 2 else 1
-        var replayState = GameEngine.createInitialState(state.mode).copy(
-            isAiMatch = state.isAiMatch,
-            aiDifficulty = state.aiDifficulty
-        )
-
-        val targetHistory = state.moveHistory.dropLast(movesToPop)
-        for (m in targetHistory) {
-            val applied = GameEngine.applyMove(replayState, m)
-            if (applied != null) replayState = applied
+        val movesToKeep = if (state.isAiMatch && state.moveHistory.size >= 2) {
+            state.moveHistory.size - 2
+        } else {
+            state.moveHistory.size - 1
         }
 
-        _gameState.value = replayState
-        updateHighlightsForState(replayState)
+        var newState = GameEngine.createInitialState(gameMode).copy(
+            isAiMatch = opponentType == OpponentType.AI,
+            aiDifficulty = aiDifficulty
+        )
+
+        for (i in 0 until movesToKeep) {
+            val move = state.moveHistory[i]
+            val applied = GameEngine.applyMove(newState, move)
+            if (applied != null) {
+                newState = applied
+            }
+        }
+
         soundManager.vibrateShort()
+        _gameState.value = newState
+        _isWallMode.value = false
+        _selectedPosition.value = null
+        updateHighlightsForState(newState)
     }
 
     fun restartGame() {
-        val state = _gameState.value
-        startNewGame(state.mode, if (state.isAiMatch) OpponentType.AI else OpponentType.LOCAL_PASS_PLAY, state.aiDifficulty)
-    }
-
-    private fun saveMatchToHistory(state: GameState) {
-        val winner = state.winner ?: return
-        val durationSec = (System.currentTimeMillis() - matchStartTime) / 1000
-        val wallsCount = state.walls.size
-
-        val opponentStr = when {
-            state.isAiMatch -> "AI (${state.aiDifficulty.displayName})"
-            opponentType == OpponentType.ONLINE -> "Online Duel"
-            else -> "Pass & Play"
+        if (opponentType == OpponentType.ONLINE) {
+            startOnlineMatchmaking()
+            return
         }
 
-        val record = MatchRecord(
-            modeName = state.mode.displayName,
-            opponentName = opponentStr,
-            winnerPlayer = winner,
-            totalMoves = state.moveHistory.size,
-            totalWallsPlaced = wallsCount,
-            durationSeconds = durationSec
+        soundManager.vibrateShort()
+        val newState = GameEngine.createInitialState(gameMode).copy(
+            isAiMatch = opponentType == OpponentType.AI,
+            aiDifficulty = aiDifficulty
         )
+        _gameState.value = newState
+        _isWallMode.value = false
+        _selectedPosition.value = null
+        matchStartTime = System.currentTimeMillis()
+        updateHighlightsForState(newState)
+
+        checkGameEndAndTriggerAiIfNeeded(newState)
+    }
+
+    private fun saveMatchToHistory(finalState: GameState) {
+        if (opponentType != OpponentType.ONLINE) {
+            return // Offline games are not calculated or saved in match history
+        }
+
+        val winnerIndex = finalState.winner ?: return
+        val opponentName = _onlineOpponentName.value
+        val durationSeconds = (System.currentTimeMillis() - matchStartTime) / 1000
 
         viewModelScope.launch {
-            repository.recordMatch(record)
-            val didUserWin = (winner == 0)
-            val userWallsPlaced = state.walls.count { it.playerOwner == 0 }
-            authRepository.recordMatchResult(didWin = didUserWin, wallsPlaced = userWallsPlaced)
+            val record = MatchRecord(
+                modeName = finalState.mode.displayName,
+                opponentName = opponentName,
+                winnerPlayer = winnerIndex,
+                totalMoves = finalState.moveHistory.size,
+                totalWallsPlaced = finalState.walls.size,
+                durationSeconds = durationSeconds
+            )
+            gameRepository.recordMatch(record)
+            nakamaRepository.recordMatchHistoryToNakama(record)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        if (opponentType == OpponentType.ONLINE) {
+            nakamaRepository.leaveMatch()
         }
     }
 }

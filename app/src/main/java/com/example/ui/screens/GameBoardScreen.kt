@@ -72,6 +72,10 @@ import com.example.ui.theme.NeonMagenta
 import com.example.ui.theme.NeonPurple
 import kotlin.math.roundToInt
 
+import androidx.compose.material3.CircularProgressIndicator
+import com.example.data.nakama.OnlineMatchState
+import com.example.model.OpponentType
+
 @Composable
 fun GameBoardScreen(
     gameState: GameState,
@@ -80,10 +84,17 @@ fun GameBoardScreen(
     isWallHorizontal: Boolean,
     validHighlights: List<Position>,
     soundManager: SoundManager,
+    opponentType: OpponentType = OpponentType.AI,
+    onlineMatchState: OnlineMatchState = OnlineMatchState.IDLE,
+    onlineOpponentName: String = "Online Opponent",
+    myPlayerIndex: Int = 0,
+    onlineErrorMessage: String? = null,
+    onRetryOnlineConnection: () -> Unit = {},
+    onCancelOnlineMatchmaking: () -> Unit = {},
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
     onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
-    onCancelWallMode: () -> Unit = {},
+    onCancelWallMode: () -> Unit,
     onUndoMove: () -> Unit,
     onRestart: () -> Unit,
     onBack: () -> Unit,
@@ -236,7 +247,7 @@ fun GameBoardScreen(
                     letterSpacing = 1.sp
                 )
                 Text(
-                    text = if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
+                    text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
                     style = MaterialTheme.typography.bodySmall,
                     color = NeonCyan,
                     fontWeight = FontWeight.Bold
@@ -268,13 +279,16 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Top Players Score Header Bar (P1 & P2 / AI)
+        // Top Players Score Header Bar (P1 & P2 / AI / Online)
+        val player1Name = if (opponentType == OpponentType.ONLINE) (if (myPlayerIndex == 0) "You" else onlineOpponentName) else "Player 1"
+        val player2Name = if (opponentType == OpponentType.ONLINE) (if (myPlayerIndex == 1) "You" else onlineOpponentName) else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             PlayerScoreCard(
-                playerName = "Player 1",
+                playerName = player1Name,
                 wallsLeft = gameState.leftWalls[0],
                 isTurn = gameState.turn == 0 && gameState.winner == null,
                 pawnColor = NeonCyan,
@@ -282,7 +296,7 @@ fun GameBoardScreen(
             )
 
             PlayerScoreCard(
-                playerName = if (gameState.isAiMatch) "AI Bot" else "Player 2",
+                playerName = player2Name,
                 wallsLeft = gameState.leftWalls[1],
                 isTurn = gameState.turn == 1 && gameState.winner == null,
                 pawnColor = NeonMagenta,
@@ -389,6 +403,108 @@ fun GameBoardScreen(
                 }
             }
         }
+    }
+
+    // Online Multiplayer Searching Dialog Modal
+    if (opponentType == OpponentType.ONLINE && (onlineMatchState == OnlineMatchState.CONNECTING || onlineMatchState == OnlineMatchState.SEARCHING_MATCH)) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = NeonDarkCard,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFA0ACCC),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = NeonCyan,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "Searching for Opponent...",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                }
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Connecting to Nakama game server on port 7350 and waiting for an online opponent to match...",
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 14.sp
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        onCancelOnlineMatchmaking()
+                        onBack()
+                    },
+                    border = BorderStroke(1.dp, NeonBorder),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Cancel Matchmaking", color = Color.White)
+                }
+            }
+        )
+    }
+
+    // Online Multiplayer Error Dialog Modal
+    if (opponentType == OpponentType.ONLINE && (onlineMatchState == OnlineMatchState.ERROR || onlineErrorMessage != null)) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = NeonDarkCard,
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFA0ACCC),
+            title = {
+                Text(
+                    text = "⚠️ Server Not Connected",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = NeonAmber
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = onlineErrorMessage ?: "Unable to connect to Nakama online server. Please verify Nakama is running on port 7350.",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "You cannot play online mode without a valid Nakama server connection.",
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onRetryOnlineConnection,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Retry Connection", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        onCancelOnlineMatchmaking()
+                        onBack()
+                    },
+                    border = BorderStroke(1.dp, NeonBorder),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Exit to Home", color = Color.White)
+                }
+            }
+        )
     }
 
     // Victory Celebration Dialog Modal

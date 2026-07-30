@@ -5,11 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.AuthRepository
 import com.example.data.GameRepository
 import com.example.data.UserProfile
+import com.example.data.nakama.NakamaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class LeaderboardPlayer(
@@ -27,38 +31,68 @@ data class LeaderboardPlayer(
 @HiltViewModel
 class RankingViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val gameRepository: GameRepository
+    private val gameRepository: GameRepository,
+    private val nakamaRepository: NakamaRepository
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
 
+    private val _nakamaLeaderboard = MutableStateFlow<List<LeaderboardPlayer>>(emptyList())
+
     val leaderboard: StateFlow<List<LeaderboardPlayer>> = combine(
         authRepository.userProfile,
-        gameRepository.playerWins
-    ) { user: UserProfile, winsCount: Int ->
-        val simulatedOthers = listOf(
-            LeaderboardPlayer(1, "Apex Cybermaster", "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde", false, 3200, 48, 88, "Apex Master", 15),
-            LeaderboardPlayer(2, "WallTactician_99", "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61", false, 2850, 39, 82, "Neon Legend", 12),
-            LeaderboardPlayer(3, "GridRunner_Pro", "https://images.unsplash.com/photo-1580489944761-15a19d654956", false, 2450, 31, 78, "Grandmaster", 10),
-            LeaderboardPlayer(5, "QuantumPawn", "https://images.unsplash.com/photo-1527980965255-d3b416303d12", false, 1950, 22, 65, "Cyber Knight", 6),
-            LeaderboardPlayer(6, "Wall_Blocker_X", "https://images.unsplash.com/photo-1628157582853-a796fa650a6a", false, 1620, 18, 58, "Strategist", 5)
-        )
+        gameRepository.playerWins,
+        _nakamaLeaderboard
+    ) { user: UserProfile, winsCount: Int, nakamaList: List<LeaderboardPlayer> ->
+        if (nakamaList.isNotEmpty()) {
+            nakamaList
+        } else {
+            val userWins = winsCount.coerceAtLeast(user.wins)
+            val userPlayer = LeaderboardPlayer(
+                rank = 1,
+                name = if (user.isLoggedIn) user.displayName else "${user.displayName} (You)",
+                avatarUrl = user.photoUrl,
+                isUser = true,
+                trophies = user.trophies,
+                wins = userWins,
+                winRate = if (user.totalMatches > 0) ((userWins.toFloat() / user.totalMatches) * 100).toInt() else 0,
+                title = user.rankTitle,
+                level = user.level
+            )
 
-        val userWins = winsCount.coerceAtLeast(user.wins)
-        val userPlayer = LeaderboardPlayer(
-            rank = 4,
-            name = if (user.isLoggedIn) user.displayName else "You (Guest)",
-            avatarUrl = user.photoUrl,
-            isUser = true,
-            trophies = user.trophies + userWins * 10,
-            wins = userWins,
-            winRate = if (user.totalMatches > 0) ((userWins.toFloat() / user.totalMatches) * 100).toInt() else 70,
-            title = user.rankTitle,
-            level = user.level
-        )
-
-        (simulatedOthers + userPlayer).sortedByDescending { it.trophies }.mapIndexed { index, p ->
-            p.copy(rank = index + 1)
+            listOf(userPlayer)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        refreshLeaderboard()
+    }
+
+    fun refreshLeaderboard() {
+        viewModelScope.launch {
+            val entries = nakamaRepository.fetchGlobalLeaderboard()
+            val user = userProfile.value
+            if (entries.isNotEmpty()) {
+                val mapped = entries.map { entry ->
+                    LeaderboardPlayer(
+                        rank = entry.rank,
+                        name = entry.displayName,
+                        avatarUrl = entry.avatarUrl,
+                        isUser = entry.username.equals(user.displayName, ignoreCase = true),
+                        trophies = entry.trophies,
+                        wins = entry.wins,
+                        winRate = 75,
+                        title = when {
+                            entry.trophies >= 1000 -> "Apex Cybermaster"
+                            entry.trophies >= 500 -> "Neon Grandmaster"
+                            entry.trophies >= 200 -> "Neon Knight"
+                            else -> "Novice Duelist"
+                        },
+                        level = entry.level
+                    )
+                }
+                _nakamaLeaderboard.value = mapped
+            }
+        }
+    }
 }

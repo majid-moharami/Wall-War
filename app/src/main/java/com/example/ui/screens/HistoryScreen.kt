@@ -296,26 +296,46 @@ fun HistoryScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Canvas Chart Render
-                    val displayMatches = if (matchHistory.isNotEmpty()) matchHistory.takeLast(10) else getSampleBenchmarkMatches()
+                    if (matchHistory.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NeonDarkSurface)
+                                .border(1.dp, NeonBorder, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No match history available yet.\nPlay matches to populate the chart!",
+                                color = Color(0xFFA0ACCC),
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
+                    } else {
+                        val displayMatches = matchHistory.takeLast(10)
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(NeonDarkSurface)
-                            .border(1.dp, NeonBorder, RoundedCornerShape(12.dp))
-                    ) {
-                        if (selectedChartType == ChartType.RATING_TREND) {
-                            NeonRatingTrendChart(
-                                matches = displayMatches,
-                                onSelectMatch = { match -> selectedMatchForDetails = match }
-                            )
-                        } else {
-                            NeonWallsVsMovesBarChart(
-                                matches = displayMatches,
-                                onSelectMatch = { match -> selectedMatchForDetails = match }
-                            )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NeonDarkSurface)
+                                .border(1.dp, NeonBorder, RoundedCornerShape(12.dp))
+                        ) {
+                            if (selectedChartType == ChartType.RATING_TREND) {
+                                NeonRatingTrendChart(
+                                    matches = displayMatches,
+                                    onSelectMatch = { match -> selectedMatchForDetails = match }
+                                )
+                            } else {
+                                NeonWallsVsMovesBarChart(
+                                    matches = displayMatches,
+                                    onSelectMatch = { match -> selectedMatchForDetails = match }
+                                )
+                            }
                         }
                     }
 
@@ -903,16 +923,4 @@ private fun NeonMatchHistoryCard(match: MatchRecord) {
             }
         }
     }
-}
-
-private fun getSampleBenchmarkMatches(): List<MatchRecord> {
-    val now = System.currentTimeMillis()
-    return listOf(
-        MatchRecord(1, "Classic Duel", "AI (Easy)", 0, 14, 6, 45, now - 36000000),
-        MatchRecord(2, "Classic Duel", "AI (Normal)", 0, 18, 8, 62, now - 28000000),
-        MatchRecord(3, "Wall Race", "Pass & Play", 1, 22, 10, 80, now - 20000000),
-        MatchRecord(4, "Classic Duel", "AI (Hard)", 0, 16, 7, 50, now - 14000000),
-        MatchRecord(5, "Wall Race", "AI (Hard)", 0, 24, 12, 95, now - 8000000),
-        MatchRecord(6, "Classic Duel", "Pass & Play", 0, 19, 9, 68, now - 2000000)
-    )
 }

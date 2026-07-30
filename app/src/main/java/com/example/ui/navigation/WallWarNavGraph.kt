@@ -35,10 +35,12 @@ fun WallWarNavGraph(
     ) {
         composable<HomeRoute> {
             val viewModel: HomeViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
 
             HomeScreen(
+                userProfile = userProfile,
                 totalWins = totalWins,
                 totalMatches = totalMatches,
                 onStartGame = { mode, opponent, difficulty ->
@@ -79,13 +81,20 @@ fun WallWarNavGraph(
             val viewModel: ProfileViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val signInStatus by viewModel.signInStatus.collectAsStateWithLifecycle()
+            val friends by viewModel.friends.collectAsStateWithLifecycle()
 
             ProfileScreen(
                 userProfile = userProfile,
                 signInStatus = signInStatus,
+                friends = friends,
                 onSignInWithGoogle = viewModel::signInWithGoogle,
                 onClearSignInStatus = viewModel::clearSignInStatus,
                 onSignOut = viewModel::signOut,
+                onAddFriend = viewModel::addFriend,
+                onRemoveFriend = viewModel::removeFriend,
+                onChallengeFriend = { friendUsername ->
+                    navController.navigate(GameBoardRoute(opponent = "ONLINE"))
+                },
                 onNavigateToHistory = { navController.navigate(HistoryRoute) },
                 onNavigateToSettings = { navController.navigate(SettingsRoute) }
             )
@@ -98,6 +107,10 @@ fun WallWarNavGraph(
             val isWallMode by viewModel.isWallMode.collectAsStateWithLifecycle()
             val isWallHorizontal by viewModel.isWallHorizontal.collectAsStateWithLifecycle()
             val validHighlights by viewModel.validMoveHighlights.collectAsStateWithLifecycle()
+            val onlineMatchState by viewModel.onlineMatchState.collectAsStateWithLifecycle()
+            val onlineOpponentName by viewModel.onlineOpponentName.collectAsStateWithLifecycle()
+            val myPlayerIndex by viewModel.myPlayerIndex.collectAsStateWithLifecycle()
+            val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
 
             GameBoardScreen(
                 gameState = gameState,
@@ -106,10 +119,17 @@ fun WallWarNavGraph(
                 isWallHorizontal = isWallHorizontal,
                 validHighlights = validHighlights,
                 soundManager = viewModel.soundManager,
+                opponentType = viewModel.opponentType,
+                onlineMatchState = onlineMatchState,
+                onlineOpponentName = onlineOpponentName,
+                myPlayerIndex = myPlayerIndex,
+                onlineErrorMessage = onlineErrorMessage,
+                onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
+                onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
                 onCellClick = viewModel::selectCell,
                 onPlaceWall = viewModel::placeWall,
                 onSelectWallOrientation = viewModel::selectWallOrientation,
-                onCancelWallMode = viewModel::cancelWallMode,
+                onCancelWallMode = viewModel::toggleWallMode,
                 onUndoMove = viewModel::undoMove,
                 onRestart = viewModel::restartGame,
                 onBack = {
@@ -152,11 +172,15 @@ fun WallWarNavGraph(
         composable<SettingsRoute> {
             val viewModel: SettingsViewModel = hiltViewModel()
             val selectedTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
+            val nakamaConfig by viewModel.nakamaConfig.collectAsStateWithLifecycle()
 
             SettingsScreen(
                 soundManager = viewModel.soundManager,
                 selectedTheme = selectedTheme,
+                nakamaConfig = nakamaConfig,
                 onSelectTheme = viewModel::setBoardTheme,
+                onUpdateNakamaConfig = viewModel::updateNakamaConfig,
+                onTestConnection = viewModel::testNakamaConnection,
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)

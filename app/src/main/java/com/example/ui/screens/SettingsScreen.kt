@@ -1,7 +1,7 @@
 package com.example.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,14 +20,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -44,19 +49,29 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.audio.SoundManager
+import com.example.data.nakama.NakamaConfig
 import com.example.model.BoardTheme
-import com.example.ui.theme.WallWarPurple
+import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonPurple
 
 @Composable
 fun SettingsScreen(
     soundManager: SoundManager,
     selectedTheme: BoardTheme,
+    nakamaConfig: NakamaConfig = NakamaConfig(),
     onSelectTheme: (BoardTheme) -> Unit,
+    onUpdateNakamaConfig: (host: String, port: Int, key: String, ssl: Boolean) -> Unit = { _, _, _, _ -> },
+    onTestConnection: ((Boolean) -> Unit) -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isSoundOn by remember { mutableStateOf(soundManager.isSoundEnabled) }
     var isVibroOn by remember { mutableStateOf(soundManager.isVibrationEnabled) }
+
+    var serverHost by remember(nakamaConfig) { mutableStateOf(nakamaConfig.host) }
+    var serverPort by remember(nakamaConfig) { mutableStateOf(nakamaConfig.port.toString()) }
+    var serverKey by remember(nakamaConfig) { mutableStateOf(nakamaConfig.serverKey) }
+    var testResultStatus by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier
@@ -81,10 +96,140 @@ fun SettingsScreen(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Settings & Customization",
+                text = "Settings & Nakama Server",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Nakama Server Docker Configuration
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Dns,
+                        contentDescription = null,
+                        tint = NeonCyan,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Nakama Server Config (Docker / Personal IP)",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Connect to your custom server running Nakama Docker",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Port Explanation Note
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFF1E2638))
+                        .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                        .padding(10.dp)
+                ) {
+                    Text(
+                        text = "💡 Note: Port 7350 is Nakama's Client API & WebSocket port (required for the app). Port 7351 is only for the Web Console Admin dashboard in your browser.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFC0D0E0)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                OutlinedTextField(
+                    value = serverHost,
+                    onValueChange = { serverHost = it },
+                    label = { Text("Server Host IP (e.g. 192.168.1.100 or MyServerIp)") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = serverPort,
+                        onValueChange = { serverPort = it },
+                        label = { Text("Port (Use 7350 for API)") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    OutlinedTextField(
+                        value = serverKey,
+                        onValueChange = { serverKey = it },
+                        label = { Text("Server Key") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Button(
+                        onClick = {
+                            var portInt = serverPort.toIntOrNull() ?: 7350
+                            var hostStr = serverHost.trim()
+
+                            // If user typed MyServerIp:7351 or 7351, auto-correct 7351 (console port) to 7350 (API port)
+                            if (hostStr.contains(":")) {
+                                val parts = hostStr.split(":")
+                                hostStr = parts[0]
+                                parts[1].toIntOrNull()?.let { extractedPort ->
+                                    portInt = if (extractedPort == 7351) 7350 else extractedPort
+                                }
+                            }
+                            if (portInt == 7351) {
+                                portInt = 7350
+                                serverPort = "7350"
+                            }
+
+                            onUpdateNakamaConfig(hostStr, portInt, serverKey, false)
+                            testResultStatus = "Connecting..."
+                            onTestConnection { success ->
+                                testResultStatus = if (success) "Connected to Nakama Server!" else "Connection failed (Check Docker / IP)"
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                    ) {
+                        Text("Save & Test Nakama", color = Color.Black, fontWeight = FontWeight.Bold)
+                    }
+
+                    testResultStatus?.let { status ->
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (status.contains("Connected")) Color(0xFF4CAF50) else Color(0xFFFF5252),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
@@ -104,7 +249,7 @@ fun SettingsScreen(
                 Icon(
                     imageVector = Icons.Default.VolumeUp,
                     contentDescription = null,
-                    tint = WallWarPurple,
+                    tint = NeonPurple,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -126,7 +271,7 @@ fun SettingsScreen(
                         isSoundOn = checked
                         soundManager.isSoundEnabled = checked
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = WallWarPurple)
+                    colors = SwitchDefaults.colors(checkedThumbColor = NeonPurple)
                 )
             }
         }
@@ -148,7 +293,7 @@ fun SettingsScreen(
                 Icon(
                     imageVector = Icons.Default.Vibration,
                     contentDescription = null,
-                    tint = WallWarPurple,
+                    tint = NeonPurple,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(16.dp))
@@ -170,7 +315,7 @@ fun SettingsScreen(
                         isVibroOn = checked
                         soundManager.isVibrationEnabled = checked
                     },
-                    colors = SwitchDefaults.colors(checkedThumbColor = WallWarPurple)
+                    colors = SwitchDefaults.colors(checkedThumbColor = NeonPurple)
                 )
             }
         }
@@ -182,7 +327,7 @@ fun SettingsScreen(
             Icon(
                 imageVector = Icons.Default.Palette,
                 contentDescription = null,
-                tint = WallWarPurple,
+                tint = NeonPurple,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -199,7 +344,7 @@ fun SettingsScreen(
             Card(
                 onClick = { onSelectTheme(theme) },
                 colors = CardDefaults.cardColors(
-                    containerColor = if (selectedTheme == theme) WallWarPurple.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                    containerColor = if (selectedTheme == theme) NeonPurple.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -227,7 +372,7 @@ fun SettingsScreen(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
-                            tint = WallWarPurple
+                            tint = NeonPurple
                         )
                     }
                 }
@@ -236,7 +381,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "WallWar Android v1.0 • Modern Compose Engine",
+            text = "WallWar Android v1.0 • Nakama Online Engine",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.align(Alignment.CenterHorizontally)

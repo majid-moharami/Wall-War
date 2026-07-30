@@ -11,5 +11,7 @@ data class UserProfile(
     val rankTitle: String = "Novice Duelist",
     val wins: Int = 0,
     val totalMatches: Int = 0,
-    val wallsPlaced: Int = 0
+    val wallsPlaced: Int = 0,
+    val coins: Int = 150,
+    val nakamaUserId: String? = null
 )

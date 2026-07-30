@@ -66,6 +66,7 @@ import com.example.ui.theme.NeonPurple
 
 @Composable
 fun HomeScreen(
+    userProfile: com.example.data.UserProfile = com.example.data.UserProfile(),
     totalWins: Int,
     totalMatches: Int,
     onStartGame: (mode: GameMode, opponent: OpponentType, difficulty: AiDifficulty) -> Unit,
@@ -74,6 +75,9 @@ fun HomeScreen(
 ) {
     var selectedAiDifficulty by remember { mutableStateOf(AiDifficulty.NORMAL) }
     var showAiPicker by remember { mutableStateOf(false) }
+
+    val actualWins = totalWins.coerceAtLeast(userProfile.wins)
+    val actualMatches = totalMatches.coerceAtLeast(userProfile.totalMatches)
 
     Column(
         modifier = modifier
@@ -119,7 +123,7 @@ fun HomeScreen(
                         letterSpacing = 1.2.sp
                     )
                     Text(
-                        text = "WallWar Tactics",
+                        text = userProfile.displayName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
@@ -127,7 +131,7 @@ fun HomeScreen(
                 }
             }
 
-            // Energy / Score Counter Pill
+            // Energy / Coins Pill
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -144,13 +148,13 @@ fun HomeScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "⚡",
+                        text = "🪙",
                         fontSize = 11.sp
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "${2450 + totalWins * 50}",
+                    text = "${userProfile.coins} Coins",
                     fontWeight = FontWeight.Bold,
                     color = NeonAmber,
                     fontSize = 13.sp
@@ -177,7 +181,7 @@ fun HomeScreen(
             ) {
                 Column {
                     Text(
-                        text = "HIGHEST RUSH & RATING",
+                        text = "RATING & TROPHIES",
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold,
                         color = NeonCyan,
@@ -185,7 +189,7 @@ fun HomeScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = if (totalMatches > 0) "${(totalWins * 1280 + 1200)}" else "12,840",
+                        text = "${userProfile.trophies} 🏆",
                         fontSize = 38.sp,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
@@ -203,7 +207,7 @@ fun HomeScreen(
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "Win Rate: ${if (totalMatches > 0) (totalWins * 100 / totalMatches) else 100}%",
+                                text = "Win Rate: ${if (actualMatches > 0) (actualWins * 100 / actualMatches) else 0}%",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeonEmerald
@@ -216,7 +220,7 @@ fun HomeScreen(
                                 .padding(horizontal = 10.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "Total Wins: $totalWins",
+                                text = "Total Wins: $actualWins",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeonAmber
@@ -255,17 +259,17 @@ fun HomeScreen(
                             .background(NeonAmber.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🏆", fontSize = 14.sp)
+                        Text("🎖️", fontSize = 14.sp)
                     }
                     Column {
                         Text(
-                            text = "Global Rank",
+                            text = "Rank Tier",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFA0ACCC)
                         )
                         Text(
-                            text = "Top 4%",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = userProfile.rankTitle,
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
@@ -294,17 +298,17 @@ fun HomeScreen(
                             .background(NeonMagenta.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("🔥", fontSize = 14.sp)
+                        Text("⚔️", fontSize = 14.sp)
                     }
                     Column {
                         Text(
-                            text = "Daily Streak",
+                            text = "Level & XP",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFFA0ACCC)
                         )
                         Text(
-                            text = "8 Days",
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "Lvl ${userProfile.level} (${userProfile.xp} XP)",
+                            style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White
                         )
@@ -325,7 +329,69 @@ fun HomeScreen(
                 .padding(bottom = 10.dp)
         )
 
-        // 1. Quick Match Card (Primary Pass & Play)
+        // 1. Online Random Multiplayer (Nakama Server)
+        Card(
+            onClick = {
+                onStartGame(GameMode.DUEL, OpponentType.ONLINE, selectedAiDifficulty)
+            },
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonEmerald, NeonCyan))),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("btn_online_match")
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(NeonEmerald.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🌐", fontSize = 22.sp)
+                }
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Play Random Online Game",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(NeonEmerald)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text("LIVE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        }
+                    }
+                    Text(
+                        text = "Nakama Server • 30s Turn Timer • Win +75 Coins",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFA0ACCC)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = NeonEmerald
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 2. Quick Match Card (Primary Pass & Play)
         Card(
             onClick = {
                 onStartGame(GameMode.DUEL, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)

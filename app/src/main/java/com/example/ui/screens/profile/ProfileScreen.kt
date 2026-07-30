@@ -26,7 +26,11 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
@@ -40,8 +44,14 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.UserProfile
+import com.example.data.nakama.NakamaFriend
 import com.example.ui.theme.NeonAmber
 import com.example.ui.theme.NeonCyan
 import com.example.ui.theme.NeonDarkBg
@@ -66,14 +77,20 @@ import com.example.ui.theme.NeonMagenta
 fun ProfileScreen(
     userProfile: UserProfile,
     signInStatus: String?,
+    friends: List<NakamaFriend> = emptyList(),
     onSignInWithGoogle: (Context) -> Unit,
     onClearSignInStatus: () -> Unit,
     onSignOut: (Context) -> Unit,
+    onAddFriend: (String, (Boolean) -> Unit) -> Unit = { _, _ -> },
+    onRemoveFriend: (String) -> Unit = {},
+    onChallengeFriend: (String) -> Unit = {},
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var friendSearchQuery by remember { mutableStateOf("") }
+    var addFriendStatus by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = modifier
@@ -193,7 +210,39 @@ fun ProfileScreen(
                     color = Color(0xFFA0ACCC)
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Coins Header Pill (🪙 +75 Coins per Win)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF2C2411))
+                        .border(1.dp, NeonAmber, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MonetizationOn,
+                        contentDescription = "Coins",
+                        tint = NeonAmber,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${userProfile.coins} Coins",
+                        color = NeonAmber,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 15.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "(+75 / Win)",
+                        color = Color(0xFFE2C275),
+                        fontSize = 11.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Verification Badge Pill
                 Row(
@@ -337,6 +386,130 @@ fun ProfileScreen(
                         color = Color(0xFFA0ACCC),
                         fontSize = 11.sp
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Nakama Search & Friends Section
+        Text(
+            text = "FRIENDS & NAKAMA SEARCH",
+            style = MaterialTheme.typography.labelMedium,
+            color = Color(0xFFA0ACCC),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = friendSearchQuery,
+                        onValueChange = { friendSearchQuery = it },
+                        placeholder = { Text("Enter username to add...", color = Color(0xFF6B7280)) },
+                        singleLine = true,
+                        leadingIcon = {
+                            Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = NeonCyan)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = Color(0xFF374151)
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            if (friendSearchQuery.isNotBlank()) {
+                                onAddFriend(friendSearchQuery) { success ->
+                                    addFriendStatus = if (success) "Friend added!" else "User not found"
+                                    if (success) friendSearchQuery = ""
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                    ) {
+                        Icon(imageVector = Icons.Default.PersonAdd, contentDescription = "Add", tint = Color.Black)
+                    }
+                }
+
+                addFriendStatus?.let { status ->
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = status,
+                        fontSize = 12.sp,
+                        color = if (status.contains("added")) NeonEmerald else NeonMagenta,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (friends.isEmpty()) {
+                    Text(
+                        text = "No friends added yet. Search above to add online duelists!",
+                        fontSize = 12.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+                } else {
+                    friends.forEach { friend ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(NeonDarkSurface)
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(NeonCyan.copy(alpha = 0.2f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = friend.displayName.take(1).uppercase(),
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeonCyan
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = friend.displayName,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = "Level ${friend.level} • ${friend.trophies} Trophies",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFA0ACCC)
+                                )
+                            }
+                            Button(
+                                onClick = { onChallengeFriend(friend.username) },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Duel",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(text = "Duel", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
             }
         }
