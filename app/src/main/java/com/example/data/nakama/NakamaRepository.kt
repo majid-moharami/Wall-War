@@ -616,11 +616,15 @@ class NakamaRepository @Inject constructor(
             _matchState.value = OnlineMatchState.CONNECTING
             _matchEvents.emit(OnlineMatchEvent.SearchingForMatch)
 
-            if (jwtSessionToken == null || jwtSessionToken!!.isBlank()) {
+            // Always ensure we have a valid, active session token before connecting WebSocket
+            if (jwtSessionToken.isNullOrBlank()) {
                 val success = authenticateWithDevice(username)
                 if (!success) {
                     _matchState.value = OnlineMatchState.ERROR
                     Log.e("NakamaRepository", "Authentication with Nakama server failed")
+                    _matchEvents.emit(
+                        OnlineMatchEvent.Error("Authentication failed on Nakama server (${config.value.host}:${config.value.effectivePort}). Ensure Nakama is running on port 7350.")
+                    )
                     return@launch
                 }
             }
@@ -634,10 +638,13 @@ class NakamaRepository @Inject constructor(
             _matchState.value = OnlineMatchState.CONNECTING
             _matchEvents.emit(OnlineMatchEvent.SearchingForMatch)
 
-            if (jwtSessionToken == null || jwtSessionToken!!.isBlank()) {
+            if (jwtSessionToken.isNullOrBlank()) {
                 val success = authenticateWithDevice("Player")
                 if (!success) {
                     _matchState.value = OnlineMatchState.ERROR
+                    _matchEvents.emit(
+                        OnlineMatchEvent.Error("Authentication failed on Nakama server (${config.value.host}:${config.value.effectivePort}).")
+                    )
                     return@launch
                 }
             }
@@ -646,13 +653,23 @@ class NakamaRepository @Inject constructor(
         }
     }
 
-    private fun connectWebSocketAndQueueMatchmaker(friendFilter: String? = null) {
+    private fun connectWebSocketAndQueueMatchmaker(friendFilter: String? = null, isRetry: Boolean = false) {
         try {
-            val token = jwtSessionToken ?: UUID.randomUUID().toString()
-            val wsUrl = "${config.value.wsBaseUrl}/v2/socket?token=$token&format=json"
+            val token = jwtSessionToken
+            if (token.isNullOrBlank()) {
+                _matchState.value = OnlineMatchState.ERROR
+                scope.launch {
+                    _matchEvents.emit(OnlineMatchEvent.Error("No valid Nakama JWT session token found. Please re-authenticate."))
+                }
+                return
+            }
+
+            val encodedToken = java.net.URLEncoder.encode(token, "UTF-8")
+            val wsUrl = "${config.value.wsBaseUrl}/v2/socket?token=$encodedToken&format=json"
 
             val request = Request.Builder()
                 .url(wsUrl)
+                .addHeader("Authorization", getBearerAuthHeader())
                 .build()
 
             webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
@@ -678,7 +695,30 @@ class NakamaRepository @Inject constructor(
                 }
 
                 override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                    Log.e("NakamaRepository", "Nakama WebSocket failed: ${t.message}")
+                    Log.e("NakamaRepository", "Nakama WebSocket failed: ${t.message}, HTTP code: ${response?.code}")
+
+                    // Handle HTTP 404/401 Token Expiry/Invalidation automatically
+                    if (!isRetry && (response?.code == 404 || response?.code == 401 || t is java.net.ProtocolException)) {
+                        Log.w("NakamaRepository", "WebSocket token rejected (HTTP ${response?.code}). Re-authenticating with device...")
+                        jwtSessionToken = null
+                        prefs.edit().remove("nakama_jwt_token").apply()
+
+                        scope.launch {
+                            val reauthSuccess = authenticateWithDeviceInternal("Player")
+                            if (reauthSuccess) {
+                                connectWebSocketAndQueueMatchmaker(friendFilter, isRetry = true)
+                            } else {
+                                _matchState.value = OnlineMatchState.ERROR
+                                _matchEvents.emit(
+                                    OnlineMatchEvent.Error(
+                                        "Nakama WebSocket authentication failed (HTTP ${response?.code ?: 404}). Ensure Nakama is running on port 7350."
+                                    )
+                                )
+                            }
+                        }
+                        return
+                    }
+
                     _matchState.value = OnlineMatchState.ERROR
                     scope.launch {
                         _matchEvents.emit(
