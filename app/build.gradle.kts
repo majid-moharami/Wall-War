@@ -104,7 +104,9 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  implementation(files("libs/nakama-java-2.5.3.jar"))
+  implementation(libs.nakama.java) {
+    exclude(group = "com.google.api.grpc", module = "proto-google-common-protos")
+  }
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)
