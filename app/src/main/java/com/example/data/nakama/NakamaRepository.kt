@@ -157,22 +157,23 @@ class NakamaRepository @Inject constructor(
         }
     }
 
-    suspend fun authenticateWithDevice(username: String): Boolean = withContext(Dispatchers.IO) {
-        authenticateWithDeviceInternal(username)
-    }
-
-    private fun authenticateWithDeviceInternal(username: String): Boolean {
-        return try {
-            var deviceId = prefs.getString("nakama_device_id", null)
-            if (deviceId == null) {
-                deviceId = UUID.randomUUID().toString()
-                prefs.edit().putString("nakama_device_id", deviceId).apply()
+    suspend fun authenticateWithEmail(
+        email: String,
+        password: String,
+        username: String = "",
+        isSignUp: Boolean = true
+    ): Result<Boolean> = withContext(Dispatchers.IO) {
+        try {
+            val sanitizedUsername = username.filter { it.isLetterOrDigit() }.ifBlank { "Player${(1000..9999).random()}" }
+            val url = if (isSignUp) {
+                "${config.value.httpBaseUrl}/v2/account/authenticate/email?create=true&username=$sanitizedUsername"
+            } else {
+                "${config.value.httpBaseUrl}/v2/account/authenticate/email?create=false"
             }
 
-            val sanitizedUsername = username.filter { it.isLetterOrDigit() }.ifBlank { "Player${(1000..9999).random()}" }
-            val url = "${config.value.httpBaseUrl}/v2/account/authenticate/custom?create=true&username=$sanitizedUsername"
             val json = JSONObject().apply {
-                put("id", deviceId)
+                put("email", email.trim())
+                put("password", password)
             }
 
             val request = Request.Builder()
@@ -189,10 +190,68 @@ class NakamaRepository @Inject constructor(
 
                 fetchAccountDetailsInternal()
                 saveSession()
+                Log.i("NakamaRepository", "Successfully authenticated email with Nakama!")
+                Result.success(true)
+            } else {
+                val errBody = response.body?.string() ?: ""
+                Log.e("NakamaRepository", "Email Auth failed with code ${response.code}: $errBody")
+                Result.failure(Exception("Email authentication failed (HTTP ${response.code})"))
+            }
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Email Auth error: ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    suspend fun authenticateWithDevice(username: String): Boolean = withContext(Dispatchers.IO) {
+        authenticateWithDeviceInternal(username)
+    }
+
+    private fun authenticateWithDeviceInternal(username: String): Boolean {
+        return try {
+            var deviceId = prefs.getString("nakama_device_id", null)
+            if (deviceId == null) {
+                deviceId = UUID.randomUUID().toString()
+                prefs.edit().putString("nakama_device_id", deviceId).apply()
+            }
+
+            val sanitizedUsername = username.filter { it.isLetterOrDigit() }.ifBlank { "Player${(1000..9999).random()}" }
+            
+            // Try device authentication endpoint first
+            val urlDevice = "${config.value.httpBaseUrl}/v2/account/authenticate/device?create=true&username=$sanitizedUsername"
+            val jsonDevice = JSONObject().apply {
+                put("id", deviceId)
+            }
+
+            val requestDevice = Request.Builder()
+                .url(urlDevice)
+                .addHeader("Authorization", getBasicAuthHeader())
+                .post(jsonDevice.toString().toRequestBody(jsonMediaType))
+                .build()
+
+            var response: Response = httpClient.newCall(requestDevice).execute()
+            if (!response.isSuccessful) {
+                // Try custom auth endpoint as fallback
+                val urlCustom = "${config.value.httpBaseUrl}/v2/account/authenticate/custom?create=true&username=$sanitizedUsername"
+                val requestCustom = Request.Builder()
+                    .url(urlCustom)
+                    .addHeader("Authorization", getBasicAuthHeader())
+                    .post(jsonDevice.toString().toRequestBody(jsonMediaType))
+                    .build()
+                response = httpClient.newCall(requestCustom).execute()
+            }
+
+            if (response.isSuccessful) {
+                val respBody = response.body?.string() ?: ""
+                val jsonObj = JSONObject(respBody)
+                jwtSessionToken = jsonObj.getString("token")
+
+                fetchAccountDetailsInternal()
+                saveSession()
                 Log.i("NakamaRepository", "Successfully authenticated device with Nakama!")
                 true
             } else {
-                Log.e("NakamaRepository", "Custom Auth failed with code ${response.code}")
+                Log.e("NakamaRepository", "Device & Custom Auth failed with code ${response.code}")
                 false
             }
         } catch (e: Exception) {
@@ -653,7 +712,7 @@ class NakamaRepository @Inject constructor(
         }
     }
 
-    private fun connectWebSocketAndQueueMatchmaker(friendFilter: String? = null, isRetry: Boolean = false) {
+    private fun connectWebSocketAndQueueMatchmaker(friendFilter: String? = null, isRetry: Boolean = false, useWsPath: Boolean = false) {
         try {
             val token = jwtSessionToken
             if (token.isNullOrBlank()) {
@@ -665,16 +724,19 @@ class NakamaRepository @Inject constructor(
             }
 
             val encodedToken = java.net.URLEncoder.encode(token, "UTF-8")
-            val wsUrl = "${config.value.wsBaseUrl}/v2/socket?token=$encodedToken&format=json"
+            val path = if (useWsPath) "/ws" else "/v2/socket"
+            val wsUrl = "${config.value.wsBaseUrl}$path?token=$encodedToken&format=json"
+            val originHeader = config.value.httpBaseUrl
 
             val request = Request.Builder()
                 .url(wsUrl)
                 .addHeader("Authorization", getBearerAuthHeader())
+                .addHeader("Origin", originHeader)
                 .build()
 
             webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
                 override fun onOpen(ws: WebSocket, response: Response) {
-                    Log.i("NakamaRepository", "WebSocket connected successfully to Nakama")
+                    Log.i("NakamaRepository", "WebSocket connected successfully to Nakama endpoint: $path")
                     _matchState.value = OnlineMatchState.SEARCHING_MATCH
 
                     // Send Matchmaker Add request to Nakama Server
@@ -695,7 +757,14 @@ class NakamaRepository @Inject constructor(
                 }
 
                 override fun onFailure(ws: WebSocket, t: Throwable, response: Response?) {
-                    Log.e("NakamaRepository", "Nakama WebSocket failed: ${t.message}, HTTP code: ${response?.code}")
+                    Log.e("NakamaRepository", "Nakama WebSocket failed on path $path: ${t.message}, HTTP code: ${response?.code}")
+
+                    // If /v2/socket gave 404, try /ws path as fallback before erroring out
+                    if (!useWsPath && response?.code == 404) {
+                        Log.w("NakamaRepository", "/v2/socket returned 404, trying /ws endpoint fallback...")
+                        connectWebSocketAndQueueMatchmaker(friendFilter, isRetry = isRetry, useWsPath = true)
+                        return
+                    }
 
                     // Handle HTTP 404/401 Token Expiry/Invalidation automatically
                     if (!isRetry && (response?.code == 404 || response?.code == 401 || t is java.net.ProtocolException)) {
