@@ -16,3 +16,9 @@
 local.properties
 .env
 debug.keystore
+# Android / IDE cache & generated folders
+.idea/
+.artifacts/
+*.iws
+*.iml
+*.ipr

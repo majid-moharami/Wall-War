@@ -207,9 +207,23 @@ class NakamaRepository @Inject constructor(
             objectId.setKey("stats")
             objectId.setUserId(nakamaUserId)
             val result = client.readStorageObjects(s, objectId).await()
-            if (result.objectsCount > 0) {
-                return@withContext JSONObject(result.getObjects(0).value)
+            val statsObj = if (result.objectsCount > 0) {
+                JSONObject(result.getObjects(0).value)
+            } else {
+                JSONObject()
             }
+
+            // Also fetch account for the latest avatar_url
+            try {
+                val account = client.getAccount(s).await()
+                if (account.user.avatarUrl != null) {
+                    statsObj.put("avatarUrl", account.user.avatarUrl)
+                }
+            } catch (e: Exception) {
+                Log.w("NakamaRepository", "Could not fetch account info for avatar: ${e.message}")
+            }
+
+            return@withContext statsObj
         } catch (e: Exception) {
             Log.e("NakamaRepository", "Error reading user profile: ${e.message}")
         }
@@ -240,8 +254,13 @@ class NakamaRepository @Inject constructor(
                 Log.w("NakamaRepository", "Failed to update Nakama account profile: ${e.message}")
             }
 
-            // Post to leaderboard
-            client.writeLeaderboardRecord(s, "global_rankings", profile.trophies.toLong(), profile.wins.toLong()).await()
+            // Post to leaderboard with avatarUrl in metadata
+            val metadata = JSONObject().apply {
+                if (profile.photoUrl != null) {
+                    put("avatarUrl", profile.photoUrl)
+                }
+            }
+            client.writeLeaderboardRecord(s, "global_rankings", profile.trophies.toLong(), profile.wins.toLong(), metadata.toString()).await()
         } catch (e: Exception) {
             Log.e("NakamaRepository", "Error syncing user profile: ${e.message}")
         }
@@ -311,6 +330,16 @@ class NakamaRepository @Inject constructor(
         try {
             val result = client.listLeaderboardRecords(s, "global_rankings").await()
             val list = result.recordsList.mapIndexed { index, rec ->
+                var avatarUrl: String? = null
+                val metaStr = rec.metadata
+                if (!metaStr.isNullOrBlank() && metaStr != "{}") {
+                    try {
+                        val meta = JSONObject(metaStr)
+                        avatarUrl = if (meta.has("avatarUrl")) meta.getString("avatarUrl") else null
+                    } catch (e: Exception) {
+                        Log.w("NakamaRepository", "Error parsing leaderboard metadata: ${e.message}")
+                    }
+                }
                 LeaderboardEntry(
                     rank = rec.rank.toInt().takeIf { it != 0 } ?: (index + 1),
                     userId = rec.ownerId,
@@ -318,7 +347,8 @@ class NakamaRepository @Inject constructor(
                     displayName = if (rec.hasUsername()) rec.username.value else "Duelist",
                     trophies = rec.score.toInt(),
                     wins = rec.subscore.toInt(),
-                    level = (rec.score.toInt() / 200) + 1
+                    level = (rec.score.toInt() / 200) + 1,
+                    avatarUrl = avatarUrl
                 )
             }
             _leaderboard.value = list
@@ -341,7 +371,8 @@ class NakamaRepository @Inject constructor(
                     displayName = f.user.displayName ?: f.user.username,
                     isOnline = f.user.online,
                     level = 1,
-                    trophies = 0
+                    trophies = 0,
+                    avatarUrl = f.user.avatarUrl
                 )
             }
             _friends.value = list

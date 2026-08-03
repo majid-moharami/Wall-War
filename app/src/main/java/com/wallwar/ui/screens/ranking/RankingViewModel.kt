@@ -76,7 +76,11 @@ class RankingViewModel @Inject constructor(
                     LeaderboardPlayer(
                         rank = entry.rank,
                         name = entry.displayName,
-                        avatarUrl = entry.avatarUrl,
+                        avatarUrl = if (entry.username.equals(user.displayName, ignoreCase = true)) {
+                            user.photoUrl ?: entry.avatarUrl
+                        } else {
+                            entry.avatarUrl
+                        },
                         isUser = entry.username.equals(user.displayName, ignoreCase = true),
                         trophies = entry.trophies,
                         wins = entry.wins,

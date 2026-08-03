@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.DirectionsRun
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Tune
@@ -46,10 +47,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.wallwar.model.AiDifficulty
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
@@ -104,15 +107,27 @@ fun HomeScreen(
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(NeonDarkSurface)
-                        .border(2.dp, NeonCyan, CircleShape),
+                        .border(2.dp, NeonCyan, CircleShape)
+                        .padding(if (userProfile.photoUrl.isNullOrBlank()) 0.dp else 2.dp), // Space for border if image
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "WW",
-                        color = NeonCyan,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp
-                    )
+                    if (!userProfile.photoUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = userProfile.photoUrl,
+                            contentDescription = userProfile.displayName,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = userProfile.displayName,
+                            tint = NeonCyan,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
                 Column {
                     Text(

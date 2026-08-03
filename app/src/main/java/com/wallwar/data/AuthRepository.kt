@@ -72,6 +72,7 @@ class AuthRepository @Inject constructor(
             val level = stats.optInt("level", current.level)
             val xp = stats.optInt("xp", current.xp)
             val rankTitle = stats.optString("rankTitle", current.rankTitle)
+            val avatarUrl = stats.optString("avatarUrl", current.photoUrl ?: "")
 
             val updated = current.copy(
                 trophies = trophies,
@@ -82,6 +83,7 @@ class AuthRepository @Inject constructor(
                 level = level,
                 xp = xp,
                 rankTitle = rankTitle,
+                photoUrl = if (avatarUrl.isBlank()) null else avatarUrl,
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
