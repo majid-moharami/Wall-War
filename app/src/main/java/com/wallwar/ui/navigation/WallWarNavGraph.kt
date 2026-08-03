@@ -123,7 +123,6 @@ fun WallWarNavGraph(
                 onlineMatchState = onlineMatchState,
                 onlineOpponentName = onlineOpponentName,
                 myPlayerIndex = myPlayerIndex,
-                myDisplayName = viewModel.myDisplayName,
                 onlineErrorMessage = onlineErrorMessage,
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,

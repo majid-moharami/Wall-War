@@ -63,9 +63,6 @@ class GameViewModel @Inject constructor(
     // Nakama Online State
     val onlineMatchState: StateFlow<OnlineMatchState> = nakamaRepository.matchState
 
-    val myDisplayName: String
-        get() = authRepository.userProfile.value.displayName
-
     private val _onlineOpponentName = MutableStateFlow("Searching...")
     val onlineOpponentName: StateFlow<String> = _onlineOpponentName.asStateFlow()
 
@@ -112,21 +109,6 @@ class GameViewModel @Inject constructor(
                             _onlineOpponentName.value = event.opponentName
                             _myPlayerIndex.value = event.selfPlayerIndex
                             _onlineErrorMessage.value = null
-
-                            val matchInitialState = GameEngine.createInitialState(gameMode).copy(
-                                turn = event.startingTurn,
-                                isAiMatch = false
-                            )
-                            _gameState.value = matchInitialState
-                            _isWallMode.value = false
-                            _selectedPosition.value = null
-                            matchStartTime = System.currentTimeMillis()
-                            updateHighlightsForState(matchInitialState)
-                        }
-                        is OnlineMatchEvent.OpponentNameUpdated -> {
-                            if (event.opponentName.isNotBlank()) {
-                                _onlineOpponentName.value = event.opponentName
-                            }
                         }
                         is OnlineMatchEvent.OpponentMove -> {
                             applyRemoteMove(event.move)
