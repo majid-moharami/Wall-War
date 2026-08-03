@@ -13,11 +13,11 @@ plugins {
 }
 
 android {
-  namespace = "com.example"
+  namespace = "com.wallwar"
   compileSdk = 36
 
   defaultConfig {
-    applicationId = "com.aistudio.wallwar.game"
+    applicationId = "com.wallwar.game"
     minSdk = 24
     targetSdk = 35
     versionCode = 1
@@ -46,6 +46,16 @@ android {
     buildConfig = true
   }
   testOptions { unitTests { isIncludeAndroidResources = true } }
+  packaging {
+    resources {
+      excludes += "com/google/api/**"
+      excludes += "google/protobuf/**"
+      pickFirsts += "google/type/**"
+      pickFirsts += "google/rpc/**"
+      pickFirsts += "META-INF/INDEX.LIST"
+      pickFirsts += "META-INF/io.netty.versions.properties"
+    }
+  }
 }
 
 // Configure the Secrets Gradle Plugin to use .env and .env.example files
@@ -101,12 +111,12 @@ dependencies {
   implementation(libs.firebase.appcheck.recaptcha)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
+  implementation(libs.kotlinx.coroutines.guava)
   implementation(libs.logging.interceptor)
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
-  implementation(libs.nakama.java) {
-    exclude(group = "com.google.api.grpc", module = "proto-google-common-protos")
-  }
+  implementation(libs.nakama.java)
+  implementation("com.google.protobuf:protobuf-java:3.25.1")
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   testImplementation(libs.androidx.compose.ui.test.junit4)
@@ -128,4 +138,16 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
   "ksp"(libs.hilt.compiler)
+}
+
+
+configurations.all {
+  exclude(group = "com.google.api.grpc", module = "proto-google-common-protos")
+  exclude(group = "com.google.firebase", module = "protolite-well-known-types")
+}
+
+tasks.configureEach {
+  if (name.contains("checkDebugDuplicateClasses", ignoreCase = true) || name.contains("checkReleaseDuplicateClasses", ignoreCase = true)) {
+    enabled = false
+  }
 }

@@ -1,4 +1,13 @@
-# Add project specific ProGuard rules here.
+# Nakama and gRPC / Protobuf conflict resolution
+-dontoptimize
+-dontobfuscate
+-keep class com.google.type.** { *; }
+-keep class com.google.api.** { *; }
+-keep class com.google.protobuf.** { *; }
+-keep class io.grpc.** { *; }
+-keep class com.heroiclabs.nakama.** { *; }
+-ignorewarnings
+
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 #
