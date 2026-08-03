@@ -60,6 +60,8 @@ class GameViewModel @Inject constructor(
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
+    val userProfile = authRepository.userProfile
+
     // Nakama Online State
     val onlineMatchState: StateFlow<OnlineMatchState> = nakamaRepository.matchState
 
@@ -92,7 +94,11 @@ class GameViewModel @Inject constructor(
     private val _validMoveHighlights = MutableStateFlow<List<Position>>(emptyList())
     val validMoveHighlights: StateFlow<List<Position>> = _validMoveHighlights.asStateFlow()
 
+    private val _turnTimeLeft = MutableStateFlow(30)
+    val turnTimeLeft: StateFlow<Int> = _turnTimeLeft.asStateFlow()
+
     private var matchStartTime: Long = System.currentTimeMillis()
+    private var timerJob: kotlinx.coroutines.Job? = null
 
     init {
         val initialState = _gameState.value
@@ -109,9 +115,19 @@ class GameViewModel @Inject constructor(
                             _onlineOpponentName.value = event.opponentName
                             _myPlayerIndex.value = event.selfPlayerIndex
                             _onlineErrorMessage.value = null
+                            
+                            // Set the initial turn based on the deterministic starter index
+                            val currentState = _gameState.value
+                            val nextState = currentState.copy(turn = event.starterIndex)
+                            _gameState.value = nextState
+                            updateHighlightsForState(nextState)
+                            startTurnTimer()
                         }
                         is OnlineMatchEvent.OpponentMove -> {
                             applyRemoteMove(event.move)
+                        }
+                        is OnlineMatchEvent.TurnTimeout -> {
+                            handleRemoteTimeout()
                         }
                         is OnlineMatchEvent.Error -> {
                             _onlineErrorMessage.value = event.message
@@ -261,6 +277,7 @@ class GameViewModel @Inject constructor(
         soundManager.vibrateShort()
 
         _gameState.value = nextState
+        startTurnTimer()
 
         checkGameEndAndTriggerAiIfNeeded(nextState)
     }
@@ -274,6 +291,7 @@ class GameViewModel @Inject constructor(
 
         _gameState.value = nextState
         updateHighlightsForState(nextState)
+        startTurnTimer()
 
         if (nextState.winner != null) {
             if (nextState.winner == _myPlayerIndex.value) {
@@ -284,6 +302,51 @@ class GameViewModel @Inject constructor(
             }
             saveMatchToHistory(nextState)
         }
+    }
+
+    private fun startTurnTimer() {
+        timerJob?.cancel()
+        _turnTimeLeft.value = 30
+        
+        val isLocalTurn = if (opponentType == OpponentType.ONLINE) {
+            _gameState.value.turn == _myPlayerIndex.value
+        } else {
+            // Local game (AI or Pass & Play)
+            !(_gameState.value.isAiMatch && _gameState.value.turn == 1)
+        }
+
+        if (_gameState.value.winner != null) return
+
+        timerJob = viewModelScope.launch {
+            while (_turnTimeLeft.value > 0) {
+                delay(1000)
+                _turnTimeLeft.value -= 1
+            }
+            
+            // Time up!
+            if (isLocalTurn && opponentType == OpponentType.ONLINE) {
+                nakamaRepository.sendTurnTimeout()
+                switchTurnLocally()
+            } else if (opponentType == OpponentType.LOCAL_PASS_PLAY) {
+                switchTurnLocally()
+            }
+        }
+    }
+
+    private fun handleRemoteTimeout() {
+        if (_gameState.value.turn != _myPlayerIndex.value) {
+            switchTurnLocally()
+        }
+    }
+
+    private fun switchTurnLocally() {
+        val currentState = _gameState.value
+        if (currentState.winner != null) return
+        
+        val nextState = currentState.copy(turn = 1 - currentState.turn)
+        _gameState.value = nextState
+        updateHighlightsForState(nextState)
+        startTurnTimer()
     }
 
     private fun checkGameEndAndTriggerAiIfNeeded(state: GameState) {

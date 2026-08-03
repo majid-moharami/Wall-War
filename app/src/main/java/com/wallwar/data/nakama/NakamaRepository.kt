@@ -42,7 +42,7 @@ import javax.inject.Singleton
 
 sealed class OnlineMatchEvent {
     object SearchingForMatch : OnlineMatchEvent()
-    data class MatchFound(val matchId: String, val selfPlayerIndex: Int, val opponentName: String) :
+    data class MatchFound(val matchId: String, val selfPlayerIndex: Int, val opponentName: String, val starterIndex: Int) :
         OnlineMatchEvent()
 
     data class OpponentMove(val move: Move) : OnlineMatchEvent()
@@ -168,25 +168,38 @@ class NakamaRepository @Inject constructor(
             }
             val sanitizedUsername = username.filter { it.isLetterOrDigit() }.ifBlank { "Player${(1000..9999).random()}" }
             
-            session = client.authenticateDevice(deviceId, true, sanitizedUsername).await()
+            try {
+                session = client.authenticateDevice(deviceId, true, sanitizedUsername).await()
+            } catch (e: Exception) {
+                Log.w("NakamaRepository", "Device auth with username '$sanitizedUsername' failed: ${e.message}")
+                // If it fails, try one more time with a slightly different username to avoid conflicts
+                val fallbackUsername = "Guest${(100000..999999).random()}"
+                session = client.authenticateDevice(deviceId, true, fallbackUsername).await()
+            }
+            
             onSessionAuthenticated()
             true
         } catch (e: Exception) {
-            Log.e("NakamaRepository", "Device auth error: ${e.message}")
+            Log.e("NakamaRepository", "Device auth total failure: ${e.message}")
             false
         }
     }
 
     private suspend fun onSessionAuthenticated() {
-        session?.let {
-            prefs.edit().putString("nakama_jwt_token", it.authToken).apply()
-            val account = client.getAccount(it).await()
-            nakamaUserId = account.user.id
-            nakamaUsername = account.user.username
-            prefs.edit()
-                .putString("nakama_user_id", nakamaUserId)
-                .putString("nakama_username", nakamaUsername)
-                .apply()
+        session?.let { s ->
+            prefs.edit().putString("nakama_jwt_token", s.authToken).apply()
+            try {
+                val account = client.getAccount(s).await()
+                nakamaUserId = account.user.id
+                nakamaUsername = account.user.username
+                prefs.edit()
+                    .putString("nakama_user_id", nakamaUserId)
+                    .putString("nakama_username", nakamaUsername)
+                    .apply()
+            } catch (e: Exception) {
+                Log.w("NakamaRepository", "Session authenticated but account info fetch failed (likely network): ${e.message}")
+                // Non-critical: we still have the session token saved
+            }
         }
     }
 
@@ -472,8 +485,9 @@ class NakamaRepository @Inject constructor(
                 }
 
                 myPlayerIndex = selfIndex
+                val starterIndex = Math.abs(activeMatchId.hashCode()) % 2
                 _matchState.value = OnlineMatchState.IN_MATCH
-                _matchEvents.emit(OnlineMatchEvent.MatchFound(activeMatchId!!, myPlayerIndex, oppName))
+                _matchEvents.emit(OnlineMatchEvent.MatchFound(activeMatchId!!, myPlayerIndex, oppName, starterIndex))
             } catch (e: Exception) {
                 Log.e("NakamaRepository", "Error joining matched match: ${e.message}")
             }
@@ -537,6 +551,20 @@ class NakamaRepository @Inject constructor(
             sock.sendMatchData(mid, opCode.toLong(), payload.toString().toByteArray())
         } catch (e: Exception) {
             Log.e("NakamaRepository", "Error sending move: ${e.message}")
+        }
+    }
+
+    fun sendTurnTimeout() {
+        val mid = activeMatchId ?: return
+        val sock = socket ?: return
+
+        try {
+            val payload = JSONObject().apply {
+                put("playerIndex", myPlayerIndex)
+            }
+            sock.sendMatchData(mid, 3L, payload.toString().toByteArray())
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Error sending turn timeout: ${e.message}")
         }
     }
 

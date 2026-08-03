@@ -46,6 +46,7 @@ fun GameBoardComposable(
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
     onCancelWallMode: () -> Unit = {},
+    shouldFlip: Boolean = false,
     externalDragWall: Wall? = null,
     externalIsValidDrag: Boolean = false,
     modifier: Modifier = Modifier
@@ -98,14 +99,25 @@ fun GameBoardComposable(
 
                         val turn = gameState.turn
                         val fingerOffsetY = stepY * 2.5f
-                        var lastR = (((startPos.y - fingerOffsetY) / stepY) - 0.5f).roundToInt().coerceIn(0, rows - 2)
-                        var lastC = ((startPos.x / stepX) - 0.5f).roundToInt().coerceIn(0, cols - 2)
+                        
+                        fun screenToLogic(x: Float, y: Float): Pair<Int, Int> {
+                            val r = (((y - fingerOffsetY) / stepY) - 0.5f).roundToInt()
+                            val c = ((x / stepX) - 0.5f).roundToInt()
+                            return if (shouldFlip) {
+                                (rows - 2 - r) to (cols - 2 - c)
+                            } else {
+                                r to c
+                            }
+                        }
+
+                        val (initR, initC) = screenToLogic(startPos.x, startPos.y)
+                        var lastR = initR.coerceIn(0, rows - 2)
+                        var lastC = initC.coerceIn(0, cols - 2)
 
                         // If in wall mode or AI is not thinking, initialize hover preview
                         val isTurnDisabled = gameState.isAiMatch && turn == 1 || gameState.winner != null
                         if (isWallMode && !isTurnDisabled) {
-                            val rawR = (((startPos.y - fingerOffsetY) / stepY) - 0.5f).roundToInt()
-                            val rawC = ((startPos.x / stepX) - 0.5f).roundToInt()
+                            val (rawR, rawC) = screenToLogic(startPos.x, startPos.y)
                             if (rawR in 0..(rows - 2) && rawC in 0..(cols - 2)) {
                                 lastR = rawR
                                 lastC = rawC
@@ -127,8 +139,7 @@ fun GameBoardComposable(
                                 }
 
                                 if (isWallMode && !isTurnDisabled) {
-                                    val rawR = (((change.position.y - fingerOffsetY) / stepY) - 0.5f).roundToInt()
-                                    val rawC = ((change.position.x / stepX) - 0.5f).roundToInt()
+                                    val (rawR, rawC) = screenToLogic(change.position.x, change.position.y)
 
                                     val marginX = stepX * 0.8f
                                     val marginY = stepY * 0.8f
@@ -171,9 +182,17 @@ fun GameBoardComposable(
                                     activeHoverWall = null
                                     isValidHover = false
                                 } else if (!isWallMode && !isTurnDisabled) {
-                                    val cellC = (startPos.x / stepX).toInt().coerceIn(0, cols - 1)
-                                    val cellR = (startPos.y / stepY).toInt().coerceIn(0, rows - 1)
-                                    onCellClick(cellR, cellC)
+                                    val logicC = if (shouldFlip) {
+                                        (cols - 1) - (startPos.x / stepX).toInt()
+                                    } else {
+                                        (startPos.x / stepX).toInt()
+                                    }
+                                    val logicR = if (shouldFlip) {
+                                        (rows - 1) - (startPos.y / stepY).toInt()
+                                    } else {
+                                        (startPos.y / stepY).toInt()
+                                    }
+                                    onCellClick(logicR.coerceIn(0, rows - 1), logicC.coerceIn(0, cols - 1))
                                 }
                                 break
                             }
@@ -202,8 +221,11 @@ fun GameBoardComposable(
 
             for (r in 0 until rows) {
                 for (c in 0 until cols) {
-                    val x = c * stepX
-                    val y = r * stepY
+                    val drawR = if (shouldFlip) (rows - 1 - r) else r
+                    val drawC = if (shouldFlip) (cols - 1 - c) else c
+
+                    val x = drawC * stepX
+                    val y = drawR * stepY
 
                     drawRoundRect(
                         color = cellBgColor,
@@ -224,8 +246,11 @@ fun GameBoardComposable(
 
             // 2. Draw Valid Move Candidate Cells (Border with Quick Pass & Play style from HomeScreen)
             for (pos in validHighlights) {
-                val x = pos.c * stepX
-                val y = pos.r * stepY
+                val drawR = if (shouldFlip) (rows - 1 - pos.r) else pos.r
+                val drawC = if (shouldFlip) (cols - 1 - pos.c) else pos.c
+
+                val x = drawC * stepX
+                val y = drawR * stepY
 
                 val cellGradientBrush = Brush.horizontalGradient(
                     colors = listOf(NeonCyan, NeonPurple),
@@ -260,8 +285,11 @@ fun GameBoardComposable(
                 val snapDotColor = if (gameState.turn == 0) Color(0xFF3B82F6) else Color(0xFFEF4444)
                 for (r in 0 until rows - 1) {
                     for (c in 0 until cols - 1) {
-                        val cx = (c + 1) * stepX - gapW / 2f
-                        val cy = (r + 1) * stepY - gapH / 2f
+                        val drawR = if (shouldFlip) (rows - 2 - r) else r
+                        val drawC = if (shouldFlip) (cols - 2 - c) else c
+                        
+                        val cx = (drawC + 1) * stepX - gapW / 2f
+                        val cy = (drawR + 1) * stepY - gapH / 2f
 
                         drawCircle(
                             color = snapDotColor.copy(alpha = 0.35f),
@@ -281,6 +309,9 @@ fun GameBoardComposable(
             val wallShadow = Color.Black.copy(alpha = 0.5f)
 
             for (wall in gameState.walls) {
+                val drawR = if (shouldFlip) (rows - 2 - wall.r) else wall.r
+                val drawC = if (shouldFlip) (cols - 2 - wall.c) else wall.c
+
                 val wallGradients = if (wall.playerOwner == 0) {
                     listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
                 } else {
@@ -288,8 +319,8 @@ fun GameBoardComposable(
                 }
 
                 if (wall.isHorizontal) {
-                    val x = wall.c * stepX
-                    val y = wall.r * stepY + cellH + (gapH * 0.05f)
+                    val x = drawC * stepX
+                    val y = drawR * stepY + cellH + (gapH * 0.05f)
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.9f
 
@@ -317,8 +348,8 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(5f, 5f)
                     )
                 } else {
-                    val x = wall.c * stepX + cellW + (gapW * 0.05f)
-                    val y = wall.r * stepY
+                    val x = drawC * stepX + cellW + (gapW * 0.05f)
+                    val y = drawR * stepY
                     val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
 
@@ -351,6 +382,9 @@ fun GameBoardComposable(
             // 5. Live Drag Hover Preview Wall
             val hover = effectiveHoverWall
             if (hover != null) {
+                val drawR = if (shouldFlip) (rows - 2 - hover.r) else hover.r
+                val drawC = if (shouldFlip) (cols - 2 - hover.c) else hover.c
+
                 val isP1 = hover.playerOwner == 0
                 val previewFill = if (effectiveIsValidHover) {
                     if (isP1) Color(0xFF3B82F6) else Color(0xFFEF4444)
@@ -364,8 +398,8 @@ fun GameBoardComposable(
                 }
 
                 if (hover.isHorizontal) {
-                    val x = hover.c * stepX
-                    val y = hover.r * stepY + cellH + (gapH * 0.05f)
+                    val x = drawC * stepX
+                    val y = drawR * stepY + cellH + (gapH * 0.05f)
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.9f
 
@@ -392,8 +426,8 @@ fun GameBoardComposable(
                         style = Stroke(width = 3.5f)
                     )
                 } else {
-                    val x = hover.c * stepX + cellW + (gapW * 0.05f)
-                    val y = hover.r * stepY
+                    val x = drawC * stepX + cellW + (gapW * 0.05f)
+                    val y = drawR * stepY
                     val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
 
@@ -425,8 +459,11 @@ fun GameBoardComposable(
             // 6. Draw Player Pawns (3D Spheres with White Ring Halo for P1)
             for (p in gameState.pawns.indices) {
                 val pawnPos = gameState.pawns[p]
-                val centerX = pawnPos.c * stepX + cellW / 2f
-                val centerY = pawnPos.r * stepY + cellH / 2f
+                val drawR = if (shouldFlip) (rows - 1 - pawnPos.r) else pawnPos.r
+                val drawC = if (shouldFlip) (cols - 1 - pawnPos.c) else pawnPos.c
+
+                val centerX = drawC * stepX + cellW / 2f
+                val centerY = drawR * stepY + cellH / 2f
                 val pawnRadius = minOf(cellW, cellH) * 0.38f
 
                 val isTurn = gameState.turn == p && gameState.winner == null

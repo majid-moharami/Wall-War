@@ -83,10 +83,12 @@ fun GameBoardScreen(
     isWallHorizontal: Boolean,
     validHighlights: List<Position>,
     soundManager: SoundManager,
+    userDisplayName: String = "You",
     opponentType: OpponentType = OpponentType.AI,
     onlineMatchState: OnlineMatchState = OnlineMatchState.IDLE,
     onlineOpponentName: String = "Online Opponent",
     myPlayerIndex: Int = 0,
+    turnTimeLeft: Int = 30,
     onlineErrorMessage: String? = null,
     onRetryOnlineConnection: () -> Unit = {},
     onCancelOnlineMatchmaking: () -> Unit = {},
@@ -279,8 +281,12 @@ fun GameBoardScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Top Players Score Header Bar (P1 & P2 / AI / Online)
-        val player1Name = if (opponentType == OpponentType.ONLINE) (if (myPlayerIndex == 0) "You" else onlineOpponentName) else "Player 1"
-        val player2Name = if (opponentType == OpponentType.ONLINE) (if (myPlayerIndex == 1) "You" else onlineOpponentName) else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val player1Name = if (opponentType == OpponentType.ONLINE) {
+            if (myPlayerIndex == 0) "$userDisplayName (You)" else onlineOpponentName
+        } else "Player 1"
+        val player2Name = if (opponentType == OpponentType.ONLINE) {
+            if (myPlayerIndex == 1) "$userDisplayName (You)" else onlineOpponentName
+        } else if (gameState.isAiMatch) "AI Bot" else "Player 2"
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -291,6 +297,7 @@ fun GameBoardScreen(
                 wallsLeft = gameState.leftWalls[0],
                 isTurn = gameState.turn == 0 && gameState.winner == null,
                 pawnColor = NeonCyan,
+                turnTimeLeft = if (gameState.turn == 0) turnTimeLeft else null,
                 modifier = Modifier.weight(1f)
             )
 
@@ -299,6 +306,7 @@ fun GameBoardScreen(
                 wallsLeft = gameState.leftWalls[1],
                 isTurn = gameState.turn == 1 && gameState.winner == null,
                 pawnColor = NeonMagenta,
+                turnTimeLeft = if (gameState.turn == 1) turnTimeLeft else null,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -325,6 +333,7 @@ fun GameBoardScreen(
                 onCellClick = onCellClick,
                 onPlaceWall = onPlaceWall,
                 onCancelWallMode = onCancelWallMode,
+                shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1),
                 externalDragWall = activeDragWall,
                 externalIsValidDrag = isValidDrag
             )
@@ -334,13 +343,23 @@ fun GameBoardScreen(
 
         // Single Active Player Wall Controls Panel
         val activeTurn = gameState.turn
-        val activePlayerName = if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val isLocalTurn = if (opponentType == OpponentType.ONLINE) {
+            activeTurn == myPlayerIndex
+        } else {
+            !(gameState.isAiMatch && activeTurn == 1)
+        }
+
+        val activePlayerName = if (opponentType == OpponentType.ONLINE) {
+            if (activeTurn == myPlayerIndex) "$userDisplayName (You)" else onlineOpponentName
+        } else {
+            if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        }
         val activePawnColor = if (activeTurn == 0) NeonCyan else NeonMagenta
 
         PlayerWallControlRow(
             playerName = activePlayerName,
             pawnColor = activePawnColor,
-            isTurn = gameState.winner == null,
+            isTurn = isLocalTurn && gameState.winner == null,
             wallsLeft = gameState.leftWalls[activeTurn],
             isWallMode = isWallMode,
             isWallHorizontal = isWallHorizontal,
@@ -600,6 +619,7 @@ fun PlayerScoreCard(
     wallsLeft: Int,
     isTurn: Boolean,
     pawnColor: Color,
+    turnTimeLeft: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -645,7 +665,7 @@ fun PlayerScoreCard(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "TURN",
+                        text = if (turnTimeLeft != null) "${turnTimeLeft}s" else "TURN",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.Black

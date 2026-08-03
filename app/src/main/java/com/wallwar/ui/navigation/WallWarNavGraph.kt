@@ -102,6 +102,7 @@ fun WallWarNavGraph(
 
         composable<GameBoardRoute> {
             val viewModel: GameViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val gameState by viewModel.gameState.collectAsStateWithLifecycle()
             val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
             val isWallMode by viewModel.isWallMode.collectAsStateWithLifecycle()
@@ -110,6 +111,7 @@ fun WallWarNavGraph(
             val onlineMatchState by viewModel.onlineMatchState.collectAsStateWithLifecycle()
             val onlineOpponentName by viewModel.onlineOpponentName.collectAsStateWithLifecycle()
             val myPlayerIndex by viewModel.myPlayerIndex.collectAsStateWithLifecycle()
+            val turnTimeLeft by viewModel.turnTimeLeft.collectAsStateWithLifecycle()
             val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
 
             GameBoardScreen(
@@ -119,10 +121,12 @@ fun WallWarNavGraph(
                 isWallHorizontal = isWallHorizontal,
                 validHighlights = validHighlights,
                 soundManager = viewModel.soundManager,
+                userDisplayName = userProfile.displayName,
                 opponentType = viewModel.opponentType,
                 onlineMatchState = onlineMatchState,
                 onlineOpponentName = onlineOpponentName,
                 myPlayerIndex = myPlayerIndex,
+                turnTimeLeft = turnTimeLeft,
                 onlineErrorMessage = onlineErrorMessage,
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
