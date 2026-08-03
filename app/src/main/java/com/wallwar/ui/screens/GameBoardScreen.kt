@@ -72,6 +72,7 @@ import com.wallwar.ui.theme.NeonMagenta
 import kotlin.math.roundToInt
 
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.ui.text.style.TextOverflow
 import com.wallwar.data.nakama.OnlineMatchState
 import com.wallwar.model.OpponentType
 
@@ -87,6 +88,7 @@ fun GameBoardScreen(
     onlineMatchState: OnlineMatchState = OnlineMatchState.IDLE,
     onlineOpponentName: String = "Online Opponent",
     myPlayerIndex: Int = 0,
+    myDisplayName: String = "You",
     onlineErrorMessage: String? = null,
     onRetryOnlineConnection: () -> Unit = {},
     onCancelOnlineMatchmaking: () -> Unit = {},
@@ -279,8 +281,28 @@ fun GameBoardScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Top Players Score Header Bar (P1 & P2 / AI / Online)
-        val player1Name = if (opponentType == OpponentType.ONLINE) (if (myPlayerIndex == 0) "You" else onlineOpponentName) else "Player 1"
-        val player2Name = if (opponentType == OpponentType.ONLINE) (if (myPlayerIndex == 1) "You" else onlineOpponentName) else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val player1Name = when (opponentType) {
+            OpponentType.ONLINE -> {
+                if (myPlayerIndex == 0) {
+                    if (myDisplayName.isNotBlank()) "You ($myDisplayName)" else "You"
+                } else {
+                    onlineOpponentName
+                }
+            }
+            else -> "Player 1"
+        }
+
+        val player2Name = when (opponentType) {
+            OpponentType.ONLINE -> {
+                if (myPlayerIndex == 1) {
+                    if (myDisplayName.isNotBlank()) "You ($myDisplayName)" else "You"
+                } else {
+                    onlineOpponentName
+                }
+            }
+            OpponentType.AI -> "AI Bot"
+            OpponentType.LOCAL_PASS_PLAY -> "Player 2"
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -334,13 +356,20 @@ fun GameBoardScreen(
 
         // Single Active Player Wall Controls Panel
         val activeTurn = gameState.turn
-        val activePlayerName = if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val isMyTurn = (opponentType != OpponentType.ONLINE || activeTurn == myPlayerIndex) && gameState.winner == null
+        val activePlayerName = when (opponentType) {
+            OpponentType.ONLINE -> {
+                if (activeTurn == myPlayerIndex) "Your Turn" else "$onlineOpponentName's Turn"
+            }
+            OpponentType.AI -> if (activeTurn == 0) "Your Turn" else "AI Bot's Turn"
+            OpponentType.LOCAL_PASS_PLAY -> if (activeTurn == 0) "Player 1" else "Player 2"
+        }
         val activePawnColor = if (activeTurn == 0) NeonCyan else NeonMagenta
 
         PlayerWallControlRow(
             playerName = activePlayerName,
             pawnColor = activePawnColor,
-            isTurn = gameState.winner == null,
+            isTurn = isMyTurn,
             wallsLeft = gameState.leftWalls[activeTurn],
             isWallMode = isWallMode,
             isWallHorizontal = isWallHorizontal,
@@ -549,7 +578,17 @@ fun GameBoardScreen(
 
     // Victory Celebration Dialog Modal
     if (gameState.winner != null) {
-        val winnerName = if (gameState.winner == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val winnerName = when (opponentType) {
+            OpponentType.ONLINE -> {
+                if (gameState.winner == myPlayerIndex) {
+                    if (myDisplayName.isNotBlank()) "You ($myDisplayName)" else "You"
+                } else {
+                    onlineOpponentName
+                }
+            }
+            OpponentType.AI -> if (gameState.winner == 0) "You" else "AI Bot"
+            OpponentType.LOCAL_PASS_PLAY -> if (gameState.winner == 0) "Player 1" else "Player 2"
+        }
 
         AlertDialog(
             onDismissRequest = {},
@@ -629,7 +668,9 @@ fun PlayerScoreCard(
                     text = playerName,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = "Walls: $wallsLeft",
@@ -707,7 +748,10 @@ fun PlayerWallControlRow(
                             text = playerName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (isTurn) {
                             Spacer(modifier = Modifier.width(6.dp))

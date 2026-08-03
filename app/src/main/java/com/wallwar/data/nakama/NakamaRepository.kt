@@ -42,9 +42,14 @@ import javax.inject.Singleton
 
 sealed class OnlineMatchEvent {
     object SearchingForMatch : OnlineMatchEvent()
-    data class MatchFound(val matchId: String, val selfPlayerIndex: Int, val opponentName: String) :
-        OnlineMatchEvent()
+    data class MatchFound(
+        val matchId: String,
+        val selfPlayerIndex: Int,
+        val opponentName: String,
+        val startingTurn: Int
+    ) : OnlineMatchEvent()
 
+    data class OpponentNameUpdated(val opponentName: String) : OnlineMatchEvent()
     data class OpponentMove(val move: Move) : OnlineMatchEvent()
     data class TurnTimeout(val playerIndex: Int) : OnlineMatchEvent()
     data class OpponentSurrendered(val winnerIndex: Int) : OnlineMatchEvent()
@@ -98,6 +103,7 @@ class NakamaRepository @Inject constructor(
     private var activeMatchId: String? = null
     private var myPlayerIndex: Int = 0 
     private var currentTurnPlayer: Int = 0
+    private var myDisplayName: String = "Player"
 
     init {
         val storedToken = prefs.getString("nakama_jwt_token", null)
@@ -382,6 +388,7 @@ class NakamaRepository @Inject constructor(
     // 5. Matchmaking & Real-time Sockets
     fun startOnlineMatchmaking(username: String) {
         scope.launch {
+            myDisplayName = username
             _matchState.value = OnlineMatchState.CONNECTING
             _matchEvents.emit(OnlineMatchEvent.SearchingForMatch)
 
@@ -414,7 +421,8 @@ class NakamaRepository @Inject constructor(
                 }
 
                 _matchState.value = OnlineMatchState.SEARCHING_MATCH
-                NakamaBridge.addMatchmaker(socket!!, 2, 2, "*", null, null, 1).await()
+                val stringProperties = mapOf("displayName" to username)
+                NakamaBridge.addMatchmaker(socket!!, 2, 2, "*", stringProperties, null, 1).await()
             } catch (e: Exception) {
                 Log.e("NakamaRepository", "Socket connection error: ${e.message}")
                 _matchState.value = OnlineMatchState.ERROR
@@ -430,19 +438,42 @@ class NakamaRepository @Inject constructor(
                 activeMatchId = match?.matchId
                 
                 var oppName = "Online Opponent"
-                var selfIndex = 0
-                
+                var selfIndex = -1
+                val currentUserId = nakamaUserId ?: session?.userId
+
                 matched.users.forEachIndexed { index, user ->
-                    if (user.presence.userId == nakamaUserId) {
+                    val uId = user.presence.userId
+                    if (currentUserId != null && uId.equals(currentUserId, ignoreCase = true)) {
                         selfIndex = index
                     } else {
-                        oppName = user.presence.username ?: "Online Opponent"
+                        val props = user.stringProperties
+                        val disp = props?.get("displayName")
+                        if (!disp.isNullOrBlank()) {
+                            oppName = disp
+                        } else if (!user.presence.username.isNullOrBlank()) {
+                            oppName = user.presence.username
+                        }
                     }
                 }
 
+                if (selfIndex == -1) {
+                    selfIndex = 0
+                }
+
                 myPlayerIndex = selfIndex
+                val startingTurn = kotlin.math.abs((matched.token ?: activeMatchId ?: "match").hashCode()) % 2
+
                 _matchState.value = OnlineMatchState.IN_MATCH
-                _matchEvents.emit(OnlineMatchEvent.MatchFound(activeMatchId!!, myPlayerIndex, oppName))
+                _matchEvents.emit(
+                    OnlineMatchEvent.MatchFound(
+                        matchId = activeMatchId!!,
+                        selfPlayerIndex = myPlayerIndex,
+                        opponentName = oppName,
+                        startingTurn = startingTurn
+                    )
+                )
+
+                sendHandshake(myDisplayName)
             } catch (e: Exception) {
                 Log.e("NakamaRepository", "Error joining matched match: ${e.message}")
             }
@@ -476,7 +507,27 @@ class NakamaRepository @Inject constructor(
                     val winnerIndex = payloadJson.getInt("winnerIndex")
                     _matchEvents.emit(OnlineMatchEvent.OpponentSurrendered(winnerIndex))
                 }
+                10 -> { // OP_HANDSHAKE
+                    val dispName = payloadJson.optString("displayName", "")
+                    if (dispName.isNotBlank()) {
+                        _matchEvents.emit(OnlineMatchEvent.OpponentNameUpdated(dispName))
+                    }
+                }
             }
+        }
+    }
+
+    private fun sendHandshake(displayName: String) {
+        val mid = activeMatchId ?: return
+        val sock = socket ?: return
+        try {
+            val payload = JSONObject().apply {
+                put("displayName", displayName)
+                put("userId", nakamaUserId ?: session?.userId ?: "")
+            }
+            sock.sendMatchData(mid, 10L, payload.toString().toByteArray())
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Error sending handshake: ${e.message}")
         }
     }
 
