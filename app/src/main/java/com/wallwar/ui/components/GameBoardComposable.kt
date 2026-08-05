@@ -31,7 +31,7 @@ import com.wallwar.model.GameState
 import com.wallwar.model.Position
 import com.wallwar.model.Wall
 import com.wallwar.ui.theme.NeonCyan
-import com.wallwar.ui.theme.NeonPurple
+import com.wallwar.ui.theme.NeonMagenta
 import kotlin.math.hypot
 import kotlin.math.roundToInt
 
@@ -252,8 +252,9 @@ fun GameBoardComposable(
                 val x = drawC * stepX
                 val y = drawR * stepY
 
+                val highlightColor = if (gameState.turn == 0) NeonCyan else NeonMagenta
                 val cellGradientBrush = Brush.horizontalGradient(
-                    colors = listOf(NeonCyan, NeonPurple),
+                    colors = listOf(highlightColor.copy(alpha = 0.8f), highlightColor),
                     startX = x,
                     endX = x + cellW
                 )
@@ -261,7 +262,7 @@ fun GameBoardComposable(
                 // Subtle inner glow overlay
                 drawRoundRect(
                     brush = Brush.linearGradient(
-                        colors = listOf(NeonCyan.copy(alpha = 0.15f), NeonPurple.copy(alpha = 0.15f)),
+                        colors = listOf(highlightColor.copy(alpha = 0.15f), highlightColor.copy(alpha = 0.05f)),
                         start = Offset(x, y),
                         end = Offset(x + cellW, y + cellH)
                     ),
@@ -270,7 +271,7 @@ fun GameBoardComposable(
                     cornerRadius = CornerRadius(8f, 8f)
                 )
 
-                // High-visibility gradient border matching Quick Pass & Play on HomeScreen
+                // High-visibility border
                 drawRoundRect(
                     brush = cellGradientBrush,
                     topLeft = Offset(x, y),

@@ -99,6 +99,7 @@ class GameViewModel @Inject constructor(
 
     private var matchStartTime: Long = System.currentTimeMillis()
     private var timerJob: kotlinx.coroutines.Job? = null
+    private var disconnectTimerJob: kotlinx.coroutines.Job? = null
 
     init {
         val initialState = _gameState.value
@@ -133,18 +134,49 @@ class GameViewModel @Inject constructor(
                             _onlineErrorMessage.value = event.message
                         }
                         is OnlineMatchEvent.OpponentSurrendered -> {
-                            val winner = if (_myPlayerIndex.value == 0) 0 else 1
+                            val winner = _myPlayerIndex.value
                             val next = _gameState.value.copy(winner = winner)
                             _gameState.value = next
                             soundManager.playVictoryFanfare()
                             saveMatchToHistory(next)
+                            timerJob?.cancel()
                         }
                         else -> {}
                     }
                 }
             }
+
+            // Handle disconnection during match
+            viewModelScope.launch {
+                onlineMatchState.collect { state ->
+                    if (state == OnlineMatchState.DISCONNECTED || state == OnlineMatchState.ERROR) {
+                        if (_gameState.value.winner == null) {
+                            startDisconnectTimer()
+                        }
+                    } else if (state == OnlineMatchState.IN_MATCH) {
+                        disconnectTimerJob?.cancel()
+                    }
+                }
+            }
         } else {
             checkGameEndAndTriggerAiIfNeeded(initialState)
+        }
+    }
+
+    private fun startDisconnectTimer() {
+        disconnectTimerJob?.cancel()
+        disconnectTimerJob = viewModelScope.launch {
+            delay(60000) // 1 minute
+            if (_gameState.value.winner == null) {
+                // If still disconnected after 1 min, current player loses (assuming they are the one who disconnected)
+                // Actually, if we are here, we can't tell who disconnected easily.
+                // But usually the one receiving this event is the one with local issues.
+                // For now, let's just mark it as a loss to prevent infinite waiting.
+                val winner = 1 - _myPlayerIndex.value
+                val next = _gameState.value.copy(winner = winner)
+                _gameState.value = next
+                saveMatchToHistory(next)
+            }
         }
     }
 
@@ -386,6 +418,17 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun resignGame() {
+        if (opponentType == OpponentType.ONLINE) {
+            nakamaRepository.sendSurrender()
+        }
+        val winner = 1 - _myPlayerIndex.value
+        val next = _gameState.value.copy(winner = winner)
+        _gameState.value = next
+        saveMatchToHistory(next)
+        timerJob?.cancel()
+    }
+
     fun undoMove() {
         if (opponentType == OpponentType.ONLINE) return // No undo in online multiplayer
 
@@ -439,30 +482,38 @@ class GameViewModel @Inject constructor(
     }
 
     private fun saveMatchToHistory(finalState: GameState) {
-        if (opponentType != OpponentType.ONLINE) {
-            return // Offline games are not calculated or saved in match history
-        }
-
         val winnerIndex = finalState.winner ?: return
-        val opponentName = _onlineOpponentName.value
-        val durationSeconds = (System.currentTimeMillis() - matchStartTime) / 1000
+        val didWin = winnerIndex == _myPlayerIndex.value
+        val wallsPlacedCount = finalState.moveHistory.count { it is Move.WallPlacement && (it.wall.playerOwner == _myPlayerIndex.value) }
 
-        viewModelScope.launch {
-            val record = MatchRecord(
-                modeName = finalState.mode.displayName,
-                opponentName = opponentName,
-                winnerPlayer = winnerIndex,
-                totalMoves = finalState.moveHistory.size,
-                totalWallsPlaced = finalState.walls.size,
-                durationSeconds = durationSeconds
-            )
-            gameRepository.recordMatch(record)
-            nakamaRepository.recordMatchHistoryToNakama(record)
+        if (opponentType == OpponentType.ONLINE) {
+            val opponentName = _onlineOpponentName.value
+            val durationSeconds = (System.currentTimeMillis() - matchStartTime) / 1000
+
+            viewModelScope.launch {
+                val record = MatchRecord(
+                    modeName = finalState.mode.displayName,
+                    opponentName = opponentName,
+                    winnerPlayer = winnerIndex,
+                    totalMoves = finalState.moveHistory.size,
+                    totalWallsPlaced = finalState.walls.size,
+                    durationSeconds = durationSeconds
+                )
+                gameRepository.recordMatch(record)
+                
+                // Update local profile and sync to Nakama
+                authRepository.recordMatchResult(didWin, wallsPlacedCount)
+            }
+        } else if (opponentType == OpponentType.AI) {
+            // Also record AI matches to local profile
+            authRepository.recordMatchResult(didWin, wallsPlacedCount)
         }
     }
 
     override fun onCleared() {
         super.onCleared()
+        timerJob?.cancel()
+        disconnectTimerJob?.cancel()
         if (opponentType == OpponentType.ONLINE) {
             nakamaRepository.leaveMatch()
         }

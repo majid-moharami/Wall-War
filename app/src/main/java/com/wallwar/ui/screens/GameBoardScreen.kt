@@ -20,10 +20,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CropLandscape
 import androidx.compose.material.icons.filled.CropPortrait
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
@@ -62,7 +64,6 @@ import com.wallwar.model.GameState
 import com.wallwar.model.Position
 import com.wallwar.model.Wall
 import com.wallwar.ui.components.GameBoardComposable
-import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonDarkBg
@@ -98,12 +99,15 @@ fun GameBoardScreen(
     onCancelWallMode: () -> Unit,
     onUndoMove: () -> Unit,
     onRestart: () -> Unit,
+    onResign: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var activeDragWall by remember { mutableStateOf<Wall?>(null) }
     var isValidDrag by remember { mutableStateOf(false) }
     var boardBoundsInWindow by remember { mutableStateOf<Rect?>(null) }
+    var showResignConfirmation by remember { mutableStateOf(false) }
+    var showExitConfirmation by remember { mutableStateOf(false) }
 
     val handleStartWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit = { isHorizontal, windowPos ->
         onSelectWallOrientation(isHorizontal)
@@ -126,18 +130,22 @@ fun GameBoardScreen(
             val rawC = ((boardX / stepX) - 0.5f).roundToInt()
             val rawR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt()
 
+            val shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1)
+            val logicR = if (shouldFlip) (rows - 2 - rawR) else rawR
+            val logicC = if (shouldFlip) (cols - 2 - rawC) else rawC
+
             val marginX = stepX * 0.8f
             val marginY = stepY * 0.8f
 
             val isOutside = boardX < -marginX || boardX > width + marginX ||
                     boardY < -marginY || boardY > height + fingerOffsetUp + marginY ||
-                    rawC !in 0..(cols - 2) || rawR !in 0..(rows - 2)
+                    logicC !in 0..(cols - 2) || logicR !in 0..(rows - 2)
 
             if (isOutside) {
                 activeDragWall = null
                 isValidDrag = false
             } else {
-                val candidate = Wall(rawR, rawC, isHorizontal, gameState.turn)
+                val candidate = Wall(logicR, logicC, isHorizontal, gameState.turn)
                 activeDragWall = candidate
                 isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
                 soundManager.vibrateShort()
@@ -165,12 +173,16 @@ fun GameBoardScreen(
             val rawC = ((boardX / stepX) - 0.5f).roundToInt()
             val rawR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt()
 
+            val shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1)
+            val logicR = if (shouldFlip) (rows - 2 - rawR) else rawR
+            val logicC = if (shouldFlip) (cols - 2 - rawC) else rawC
+
             val marginX = stepX * 0.8f
             val marginY = stepY * 0.8f
 
             val isOutside = boardX < -marginX || boardX > width + marginX ||
                     boardY < -marginY || boardY > height + fingerOffsetUp + marginY ||
-                    rawC !in 0..(cols - 2) || rawR !in 0..(rows - 2)
+                    logicC !in 0..(cols - 2) || logicR !in 0..(rows - 2)
 
             if (isOutside) {
                 if (activeDragWall != null) {
@@ -179,8 +191,8 @@ fun GameBoardScreen(
                 }
             } else {
                 val current = activeDragWall
-                if (current == null || current.r != rawR || current.c != rawC || current.isHorizontal != isHorizontal) {
-                    val candidate = Wall(rawR, rawC, isHorizontal, gameState.turn)
+                if (current == null || current.r != logicR || current.c != logicC || current.isHorizontal != isHorizontal) {
+                    val candidate = Wall(logicR, logicC, isHorizontal, gameState.turn)
                     activeDragWall = candidate
                     isValidDrag = GameEngine.canPlaceWall(gameState, gameState.turn, candidate)
                     soundManager.vibrateShort()
@@ -228,7 +240,13 @@ fun GameBoardScreen(
                 contentAlignment = Alignment.Center
             ) {
                 IconButton(
-                    onClick = onBack,
+                    onClick = {
+                        if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
+                            showExitConfirmation = true
+                        } else {
+                            onBack()
+                        }
+                    },
                     modifier = Modifier.testTag("btn_back")
                 ) {
                     Icon(
@@ -239,20 +257,50 @@ fun GameBoardScreen(
                 }
             }
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = gameState.mode.displayName.uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = 1.sp
-                )
-                Text(
-                    text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = NeonCyan,
-                    fontWeight = FontWeight.Bold
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = gameState.mode.displayName.uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NeonCyan,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Timer View near sound icon
+                if (gameState.winner == null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.3f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Timer,
+                            contentDescription = null,
+                            tint = if (turnTimeLeft < 10) NeonMagenta else NeonCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${turnTimeLeft}s",
+                            color = if (turnTimeLeft < 10) NeonMagenta else NeonCyan,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
             }
 
             Box(
@@ -280,36 +328,18 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Top Players Score Header Bar (P1 & P2 / AI / Online)
-        val player1Name = if (opponentType == OpponentType.ONLINE) {
-            if (myPlayerIndex == 0) "$userDisplayName (You)" else onlineOpponentName
-        } else "Player 1"
-        val player2Name = if (opponentType == OpponentType.ONLINE) {
-            if (myPlayerIndex == 1) "$userDisplayName (You)" else onlineOpponentName
-        } else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        // Top Section: Competitor Score Card
+        val opponentName = if (opponentType == OpponentType.ONLINE) onlineOpponentName else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val opponentIndex = if (opponentType == OpponentType.ONLINE) (1 - myPlayerIndex) else 1
+        val opponentPawnColor = if (opponentIndex == 0) NeonCyan else NeonMagenta
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            PlayerScoreCard(
-                playerName = player1Name,
-                wallsLeft = gameState.leftWalls[0],
-                isTurn = gameState.turn == 0 && gameState.winner == null,
-                pawnColor = NeonCyan,
-                turnTimeLeft = if (gameState.turn == 0) turnTimeLeft else null,
-                modifier = Modifier.weight(1f)
-            )
-
-            PlayerScoreCard(
-                playerName = player2Name,
-                wallsLeft = gameState.leftWalls[1],
-                isTurn = gameState.turn == 1 && gameState.winner == null,
-                pawnColor = NeonMagenta,
-                turnTimeLeft = if (gameState.turn == 1) turnTimeLeft else null,
-                modifier = Modifier.weight(1f)
-            )
-        }
+        PlayerScoreCard(
+            playerName = opponentName,
+            wallsLeft = gameState.leftWalls[opponentIndex],
+            isTurn = gameState.turn == opponentIndex && gameState.winner == null,
+            pawnColor = opponentPawnColor,
+            modifier = Modifier.fillMaxWidth(0.7f)
+        )
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -341,7 +371,7 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Single Active Player Wall Controls Panel
+        // Bottom Section
         val activeTurn = gameState.turn
         val isLocalTurn = if (opponentType == OpponentType.ONLINE) {
             activeTurn == myPlayerIndex
@@ -349,80 +379,160 @@ fun GameBoardScreen(
             !(gameState.isAiMatch && activeTurn == 1)
         }
 
-        val activePlayerName = if (opponentType == OpponentType.ONLINE) {
-            if (activeTurn == myPlayerIndex) "$userDisplayName (You)" else onlineOpponentName
-        } else {
-            if (activeTurn == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
-        }
-        val activePawnColor = if (activeTurn == 0) NeonCyan else NeonMagenta
+        val myPawnColor = if (myPlayerIndex == 0) NeonCyan else NeonMagenta
 
-        PlayerWallControlRow(
-            playerName = activePlayerName,
-            pawnColor = activePawnColor,
-            isTurn = isLocalTurn && gameState.winner == null,
-            wallsLeft = gameState.leftWalls[activeTurn],
-            isWallMode = isWallMode,
-            isWallHorizontal = isWallHorizontal,
-            onSelectWallOrientation = onSelectWallOrientation,
-            onStartWallDrag = handleStartWallDrag,
-            onUpdateWallDrag = handleUpdateWallDrag,
-            onEndWallDrag = handleEndWallDrag
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Secondary Action Controls (Undo & Restart)
+        // Row 1: Wall items (Icons only)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            OutlinedButton(
-                onClick = onUndoMove,
-                enabled = gameState.moveHistory.isNotEmpty() && gameState.winner == null,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, if (gameState.moveHistory.isNotEmpty()) NeonCyan else NeonBorder),
-                modifier = Modifier.testTag("btn_undo")
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Undo,
-                        contentDescription = "Undo",
-                        tint = if (gameState.moveHistory.isNotEmpty()) NeonCyan else Color(0xFFA0ACCC),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
+            WallItemButton(
+                icon = Icons.Default.CropLandscape,
+                label = "Horiz",
+                isSelected = isWallMode && isWallHorizontal,
+                isEnabled = isLocalTurn && gameState.leftWalls[myPlayerIndex] > 0 && gameState.winner == null,
+                selectedColor = NeonCyan,
+                onSelect = { onSelectWallOrientation(true) },
+                onStartDrag = { pos -> handleStartWallDrag(true, pos) },
+                onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
+                onEndDrag = handleEndWallDrag
+            )
+            Spacer(modifier = Modifier.width(24.dp))
+            WallItemButton(
+                icon = Icons.Default.CropPortrait,
+                label = "Vert",
+                isSelected = isWallMode && !isWallHorizontal,
+                isEnabled = isLocalTurn && gameState.leftWalls[myPlayerIndex] > 0 && gameState.winner == null,
+                selectedColor = NeonMagenta,
+                onSelect = { onSelectWallOrientation(false) },
+                onStartDrag = { pos -> handleStartWallDrag(false, pos) },
+                onUpdateDrag = { pos -> handleUpdateWallDrag(false, pos) },
+                onEndDrag = handleEndWallDrag
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Row 2: Own name and Resign item
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Local Player Info
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(myPawnColor)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
                     Text(
-                        text = "Undo Move",
-                        color = if (gameState.moveHistory.isNotEmpty()) NeonCyan else Color(0xFFA0ACCC),
-                        fontWeight = FontWeight.Bold
+                        text = "$userDisplayName (You)",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Walls: ${gameState.leftWalls[myPlayerIndex]}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFA0ACCC)
                     )
                 }
             }
 
-            OutlinedButton(
-                onClick = onRestart,
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, NeonAmber),
-                modifier = Modifier.testTag("btn_restart")
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Refresh,
-                        contentDescription = "Restart",
-                        tint = NeonAmber,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Restart",
-                        color = NeonAmber,
-                        fontWeight = FontWeight.Bold
-                    )
+            if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
+                OutlinedButton(
+                    onClick = { showResignConfirmation = true },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, NeonMagenta),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta)
+                ) {
+                    Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Resign", fontWeight = FontWeight.Bold)
+                }
+            } else if (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.winner == null) {
+                OutlinedButton(
+                    onClick = onUndoMove,
+                    enabled = gameState.moveHistory.isNotEmpty(),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, if (gameState.moveHistory.isNotEmpty()) NeonCyan else NeonBorder)
+                ) {
+                    Icon(imageVector = Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Undo", fontWeight = FontWeight.Bold)
+                }
+            } else if (gameState.winner != null) {
+                Button(
+                    onClick = onRestart,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Play Again", fontWeight = FontWeight.ExtraBold)
                 }
             }
         }
     }
 
+    // Confirmation Dialogs
+    if (showResignConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showResignConfirmation = false },
+            containerColor = NeonDarkCard,
+            title = { Text("Resign Match?", color = Color.White) },
+            text = { Text("Are you sure you want to surrender this battle? You will lose trophies.", color = Color(0xFFA0ACCC)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showResignConfirmation = false
+                        onResign()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
+                ) {
+                    Text("Yes, Resign", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showResignConfirmation = false }) {
+                    Text("Cancel", color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showExitConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirmation = false },
+            containerColor = NeonDarkCard,
+            title = { Text("Exit Game?", color = Color.White) },
+            text = { Text("The match is still in progress. Exiting now will count as a loss.", color = Color(0xFFA0ACCC)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitConfirmation = false
+                        onResign()
+                        onBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
+                ) {
+                    Text("Exit & Concede", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showExitConfirmation = false }) {
+                    Text("Stay", color = Color.White)
+                }
+            }
+        )
+    }
+
+    // Online Multiplayer Searching/Error modals (Already exist below)
     // Online Multiplayer Searching Dialog Modal
     if (opponentType == OpponentType.ONLINE && (onlineMatchState == OnlineMatchState.CONNECTING || onlineMatchState == OnlineMatchState.SEARCHING_MATCH)) {
         AlertDialog(
@@ -566,38 +676,42 @@ fun GameBoardScreen(
         )
     }
 
-    // Victory Celebration Dialog Modal
+    // Victory/Defeat Celebration Dialog Modal
     if (gameState.winner != null) {
-        val winnerName = if (gameState.winner == 0) "Player 1" else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val isWinner = gameState.winner == myPlayerIndex
+        val titleText = if (isWinner) "🏆 YOU WIN!" else "💀 YOU LOSE!"
+        val titleColor = if (isWinner) NeonCyan else NeonMagenta
 
         AlertDialog(
             onDismissRequest = {},
             containerColor = NeonDarkCard,
-            titleContentColor = Color.White,
+            titleContentColor = titleColor,
             textContentColor = Color(0xFFA0ACCC),
             title = {
                 Text(
-                    text = "🏆 $winnerName Wins!",
+                    text = titleText,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = titleColor
                 )
             },
             text = {
                 Column {
-                    Text("Masterful strategy! You breached the board defense.")
+                    Text(if (isWinner) "Masterful strategy! You breached the board defense." else "Your opponent outmaneuvered you this time.")
                     Spacer(modifier = Modifier.height(12.dp))
                     Text("Total Moves: ${gameState.moveHistory.size}", fontWeight = FontWeight.SemiBold, color = NeonCyan)
                     Text("Walls Placed: ${gameState.walls.size}", fontWeight = FontWeight.SemiBold, color = NeonMagenta)
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = onRestart,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Text("Play Again", fontWeight = FontWeight.ExtraBold)
+                if (opponentType != OpponentType.ONLINE) {
+                    Button(
+                        onClick = onRestart,
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Play Again", fontWeight = FontWeight.ExtraBold)
+                    }
                 }
             },
             dismissButton = {
@@ -614,12 +728,64 @@ fun GameBoardScreen(
 }
 
 @Composable
+fun WallItemButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    isEnabled: Boolean,
+    selectedColor: Color,
+    onSelect: () -> Unit,
+    onStartDrag: (Offset) -> Unit,
+    onUpdateDrag: (Offset) -> Unit,
+    onEndDrag: () -> Unit
+) {
+    var bounds by remember { mutableStateOf<Rect?>(null) }
+
+    Button(
+        onClick = onSelect,
+        enabled = isEnabled,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = if (isSelected) selectedColor else NeonDarkSurface,
+            contentColor = if (isSelected) Color.Black else Color.White,
+            disabledContainerColor = NeonDarkSurface.copy(alpha = 0.5f),
+            disabledContentColor = Color.Gray
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, if (isSelected) selectedColor else NeonBorder),
+        modifier = Modifier
+            .size(70.dp, 56.dp)
+            .onGloballyPositioned { bounds = it.boundsInWindow() }
+            .pointerInput(isEnabled) {
+                if (!isEnabled) return@pointerInput
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val b = bounds ?: return@awaitEachGesture
+                    onStartDrag(b.topLeft + down.position)
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: break
+                        if (change.pressed) {
+                            onUpdateDrag(b.topLeft + change.position)
+                            change.consume()
+                        } else {
+                            onEndDrag()
+                            break
+                        }
+                    } while (true)
+                }
+            }
+    ) {
+        Icon(imageVector = icon, contentDescription = label, modifier = Modifier.size(24.dp))
+    }
+}
+
+@Composable
 fun PlayerScoreCard(
     playerName: String,
     wallsLeft: Int,
     isTurn: Boolean,
     pawnColor: Color,
-    turnTimeLeft: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -649,7 +815,8 @@ fun PlayerScoreCard(
                     text = playerName,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    maxLines = 1
                 )
                 Text(
                     text = "Walls: $wallsLeft",
@@ -665,7 +832,7 @@ fun PlayerScoreCard(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = if (turnTimeLeft != null) "${turnTimeLeft}s" else "TURN",
+                        text = "TURN",
                         fontSize = 9.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.Black
@@ -676,181 +843,3 @@ fun PlayerScoreCard(
     }
 }
 
-@Composable
-fun PlayerWallControlRow(
-    playerName: String,
-    pawnColor: Color,
-    isTurn: Boolean,
-    wallsLeft: Int,
-    isWallMode: Boolean,
-    isWallHorizontal: Boolean,
-    onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
-    onStartWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit,
-    onUpdateWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit,
-    onEndWallDrag: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var horizBounds by remember { mutableStateOf<Rect?>(null) }
-    var vertBounds by remember { mutableStateOf<Rect?>(null) }
-
-    Card(
-        colors = CardDefaults.cardColors(
-            containerColor = NeonDarkCard
-        ),
-        border = BorderStroke(
-            width = if (isTurn) 1.5.dp else 1.dp,
-            color = if (isTurn) pawnColor else NeonBorder
-        ),
-        shape = RoundedCornerShape(18.dp),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Player Avatar & Stock Info
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(22.dp)
-                        .clip(CircleShape)
-                        .background(pawnColor)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = playerName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        if (isTurn) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .background(pawnColor)
-                                    .padding(horizontal = 5.dp, vertical = 1.dp)
-                            ) {
-                                Text(
-                                    text = "TURN",
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Color.Black
-                                )
-                            }
-                        }
-                    }
-                    Text(
-                        text = "Walls: $wallsLeft",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFA0ACCC)
-                    )
-                }
-            }
-
-            // Horizontal Wall Item Button
-            Button(
-                onClick = { onSelectWallOrientation(true) },
-                enabled = isTurn && wallsLeft > 0,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && isWallHorizontal && isTurn) NeonCyan else NeonDarkSurface,
-                    contentColor = if (isWallMode && isWallHorizontal && isTurn) Color.Black else Color.White
-                ),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, if (isWallMode && isWallHorizontal && isTurn) NeonCyan else NeonBorder),
-                modifier = Modifier
-                    .height(42.dp)
-                    .onGloballyPositioned { horizBounds = it.boundsInWindow() }
-                    .pointerInput(isTurn, wallsLeft) {
-                        if (!isTurn || wallsLeft <= 0) return@pointerInput
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            val bounds = horizBounds ?: return@awaitEachGesture
-                            val windowPos = bounds.topLeft + down.position
-                            onStartWallDrag(true, windowPos)
-
-                            do {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull() ?: break
-                                if (change.pressed) {
-                                    val currentPos = bounds.topLeft + change.position
-                                    onUpdateWallDrag(true, currentPos)
-                                    change.consume()
-                                } else {
-                                    onEndWallDrag()
-                                    break
-                                }
-                            } while (true)
-                        }
-                    }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CropLandscape,
-                    contentDescription = "Horizontal Wall Item",
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "── Horiz",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Vertical Wall Item Button
-            Button(
-                onClick = { onSelectWallOrientation(false) },
-                enabled = isTurn && wallsLeft > 0,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isWallMode && !isWallHorizontal && isTurn) NeonMagenta else NeonDarkSurface,
-                    contentColor = if (isWallMode && !isWallHorizontal && isTurn) Color.White else Color.White
-                ),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, if (isWallMode && !isWallHorizontal && isTurn) NeonMagenta else NeonBorder),
-                modifier = Modifier
-                    .height(42.dp)
-                    .onGloballyPositioned { vertBounds = it.boundsInWindow() }
-                    .pointerInput(isTurn, wallsLeft) {
-                        if (!isTurn || wallsLeft <= 0) return@pointerInput
-                        awaitEachGesture {
-                            val down = awaitFirstDown(requireUnconsumed = false)
-                            val bounds = vertBounds ?: return@awaitEachGesture
-                            val windowPos = bounds.topLeft + down.position
-                            onStartWallDrag(false, windowPos)
-
-                            do {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull() ?: break
-                                if (change.pressed) {
-                                    val currentPos = bounds.topLeft + change.position
-                                    onUpdateWallDrag(false, currentPos)
-                                    change.consume()
-                                } else {
-                                    onEndWallDrag()
-                                    break
-                                }
-                            } while (true)
-                        }
-                    }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CropPortrait,
-                    contentDescription = "Vertical Wall Item",
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "│ Vert",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-    }
-}

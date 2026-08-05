@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import com.wallwar.data.MatchRecord
 import com.wallwar.data.UserProfile
+import com.wallwar.model.BoardTheme
 import com.wallwar.model.Move
 import com.wallwar.model.Position
 import com.wallwar.model.Wall
@@ -198,7 +199,6 @@ class NakamaRepository @Inject constructor(
                     .apply()
             } catch (e: Exception) {
                 Log.w("NakamaRepository", "Session authenticated but account info fetch failed (likely network): ${e.message}")
-                // Non-critical: we still have the session token saved
             }
         }
     }
@@ -212,7 +212,7 @@ class NakamaRepository @Inject constructor(
 
     fun getNakamaUserId(): String? = nakamaUserId
 
-    // 2. Storage Sync (Stats, Coins, Rewards)
+    // 2. Storage Sync (Stats, Coins, Rewards, Settings)
     suspend fun fetchUserProfileFromNakama(): JSONObject? = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext null
         try {
@@ -277,6 +277,37 @@ class NakamaRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e("NakamaRepository", "Error syncing user profile: ${e.message}")
         }
+    }
+
+    suspend fun syncUserSettingsToNakama(theme: BoardTheme) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val settingsObj = JSONObject().apply {
+                put("boardTheme", theme.name)
+            }
+            val writeObj = StorageObjectWrite("user_data", "settings", settingsObj.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Error syncing user settings: ${e.message}")
+        }
+    }
+
+    suspend fun fetchUserSettingsFromNakama(): BoardTheme? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("settings")
+            objectId.setUserId(nakamaUserId)
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                val settings = JSONObject(result.getObjects(0).value)
+                val themeName = settings.optString("boardTheme", BoardTheme.ELEGANT_DARK.name)
+                return@withContext try { BoardTheme.valueOf(themeName) } catch(e: Exception) { BoardTheme.ELEGANT_DARK }
+            }
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Error reading user settings: ${e.message}")
+        }
+        return@withContext null
     }
 
     suspend fun recordMatchHistoryToNakama(matchRecord: MatchRecord) = withContext(Dispatchers.IO) {
@@ -475,12 +506,32 @@ class NakamaRepository @Inject constructor(
                 
                 var oppName = "Online Opponent"
                 var selfIndex = 0
+                var opponentUserId: String? = null
                 
                 matched.users.forEachIndexed { index, user ->
                     if (user.presence.userId == nakamaUserId) {
                         selfIndex = index
                     } else {
+                        opponentUserId = user.presence.userId
                         oppName = user.presence.username ?: "Online Opponent"
+                    }
+                }
+
+                // Try to fetch real display name for opponent
+                opponentUserId?.let { oppId ->
+                    try {
+                        session?.let { s ->
+                            val usersResult = client.getUsers(s, oppId).await()
+                            val userList = usersResult.usersList
+                            if (userList != null && userList.isNotEmpty()) {
+                                val u = userList[0]
+                                if (!u.displayName.isNullOrBlank()) {
+                                    oppName = u.displayName
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("NakamaRepository", "Could not fetch opponent real name: ${e.message}")
                     }
                 }
 

@@ -40,7 +40,8 @@ sealed class SignInResult {
 @Singleton
 class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val nakamaRepository: NakamaRepository
+    private val nakamaRepository: NakamaRepository,
+    private val settingsRepository: SettingsRepository
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("wall_war_auth", Context.MODE_PRIVATE)
@@ -87,6 +88,16 @@ class AuthRepository @Inject constructor(
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
+        }
+
+        // Sync settings from server
+        try {
+            val serverTheme = nakamaRepository.fetchUserSettingsFromNakama()
+            if (serverTheme != null) {
+                settingsRepository.setBoardTheme(serverTheme, syncToServer = false)
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Could not restore server settings: ${e.message}")
         }
     }
 

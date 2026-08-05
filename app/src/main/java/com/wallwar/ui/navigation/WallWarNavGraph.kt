@@ -136,6 +136,7 @@ fun WallWarNavGraph(
                 onCancelWallMode = viewModel::toggleWallMode,
                 onUndoMove = viewModel::undoMove,
                 onRestart = viewModel::restartGame,
+                onResign = viewModel::resignGame,
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)
