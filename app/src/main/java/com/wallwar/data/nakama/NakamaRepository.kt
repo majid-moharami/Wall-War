@@ -181,7 +181,7 @@ class NakamaRepository @Inject constructor(
             onSessionAuthenticated()
             true
         } catch (e: Exception) {
-            Log.e("NakamaRepository", "Device auth total failure: ${e.message}")
+            Log.w("NakamaRepository", "Device auth total failure: ${e.message}")
             false
         }
     }

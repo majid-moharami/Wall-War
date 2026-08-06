@@ -71,7 +71,7 @@ fun GameBoardComposable(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(cols.toFloat() / rows.toFloat())
-            .padding(8.dp)
+            .padding(16.dp)
             .testTag("game_board_canvas"),
         contentAlignment = Alignment.Center
     ) {
@@ -200,7 +200,85 @@ fun GameBoardComposable(
                     }
                 }
         ) {
-            // Draw Outer Board Background & Gradient Overlays
+            // Determine player edge colors based on board perspective (p0 = Blue, p1 = Red)
+            val p0Color = Color(0xFF3B82F6) // Player 0 Ball Color (Blue)
+            val p1Color = Color(0xFFEF4444) // Player 1 Ball Color (Red)
+
+            val topPlayerColor = if (shouldFlip) p0Color else p1Color
+            val bottomPlayerColor = if (shouldFlip) p1Color else p0Color
+
+            // Combined vertical gradient brush for board border & glow
+            val verticalGlowBrush = Brush.verticalGradient(
+                colors = listOf(topPlayerColor, bottomPlayerColor)
+            )
+
+            // 1. OUTSIDE AMBIENT SHINING GLOW (Spills outward behind the board like the reference image)
+            // Corner Spotlights
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        topPlayerColor.copy(alpha = 0.55f),
+                        topPlayerColor.copy(alpha = 0.2f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * 0.25f, -8f),
+                    radius = width * 0.65f
+                )
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        topPlayerColor.copy(alpha = 0.55f),
+                        topPlayerColor.copy(alpha = 0.2f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * 0.75f, -8f),
+                    radius = width * 0.65f
+                )
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        bottomPlayerColor.copy(alpha = 0.55f),
+                        bottomPlayerColor.copy(alpha = 0.2f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * 0.25f, height + 8f),
+                    radius = width * 0.65f
+                )
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        bottomPlayerColor.copy(alpha = 0.55f),
+                        bottomPlayerColor.copy(alpha = 0.2f),
+                        Color.Transparent
+                    ),
+                    center = Offset(width * 0.75f, height + 8f),
+                    radius = width * 0.65f
+                )
+            )
+
+            // Outward Expanding Gradient Blur Rings
+            for (step in 14 downTo 1) {
+                val spread = step * 1.5f
+                val alphaVal = (0.32f * (1f - (step / 15f))).coerceIn(0.01f, 0.35f)
+                val stepBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        topPlayerColor.copy(alpha = alphaVal * 1.25f),
+                        bottomPlayerColor.copy(alpha = alphaVal * 1.25f)
+                    )
+                )
+                drawRoundRect(
+                    brush = stepBrush,
+                    topLeft = Offset(-spread, -spread),
+                    size = Size(width + (spread * 2f), height + (spread * 2f)),
+                    cornerRadius = CornerRadius(24f + spread, 24f + spread),
+                    style = Stroke(width = 2.5f)
+                )
+            }
+
+            // 2. Solid Outer Board Background
             drawRoundRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFF151D33), Color(0xFF101628))
@@ -208,11 +286,11 @@ fun GameBoardComposable(
                 cornerRadius = CornerRadius(24f, 24f)
             )
 
-            // Outer Border
+            // 3. Sharp High-Contrast Neon Edge Border Line
             drawRoundRect(
-                color = Color(0xFF283A60),
+                brush = verticalGlowBrush,
                 cornerRadius = CornerRadius(24f, 24f),
-                style = Stroke(width = 3f)
+                style = Stroke(width = 2.5f)
             )
 
             // 1. Draw Grid Cells & Border Grid Lines

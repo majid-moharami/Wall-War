@@ -1,10 +1,14 @@
 package com.wallwar.ui.screens
 
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,13 +22,22 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CropLandscape
 import androidx.compose.material.icons.filled.CropPortrait
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.VolumeOff
@@ -47,9 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -226,17 +236,17 @@ fun GameBoardScreen(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // Top Header Bar
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+        Box(
+            modifier = Modifier.fillMaxWidth()
         ) {
+            // Left: Back Button
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(NeonDarkCard)
-                    .border(1.dp, NeonBorder, CircleShape),
+                    .border(1.dp, NeonBorder, CircleShape)
+                    .align(Alignment.CenterStart),
                 contentAlignment = Alignment.Center
             ) {
                 IconButton(
@@ -257,27 +267,32 @@ fun GameBoardScreen(
                 }
             }
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            // Center: Title & Subtitle
+            Column(
+                modifier = Modifier.align(Alignment.Center),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = gameState.mode.displayName.uppercase(),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = 1.sp
-                    )
-                    Text(
-                        text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NeonCyan,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    text = gameState.mode.displayName.uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = NeonCyan,
+                    fontWeight = FontWeight.Bold
+                )
+            }
 
-                // Timer View near sound icon
+            // Right: Timer + Sound Toggle Button
+            Row(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 if (gameState.winner == null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -301,27 +316,27 @@ fun GameBoardScreen(
                         )
                     }
                 }
-            }
 
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(NeonDarkCard)
-                    .border(1.dp, NeonBorder, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = {
-                        soundManager.isSoundEnabled = !soundManager.isSoundEnabled
-                    },
-                    modifier = Modifier.testTag("btn_sound_toggle")
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(NeonDarkCard)
+                        .border(1.dp, NeonBorder, CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (soundManager.isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                        contentDescription = "Sound Toggle",
-                        tint = if (soundManager.isSoundEnabled) NeonCyan else Color(0xFFA0ACCC)
-                    )
+                    IconButton(
+                        onClick = {
+                            soundManager.isSoundEnabled = !soundManager.isSoundEnabled
+                        },
+                        modifier = Modifier.testTag("btn_sound_toggle")
+                    ) {
+                        Icon(
+                            imageVector = if (soundManager.isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            contentDescription = "Sound Toggle",
+                            tint = if (soundManager.isSoundEnabled) NeonCyan else Color(0xFFA0ACCC)
+                        )
+                    }
                 }
             }
         }
@@ -338,6 +353,7 @@ fun GameBoardScreen(
             wallsLeft = gameState.leftWalls[opponentIndex],
             isTurn = gameState.turn == opponentIndex && gameState.winner == null,
             pawnColor = opponentPawnColor,
+            isAi = gameState.isAiMatch && opponentIndex == 1,
             modifier = Modifier.fillMaxWidth(0.7f)
         )
 
@@ -380,6 +396,8 @@ fun GameBoardScreen(
         }
 
         val myPawnColor = if (myPlayerIndex == 0) NeonCyan else NeonMagenta
+        val activePlayerColor = if (gameState.turn == 0) NeonCyan else NeonMagenta
+        val currentTurnColor = if (opponentType == OpponentType.LOCAL_PASS_PLAY) activePlayerColor else myPawnColor
 
         // Row 1: Wall items (Icons only)
         Row(
@@ -388,23 +406,21 @@ fun GameBoardScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             WallItemButton(
-                icon = Icons.Default.CropLandscape,
-                label = "Horiz",
+                isHorizontal = true,
                 isSelected = isWallMode && isWallHorizontal,
                 isEnabled = isLocalTurn && gameState.leftWalls[myPlayerIndex] > 0 && gameState.winner == null,
-                selectedColor = NeonCyan,
+                selectedColor = currentTurnColor,
                 onSelect = { onSelectWallOrientation(true) },
                 onStartDrag = { pos -> handleStartWallDrag(true, pos) },
                 onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
                 onEndDrag = handleEndWallDrag
             )
-            Spacer(modifier = Modifier.width(24.dp))
+            Spacer(modifier = Modifier.width(20.dp))
             WallItemButton(
-                icon = Icons.Default.CropPortrait,
-                label = "Vert",
+                isHorizontal = false,
                 isSelected = isWallMode && !isWallHorizontal,
                 isEnabled = isLocalTurn && gameState.leftWalls[myPlayerIndex] > 0 && gameState.winner == null,
-                selectedColor = NeonMagenta,
+                selectedColor = currentTurnColor,
                 onSelect = { onSelectWallOrientation(false) },
                 onStartDrag = { pos -> handleStartWallDrag(false, pos) },
                 onUpdateDrag = { pos -> handleUpdateWallDrag(false, pos) },
@@ -414,68 +430,60 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Row 2: Own name and Resign item
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Local Player Info
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(myPawnColor)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "$userDisplayName (You)",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "Walls: ${gameState.leftWalls[myPlayerIndex]}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFA0ACCC)
-                    )
-                }
-            }
+        // Local Player Info Card
+        PlayerScoreCard(
+            playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else "$userDisplayName (You)",
+            wallsLeft = gameState.leftWalls[myPlayerIndex],
+            isTurn = gameState.turn == myPlayerIndex && gameState.winner == null,
+            pawnColor = myPawnColor,
+            isAi = false,
+            modifier = Modifier.fillMaxWidth(0.7f)
+        )
 
-            if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
-                OutlinedButton(
-                    onClick = { showResignConfirmation = true },
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, NeonMagenta),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta)
-                ) {
-                    Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Resign", fontWeight = FontWeight.Bold)
-                }
-            } else if (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.winner == null) {
-                OutlinedButton(
-                    onClick = onUndoMove,
-                    enabled = gameState.moveHistory.isNotEmpty(),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (gameState.moveHistory.isNotEmpty()) NeonCyan else NeonBorder)
-                ) {
-                    Icon(imageVector = Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Undo", fontWeight = FontWeight.Bold)
-                }
-            } else if (gameState.winner != null) {
-                Button(
-                    onClick = onRestart,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Play Again", fontWeight = FontWeight.ExtraBold)
-                }
+        // Action Button under own name view (Resign / Undo / Play Again)
+        if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = { showResignConfirmation = true },
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, NeonMagenta),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta),
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(44.dp)
+            ) {
+                Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Resign", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        } else if (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.winner == null) {
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedButton(
+                onClick = onUndoMove,
+                enabled = gameState.moveHistory.isNotEmpty(),
+                shape = RoundedCornerShape(14.dp),
+                border = BorderStroke(1.dp, if (gameState.moveHistory.isNotEmpty()) NeonCyan else NeonBorder),
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(44.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Undo", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        } else if (gameState.winner != null) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Button(
+                onClick = onRestart,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth(0.7f)
+                    .height(44.dp)
+            ) {
+                Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Play Again", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
             }
         }
     }
@@ -729,31 +737,21 @@ fun GameBoardScreen(
 
 @Composable
 fun WallItemButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
+    isHorizontal: Boolean,
     isSelected: Boolean,
     isEnabled: Boolean,
     selectedColor: Color,
     onSelect: () -> Unit,
     onStartDrag: (Offset) -> Unit,
     onUpdateDrag: (Offset) -> Unit,
-    onEndDrag: () -> Unit
+    onEndDrag: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
 
-    Button(
-        onClick = onSelect,
-        enabled = isEnabled,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) selectedColor else NeonDarkSurface,
-            contentColor = if (isSelected) Color.Black else Color.White,
-            disabledContainerColor = NeonDarkSurface.copy(alpha = 0.5f),
-            disabledContentColor = Color.Gray
-        ),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, if (isSelected) selectedColor else NeonBorder),
-        modifier = Modifier
-            .size(70.dp, 56.dp)
+    Box(
+        modifier = modifier
+            .size(56.dp, 46.dp)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .pointerInput(isEnabled) {
                 if (!isEnabled) return@pointerInput
@@ -775,8 +773,108 @@ fun WallItemButton(
                     } while (true)
                 }
             }
+            .clickable(
+                enabled = isEnabled,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onSelect
+            ),
+        contentAlignment = Alignment.Center
     ) {
-        Icon(imageVector = icon, contentDescription = label, modifier = Modifier.size(24.dp))
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val width = size.width
+            val height = size.height
+            val cornerRadiusPx = 12.dp.toPx()
+
+            if (!isEnabled) {
+                // Disabled State: Subtle transparent container
+                drawRoundRect(
+                    color = Color(0xFF111827).copy(alpha = 0.5f),
+                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+                )
+                drawRoundRect(
+                    color = Color(0xFF1F2937).copy(alpha = 0.5f),
+                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            } else if (isSelected) {
+                // Selected State: Clean highlighted container in player's color
+                drawRoundRect(
+                    color = selectedColor.copy(alpha = 0.18f),
+                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+                )
+                drawRoundRect(
+                    color = selectedColor,
+                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+            } else {
+                // Unselected Enabled State: Clean dark item
+                drawRoundRect(
+                    color = Color(0xFF111827),
+                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+                )
+                drawRoundRect(
+                    color = Color(0xFF374151),
+                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
+                    style = Stroke(width = 1.dp.toPx())
+                )
+            }
+
+            // Draw Wall Bar Icon
+            val centerX = width / 2f
+            val centerY = height / 2f
+
+            val wallColor = when {
+                !isEnabled -> Color(0xFF475569)
+                isSelected -> selectedColor
+                else -> Color(0xFFCBD5E1)
+            }
+
+            if (isHorizontal) {
+                val barW = 26.dp.toPx()
+                val barH = 8.dp.toPx()
+                val left = centerX - (barW / 2f)
+                val top = centerY - (barH / 2f)
+                val barRadius = barH / 2f
+
+                drawRoundRect(
+                    color = wallColor,
+                    topLeft = Offset(left, top),
+                    size = Size(barW, barH),
+                    cornerRadius = CornerRadius(barRadius, barRadius)
+                )
+                if (isEnabled) {
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = if (isSelected) 0.45f else 0.25f),
+                        topLeft = Offset(left + 2f, top + 1.5f),
+                        size = Size(barW - 4f, 1.5f),
+                        cornerRadius = CornerRadius(0.75f, 0.75f)
+                    )
+                }
+            } else {
+                val barW = 8.dp.toPx()
+                val barH = 26.dp.toPx()
+                val left = centerX - (barW / 2f)
+                val top = centerY - (barH / 2f)
+                val barRadius = barW / 2f
+
+                drawRoundRect(
+                    color = wallColor,
+                    topLeft = Offset(left, top),
+                    size = Size(barW, barH),
+                    cornerRadius = CornerRadius(barRadius, barRadius)
+                )
+                if (isEnabled) {
+                    drawRoundRect(
+                        color = Color.White.copy(alpha = if (isSelected) 0.45f else 0.25f),
+                        topLeft = Offset(left + 1.5f, top + 2f),
+                        size = Size(1.5f, barH - 4f),
+                        cornerRadius = CornerRadius(0.75f, 0.75f)
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -786,6 +884,7 @@ fun PlayerScoreCard(
     wallsLeft: Int,
     isTurn: Boolean,
     pawnColor: Color,
+    isAi: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -800,15 +899,28 @@ fun PlayerScoreCard(
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
-                    .background(pawnColor)
-            )
+                    .background(NeonDarkSurface)
+                    .border(
+                        width = 1.dp,
+                        color = if (isTurn) pawnColor else NeonBorder,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isAi) Icons.Default.SmartToy else Icons.Default.Person,
+                    contentDescription = "User Avatar",
+                    tint = if (isTurn) pawnColor else Color(0xFFA0ACCC),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
