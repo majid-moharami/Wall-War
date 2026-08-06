@@ -552,7 +552,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 3. Wall Race Mode (9x13 fast board)
+        // 3. Wall Race Mode (9x11 fast board)
         Card(
             onClick = {
                 onStartGame(GameMode.RACE, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)
@@ -593,7 +593,7 @@ fun HomeScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "9x13 Board • Race to top with 15 walls",
+                        text = "9x11 Board • Race to top with 15 walls",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFA0ACCC)
                     )

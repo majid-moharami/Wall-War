@@ -1,8 +1,8 @@
 package com.wallwar.model
 
 enum class GameMode(val displayName: String, val cols: Int, val rows: Int, val defaultWalls: Int) {
-    DUEL("Classic Duel", 9, 9, 10),
-    RACE("Wall Race", 9, 13, 15)
+    DUEL("Classic Duel", 9, 11, 10),
+    RACE("Wall Race", 9, 11, 15)
 }
 
 enum class AiDifficulty(val displayName: String, val budgetMs: Long) {
@@ -30,7 +30,7 @@ data class GameState(
     val mode: GameMode = GameMode.DUEL,
     val cols: Int = mode.cols,
     val rows: Int = mode.rows,
-    val pawns: List<Position> = listOf(Position(8, 4), Position(0, 4)),
+    val pawns: List<Position> = listOf(Position(rows - 1, cols / 2), Position(0, cols / 2)),
     val walls: List<Wall> = emptyList(),
     val leftWalls: IntArray = intArrayOf(mode.defaultWalls, mode.defaultWalls),
     val turn: Int = 0,

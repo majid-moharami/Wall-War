@@ -338,14 +338,12 @@ class GameViewModel @Inject constructor(
 
     private fun startTurnTimer() {
         timerJob?.cancel()
+        if (opponentType != OpponentType.ONLINE) {
+            return
+        }
         _turnTimeLeft.value = 30
         
-        val isLocalTurn = if (opponentType == OpponentType.ONLINE) {
-            _gameState.value.turn == _myPlayerIndex.value
-        } else {
-            // Local game (AI or Pass & Play)
-            !(_gameState.value.isAiMatch && _gameState.value.turn == 1)
-        }
+        val isLocalTurn = _gameState.value.turn == _myPlayerIndex.value
 
         if (_gameState.value.winner != null) return
 
@@ -356,10 +354,8 @@ class GameViewModel @Inject constructor(
             }
             
             // Time up!
-            if (isLocalTurn && opponentType == OpponentType.ONLINE) {
+            if (isLocalTurn) {
                 nakamaRepository.sendTurnTimeout()
-                switchTurnLocally()
-            } else if (opponentType == OpponentType.LOCAL_PASS_PLAY) {
                 switchTurnLocally()
             }
         }

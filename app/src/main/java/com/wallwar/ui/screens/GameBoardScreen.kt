@@ -28,6 +28,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -70,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import com.wallwar.audio.SoundManager
 import com.wallwar.engine.GameEngine
 import com.wallwar.model.BoardTheme
+import com.wallwar.model.GameMode
 import com.wallwar.model.GameState
 import com.wallwar.model.Position
 import com.wallwar.model.Wall
@@ -137,8 +139,11 @@ fun GameBoardScreen(
             val stepY = cellH + (cellH * gapRatio)
 
             val fingerOffsetUp = stepY * 2.5f
+            val isPlayer2Local = (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.mode == GameMode.DUEL && gameState.turn == 1)
+            val targetY = if (isPlayer2Local) (boardY + fingerOffsetUp) else (boardY - fingerOffsetUp)
+
             val rawC = ((boardX / stepX) - 0.5f).roundToInt()
-            val rawR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt()
+            val rawR = ((targetY / stepY) - 0.5f).roundToInt()
 
             val shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1)
             val logicR = if (shouldFlip) (rows - 2 - rawR) else rawR
@@ -148,7 +153,7 @@ fun GameBoardScreen(
             val marginY = stepY * 0.8f
 
             val isOutside = boardX < -marginX || boardX > width + marginX ||
-                    boardY < -marginY || boardY > height + fingerOffsetUp + marginY ||
+                    targetY < -marginY || targetY > height + marginY ||
                     logicC !in 0..(cols - 2) || logicR !in 0..(rows - 2)
 
             if (isOutside) {
@@ -180,8 +185,11 @@ fun GameBoardScreen(
             val stepY = cellH + (cellH * gapRatio)
 
             val fingerOffsetUp = stepY * 2.5f
+            val isPlayer2Local = (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.mode == GameMode.DUEL && gameState.turn == 1)
+            val targetY = if (isPlayer2Local) (boardY + fingerOffsetUp) else (boardY - fingerOffsetUp)
+
             val rawC = ((boardX / stepX) - 0.5f).roundToInt()
-            val rawR = (((boardY - fingerOffsetUp) / stepY) - 0.5f).roundToInt()
+            val rawR = ((targetY / stepY) - 0.5f).roundToInt()
 
             val shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1)
             val logicR = if (shouldFlip) (rows - 2 - rawR) else rawR
@@ -191,7 +199,7 @@ fun GameBoardScreen(
             val marginY = stepY * 0.8f
 
             val isOutside = boardX < -marginX || boardX > width + marginX ||
-                    boardY < -marginY || boardY > height + fingerOffsetUp + marginY ||
+                    targetY < -marginY || targetY > height + marginY ||
                     logicC !in 0..(cols - 2) || logicR !in 0..(rows - 2)
 
             if (isOutside) {
@@ -293,7 +301,7 @@ fun GameBoardScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (gameState.winner == null) {
+                if (gameState.winner == null && opponentType == OpponentType.ONLINE) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
@@ -343,19 +351,73 @@ fun GameBoardScreen(
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Top Section: Competitor Score Card
+        // Top Section: Competitor Score Card / Player 2 Section
         val opponentName = if (opponentType == OpponentType.ONLINE) onlineOpponentName else if (gameState.isAiMatch) "AI Bot" else "Player 2"
         val opponentIndex = if (opponentType == OpponentType.ONLINE) (1 - myPlayerIndex) else 1
         val opponentPawnColor = if (opponentIndex == 0) NeonCyan else NeonMagenta
+        val isQuickPassPlay = (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.mode == GameMode.DUEL)
 
-        PlayerScoreCard(
-            playerName = opponentName,
-            wallsLeft = gameState.leftWalls[opponentIndex],
-            isTurn = gameState.turn == opponentIndex && gameState.winner == null,
-            pawnColor = opponentPawnColor,
-            isAi = gameState.isAiMatch && opponentIndex == 1,
-            modifier = Modifier.fillMaxWidth(0.7f)
-        )
+        if (isQuickPassPlay) {
+            // Player 2 Section (Rotated 180° for Player 2 standing/sitting on the opposite side)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer { rotationZ = 180f },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Player 2 Wall Items (First in rotated column -> appears closer to board)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    WallItemButton(
+                        isHorizontal = true,
+                        isSelected = isWallMode && gameState.turn == 1 && isWallHorizontal,
+                        isEnabled = gameState.turn == 1 && gameState.leftWalls[1] > 0 && gameState.winner == null,
+                        selectedColor = NeonMagenta,
+                        isRotated = true,
+                        onSelect = { onSelectWallOrientation(true) },
+                        onStartDrag = { pos -> handleStartWallDrag(true, pos) },
+                        onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
+                        onEndDrag = handleEndWallDrag
+                    )
+                    Spacer(modifier = Modifier.width(20.dp))
+                    WallItemButton(
+                        isHorizontal = false,
+                        isSelected = isWallMode && gameState.turn == 1 && !isWallHorizontal,
+                        isEnabled = gameState.turn == 1 && gameState.leftWalls[1] > 0 && gameState.winner == null,
+                        selectedColor = NeonMagenta,
+                        isRotated = true,
+                        onSelect = { onSelectWallOrientation(false) },
+                        onStartDrag = { pos -> handleStartWallDrag(false, pos) },
+                        onUpdateDrag = { pos -> handleUpdateWallDrag(false, pos) },
+                        onEndDrag = handleEndWallDrag
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Player 2 Score Card (Second in rotated column -> appears at top edge of screen, above wall items from Player 2 point of view)
+                PlayerScoreCard(
+                    playerName = "Player 2",
+                    wallsLeft = gameState.leftWalls[1],
+                    isTurn = gameState.turn == 1 && gameState.winner == null,
+                    pawnColor = NeonMagenta,
+                    isAi = false,
+                    modifier = Modifier.fillMaxWidth(0.7f)
+                )
+            }
+        } else {
+            PlayerScoreCard(
+                playerName = opponentName,
+                wallsLeft = gameState.leftWalls[opponentIndex],
+                isTurn = gameState.turn == opponentIndex && gameState.winner == null,
+                pawnColor = opponentPawnColor,
+                isAi = gameState.isAiMatch && opponentIndex == 1,
+                modifier = Modifier.fillMaxWidth(0.7f)
+            )
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -399,6 +461,18 @@ fun GameBoardScreen(
         val activePlayerColor = if (gameState.turn == 0) NeonCyan else NeonMagenta
         val currentTurnColor = if (opponentType == OpponentType.LOCAL_PASS_PLAY) activePlayerColor else myPawnColor
 
+        val p1WallEnabled = if (isQuickPassPlay) {
+            gameState.turn == 0 && gameState.leftWalls[0] > 0 && gameState.winner == null
+        } else {
+            isLocalTurn && gameState.leftWalls[activeTurn] > 0 && gameState.winner == null
+        }
+
+        val p1WallSelected = if (isQuickPassPlay) {
+            isWallMode && gameState.turn == 0
+        } else {
+            isWallMode
+        }
+
         // Row 1: Wall items (Icons only)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -407,9 +481,9 @@ fun GameBoardScreen(
         ) {
             WallItemButton(
                 isHorizontal = true,
-                isSelected = isWallMode && isWallHorizontal,
-                isEnabled = isLocalTurn && gameState.leftWalls[myPlayerIndex] > 0 && gameState.winner == null,
-                selectedColor = currentTurnColor,
+                isSelected = p1WallSelected && isWallHorizontal,
+                isEnabled = p1WallEnabled,
+                selectedColor = if (isQuickPassPlay) NeonCyan else currentTurnColor,
                 onSelect = { onSelectWallOrientation(true) },
                 onStartDrag = { pos -> handleStartWallDrag(true, pos) },
                 onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
@@ -418,9 +492,9 @@ fun GameBoardScreen(
             Spacer(modifier = Modifier.width(20.dp))
             WallItemButton(
                 isHorizontal = false,
-                isSelected = isWallMode && !isWallHorizontal,
-                isEnabled = isLocalTurn && gameState.leftWalls[myPlayerIndex] > 0 && gameState.winner == null,
-                selectedColor = currentTurnColor,
+                isSelected = p1WallSelected && !isWallHorizontal,
+                isEnabled = p1WallEnabled,
+                selectedColor = if (isQuickPassPlay) NeonCyan else currentTurnColor,
                 onSelect = { onSelectWallOrientation(false) },
                 onStartDrag = { pos -> handleStartWallDrag(false, pos) },
                 onUpdateDrag = { pos -> handleUpdateWallDrag(false, pos) },
@@ -433,9 +507,9 @@ fun GameBoardScreen(
         // Local Player Info Card
         PlayerScoreCard(
             playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else "$userDisplayName (You)",
-            wallsLeft = gameState.leftWalls[myPlayerIndex],
-            isTurn = gameState.turn == myPlayerIndex && gameState.winner == null,
-            pawnColor = myPawnColor,
+            wallsLeft = gameState.leftWalls[0],
+            isTurn = gameState.turn == 0 && gameState.winner == null,
+            pawnColor = NeonCyan,
             isAi = false,
             modifier = Modifier.fillMaxWidth(0.7f)
         )
@@ -745,7 +819,8 @@ fun WallItemButton(
     onStartDrag: (Offset) -> Unit,
     onUpdateDrag: (Offset) -> Unit,
     onEndDrag: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isRotated: Boolean = false
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
 
@@ -758,13 +833,23 @@ fun WallItemButton(
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val b = bounds ?: return@awaitEachGesture
-                    onStartDrag(b.topLeft + down.position)
+                    val startPos = if (isRotated) {
+                        Offset(b.right - down.position.x, b.bottom - down.position.y)
+                    } else {
+                        b.topLeft + down.position
+                    }
+                    onStartDrag(startPos)
 
                     do {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull() ?: break
                         if (change.pressed) {
-                            onUpdateDrag(b.topLeft + change.position)
+                            val updatePos = if (isRotated) {
+                                Offset(b.right - change.position.x, b.bottom - change.position.y)
+                            } else {
+                                b.topLeft + change.position
+                            }
+                            onUpdateDrag(updatePos)
                             change.consume()
                         } else {
                             onEndDrag()

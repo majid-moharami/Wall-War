@@ -31,8 +31,8 @@ object GameEngine {
                 cols = mode.cols,
                 rows = mode.rows,
                 pawns = listOf(
-                    Position(8, 4),
-                    Position(0, 4)
+                    Position(mode.rows - 1, mode.cols / 2),
+                    Position(0, mode.cols / 2)
                 ),
                 walls = emptyList(),
                 leftWalls = intArrayOf(wallsCount, wallsCount),
