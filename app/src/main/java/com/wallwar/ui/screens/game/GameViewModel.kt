@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wallwar.audio.SoundManager
+import com.wallwar.data.Arena
+import com.wallwar.data.ArenaConfig
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.GameRepository
 import com.wallwar.data.MatchRecord
@@ -57,6 +59,9 @@ class GameViewModel @Inject constructor(
     } catch (_: Exception) {
         AiDifficulty.NORMAL
     }
+
+    val arenaId: String = savedStateHandle.get<String>("arenaId") ?: "pro"
+    val selectedArena: Arena = ArenaConfig.getArenaById(arenaId)
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
@@ -183,7 +188,7 @@ class GameViewModel @Inject constructor(
     fun startOnlineMatchmaking() {
         _onlineErrorMessage.value = null
         val username = authRepository.userProfile.value.displayName
-        nakamaRepository.startOnlineMatchmaking(username)
+        nakamaRepository.startOnlineMatchmaking(username, selectedArena.id)
     }
 
     fun cancelOnlineMatchmaking() {
@@ -488,7 +493,7 @@ class GameViewModel @Inject constructor(
 
             viewModelScope.launch {
                 val record = MatchRecord(
-                    modeName = finalState.mode.displayName,
+                    modeName = "${selectedArena.title} (${finalState.mode.displayName})",
                     opponentName = opponentName,
                     winnerPlayer = winnerIndex,
                     totalMoves = finalState.moveHistory.size,
@@ -497,12 +502,12 @@ class GameViewModel @Inject constructor(
                 )
                 gameRepository.recordMatch(record)
                 
-                // Update local profile and sync to Nakama
-                authRepository.recordMatchResult(didWin, wallsPlacedCount)
+                // Update local profile with arena payouts and sync to Nakama
+                authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
             }
-        } else if (opponentType == OpponentType.AI) {
-            // Also record AI matches to local profile
-            authRepository.recordMatchResult(didWin, wallsPlacedCount)
+        } else if (opponentType == OpponentType.AI || opponentType == OpponentType.LOCAL_PASS_PLAY) {
+            // Also record AI / Local Arena matches with arena payouts
+            authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
         }
     }
 

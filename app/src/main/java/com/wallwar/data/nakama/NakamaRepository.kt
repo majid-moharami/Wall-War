@@ -9,6 +9,7 @@ import com.wallwar.model.BoardTheme
 import com.wallwar.model.Move
 import com.wallwar.model.Position
 import com.wallwar.model.Wall
+import com.wallwar.ui.screens.shop.CoinPack
 import com.heroiclabs.nakama.AbstractSocketListener
 import com.heroiclabs.nakama.Client
 import com.heroiclabs.nakama.DefaultClient
@@ -368,6 +369,80 @@ class NakamaRepository @Inject constructor(
         return@withContext emptyList()
     }
 
+    // 2b. Nakama Server Economy RPCs & Shop Synchronization
+    suspend fun rpcProcessCoinTransaction(amountChange: Int, reason: String): Int = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext -1
+        try {
+            val payload = JSONObject().apply {
+                put("amount", amountChange)
+                put("reason", reason)
+                put("userId", nakamaUserId)
+            }
+            val response = client.rpc(s, "process_coin_transaction", payload.toString()).await()
+            if (!response.payload.isNullOrBlank()) {
+                val resObj = JSONObject(response.payload)
+                return@withContext resObj.optInt("new_balance", -1)
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "RPC process_coin_transaction notice: ${e.message}")
+        }
+        return@withContext -1
+    }
+
+    suspend fun fetchShopPacksFromNakama(): List<CoinPack>? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            // Try Nakama Server RPC first
+            try {
+                val response = client.rpc(s, "get_shop_packages", "{}").await()
+                if (!response.payload.isNullOrBlank()) {
+                    val array = JSONArray(response.payload)
+                    val packs = mutableListOf<CoinPack>()
+                    for (i in 0 until array.length()) {
+                        val obj = array.getJSONObject(i)
+                        packs.add(
+                            CoinPack(
+                                id = obj.getString("id"),
+                                nameEn = obj.getString("name"),
+                                coins = obj.getInt("coins"),
+                                priceUsd = obj.getString("price"),
+                                popularTag = if (obj.has("popularTag")) obj.getString("popularTag") else null
+                            )
+                        )
+                    }
+                    if (packs.isNotEmpty()) return@withContext packs
+                }
+            } catch (e: Exception) {
+                Log.w("NakamaRepository", "RPC get_shop_packages notice: ${e.message}")
+            }
+
+            // Fallback: Read Nakama Storage Object ("shop", "packages")
+            val objectId = StorageObjectId("shop")
+            objectId.setKey("packages")
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                val array = JSONArray(result.getObjects(0).value)
+                val packs = mutableListOf<CoinPack>()
+                for (i in 0 until array.length()) {
+                    val obj = array.getJSONObject(i)
+                    packs.add(
+                        CoinPack(
+                            id = obj.getString("id"),
+                            nameEn = obj.getString("name"),
+                            coins = obj.getInt("coins"),
+                            priceUsd = obj.getString("price"),
+                            popularTag = if (obj.has("popularTag")) obj.getString("popularTag") else null
+                        )
+                    )
+                }
+                if (packs.isNotEmpty()) return@withContext packs
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error fetching shop packages from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
     // 3. Leaderboards
     suspend fun fetchGlobalLeaderboard(): List<LeaderboardEntry> = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext emptyList()
@@ -455,7 +530,7 @@ class NakamaRepository @Inject constructor(
     }
 
     // 5. Matchmaking & Real-time Sockets
-    fun startOnlineMatchmaking(username: String) {
+    fun startOnlineMatchmaking(username: String, arenaId: String = "pro") {
         scope.launch {
             _matchState.value = OnlineMatchState.CONNECTING
             _matchEvents.emit(OnlineMatchEvent.SearchingForMatch)
@@ -489,7 +564,9 @@ class NakamaRepository @Inject constructor(
                 }
 
                 _matchState.value = OnlineMatchState.SEARCHING_MATCH
-                NakamaBridge.addMatchmaker(socket!!, 2, 2, "*", null, null, 1).await()
+                val query = "+properties.arena_id:$arenaId"
+                val stringProps = mapOf("arena_id" to arenaId)
+                NakamaBridge.addMatchmaker(socket!!, 2, 2, query, stringProps, null, 1).await()
             } catch (e: Exception) {
                 Log.e("NakamaRepository", "Socket connection error: ${e.message}")
                 _matchState.value = OnlineMatchState.ERROR

@@ -102,6 +102,7 @@ fun GameBoardScreen(
     onlineOpponentName: String = "Online Opponent",
     myPlayerIndex: Int = 0,
     turnTimeLeft: Int = 30,
+    arenaTitle: String = "Pro Arena",
     onlineErrorMessage: String? = null,
     onRetryOnlineConnection: () -> Unit = {},
     onCancelOnlineMatchmaking: () -> Unit = {},
@@ -281,7 +282,7 @@ fun GameBoardScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = gameState.mode.displayName.uppercase(),
+                    text = arenaTitle.uppercase(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,

@@ -40,20 +40,44 @@ fun WallWarNavGraph(
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
+            val arenaErrorMessage by viewModel.arenaErrorMessage.collectAsStateWithLifecycle()
+            val bonusMessage by viewModel.bonusMessage.collectAsStateWithLifecycle()
 
             HomeScreen(
                 userProfile = userProfile,
                 totalWins = totalWins,
                 totalMatches = totalMatches,
-                onStartGame = { mode, opponent, difficulty ->
-                    navController.navigate(
-                        GameBoardRoute(
-                            mode = mode.name,
-                            opponent = opponent.name,
-                            difficulty = difficulty.name
+                onlineArenas = viewModel.onlineArenas,
+                offlineArena = viewModel.offlineArena,
+                arenaErrorMessage = arenaErrorMessage,
+                bonusMessage = bonusMessage,
+                onJoinOnlineArenaMatch = { arena ->
+                    viewModel.joinOnlineArenaMatch(arena) { mode, opp, diff, ar ->
+                        navController.navigate(
+                            GameBoardRoute(
+                                mode = mode.name,
+                                opponent = opp.name,
+                                difficulty = diff.name,
+                                arenaId = ar.id
+                            )
                         )
-                    )
+                    }
                 },
+                onJoinOfflineMatch = { opponentType, difficulty, useAd ->
+                    viewModel.joinOfflineMatch(opponentType, difficulty, useAd) { mode, opp, diff, ar ->
+                        navController.navigate(
+                            GameBoardRoute(
+                                mode = mode.name,
+                                opponent = opp.name,
+                                difficulty = diff.name,
+                                arenaId = ar.id
+                            )
+                        )
+                    }
+                },
+                onClaimDailyBonus = viewModel::claimDailyBonus,
+                onClearArenaError = viewModel::clearArenaErrorMessage,
+                onClearBonusMessage = viewModel::clearBonusMessage,
                 onNavigate = { targetScreen ->
                     when (targetScreen) {
                         AppScreen.GAME_BOARD -> navController.navigate(GameBoardRoute())
@@ -131,6 +155,7 @@ fun WallWarNavGraph(
                 onlineOpponentName = onlineOpponentName,
                 myPlayerIndex = myPlayerIndex,
                 turnTimeLeft = turnTimeLeft,
+                arenaTitle = viewModel.selectedArena.title,
                 onlineErrorMessage = onlineErrorMessage,
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
@@ -201,11 +226,12 @@ fun WallWarNavGraph(
         composable<CoinShopRoute> {
             val viewModel: CoinShopViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val coinPacks by viewModel.coinPacks.collectAsStateWithLifecycle()
             val purchaseMessage by viewModel.purchaseMessage.collectAsStateWithLifecycle()
 
             CoinShopScreen(
                 userProfile = userProfile,
-                coinPacks = viewModel.coinPacks,
+                coinPacks = coinPacks,
                 purchaseMessage = purchaseMessage,
                 onBuyPack = viewModel::buyCoinPack,
                 onClearMessage = viewModel::clearPurchaseMessage,

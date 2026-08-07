@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,19 +28,23 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.SmartToy
-import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +62,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.wallwar.data.Arena
+import com.wallwar.data.ArenaConfig
+import com.wallwar.data.UserProfile
 import com.wallwar.model.AiDifficulty
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
@@ -71,18 +81,92 @@ import com.wallwar.ui.theme.NeonPurple
 
 @Composable
 fun HomeScreen(
-	userProfile: com.wallwar.data.UserProfile = com.wallwar.data.UserProfile(),
-	totalWins: Int,
-	totalMatches: Int,
-	onStartGame: (mode: GameMode, opponent: OpponentType, difficulty: AiDifficulty) -> Unit,
-	onNavigate: (AppScreen) -> Unit,
-	modifier: Modifier = Modifier
+    userProfile: UserProfile = UserProfile(),
+    totalWins: Int,
+    totalMatches: Int,
+    onlineArenas: List<Arena> = ArenaConfig.onlineArenas,
+    offlineArena: Arena = ArenaConfig.offlineAiArena,
+    arenaErrorMessage: String? = null,
+    bonusMessage: String? = null,
+    onJoinOnlineArenaMatch: (Arena) -> Unit = {},
+    onJoinOfflineMatch: (OpponentType, AiDifficulty, Boolean) -> Unit = { _, _, _ -> },
+    onClaimDailyBonus: () -> Unit = {},
+    onClearArenaError: () -> Unit = {},
+    onClearBonusMessage: () -> Unit = {},
+    onNavigate: (AppScreen) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    var selectedAiDifficulty by remember { mutableStateOf(AiDifficulty.NORMAL) }
-    var showAiPicker by remember { mutableStateOf(false) }
-
     val actualWins = totalWins.coerceAtLeast(userProfile.wins)
     val actualMatches = totalMatches.coerceAtLeast(userProfile.totalMatches)
+
+    // Alert dialog for insufficient coins error
+    if (arenaErrorMessage != null) {
+        AlertDialog(
+            onDismissRequest = onClearArenaError,
+            containerColor = NeonDarkCard,
+            title = {
+                Text(
+                    text = "Insufficient Coins 🪙",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = arenaErrorMessage,
+                    color = Color(0xFFA0ACCC)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onClearArenaError()
+                        onNavigate(AppScreen.COIN_SHOP)
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber)
+                ) {
+                    Text("Open Coin Shop", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = onClearArenaError,
+                    border = BorderStroke(1.dp, NeonBorder)
+                ) {
+                    Text("Cancel", color = Color.White)
+                }
+            }
+        )
+    }
+
+    // Alert dialog for claimed daily bonus / ad reward
+    if (bonusMessage != null) {
+        AlertDialog(
+            onDismissRequest = onClearBonusMessage,
+            containerColor = NeonDarkCard,
+            title = {
+                Text(
+                    text = "Reward Received! 🎉",
+                    color = NeonAmber,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = bonusMessage,
+                    color = Color.White
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = onClearBonusMessage,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber)
+                ) {
+                    Text("Awesome!", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     Column(
         modifier = modifier
@@ -110,7 +194,7 @@ fun HomeScreen(
                         .clip(CircleShape)
                         .background(NeonDarkSurface)
                         .border(2.dp, NeonCyan, CircleShape)
-                        .padding(if (userProfile.photoUrl.isNullOrBlank()) 0.dp else 2.dp), // Space for border if image
+                        .padding(if (userProfile.photoUrl.isNullOrBlank()) 0.dp else 2.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!userProfile.photoUrl.isNullOrBlank()) {
@@ -190,7 +274,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // High Rush Hero Section
+        // Hero Rating Section
         Card(
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
@@ -259,7 +343,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Quick Stats Bento Grid
+        // Bento Stats
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -270,36 +354,21 @@ fun HomeScreen(
                 border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier
                     .weight(1f)
-                    .height(100.dp)
+                    .height(90.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(14.dp),
+                        .padding(12.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(NeonAmber.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("🎖️", fontSize = 14.sp)
-                    }
-                    Column {
-                        Text(
-                            text = "Rank Tier",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFA0ACCC)
-                        )
-                        Text(
-                            text = userProfile.rankTitle,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    }
+                    Text("🎖️ Tier Rank", style = MaterialTheme.typography.labelSmall, color = Color(0xFFA0ACCC))
+                    Text(
+                        text = userProfile.rankTitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
                 }
             }
 
@@ -309,317 +378,49 @@ fun HomeScreen(
                 border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier
                     .weight(1f)
-                    .height(100.dp)
+                    .height(90.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(14.dp),
+                        .padding(12.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(NeonMagenta.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("⚔️", fontSize = 14.sp)
-                    }
-                    Column {
-                        Text(
-                            text = "Level & XP",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFA0ACCC)
-                        )
-                        Text(
-                            text = "Lvl ${userProfile.level} (${userProfile.xp} XP)",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        Text(
-            text = "SELECT BATTLE MODE",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color(0xFFA0ACCC),
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.Start)
-                .padding(bottom = 10.dp)
-        )
-
-        // 1. Online Random Multiplayer (Nakama Server)
-        Card(
-            onClick = {
-                onStartGame(GameMode.DUEL, OpponentType.ONLINE, selectedAiDifficulty)
-            },
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonEmerald, NeonCyan))),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("btn_online_match")
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(NeonEmerald.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("🌐", fontSize = 22.sp)
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Play Random Online Game",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(NeonEmerald)
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text("LIVE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                        }
-                    }
+                    Text("⚔️ Level & XP", style = MaterialTheme.typography.labelSmall, color = Color(0xFFA0ACCC))
                     Text(
-                        text = "Nakama Server • 30s Turn Timer • Win +75 Coins",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFA0ACCC)
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = NeonEmerald
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 2. Quick Match Card (Primary Pass & Play)
-        Card(
-            onClick = {
-                onStartGame(GameMode.DUEL, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)
-            },
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonCyan, NeonPurple))),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("btn_quick_match")
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(NeonCyan.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FlashOn,
-                        contentDescription = "Quick Match",
-                        tint = NeonCyan,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Quick Pass & Play",
-                        style = MaterialTheme.typography.titleMedium,
+                        text = "Lvl ${userProfile.level} (${userProfile.xp} XP)",
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
-                    Text(
-                        text = "2 Players on 1 Phone",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFA0ACCC)
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = NeonCyan
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 2. Play VS AI Card
-        Card(
-            onClick = {
-                onStartGame(GameMode.DUEL, OpponentType.AI, selectedAiDifficulty)
-            },
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(1.dp, NeonBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("btn_vs_ai")
-        ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(NeonMagenta.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SmartToy,
-                            contentDescription = "Play AI",
-                            tint = NeonMagenta,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Play VS AI",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Challenge AI (${selectedAiDifficulty.displayName})",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFA0ACCC)
-                        )
-                    }
-                    IconButton(onClick = { showAiPicker = !showAiPicker }) {
-                        Icon(
-                            imageVector = if (showAiPicker) Icons.Default.Tune else Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Difficulty options",
-                            tint = NeonMagenta
-                        )
-                    }
-                }
-
-                AnimatedVisibility(visible = showAiPicker) {
-                    Column(modifier = Modifier.padding(top = 14.dp)) {
-                        Text(
-                            text = "AI Difficulty Level:",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            AiDifficulty.values().forEach { diff ->
-                                FilterChip(
-                                    selected = selectedAiDifficulty == diff,
-                                    onClick = {
-                                        selectedAiDifficulty = diff
-                                        onStartGame(GameMode.DUEL, OpponentType.AI, diff)
-                                    },
-                                    label = {
-                                        Text(
-                                            text = diff.displayName,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = NeonMagenta,
-                                        selectedLabelColor = Color.White,
-                                        containerColor = NeonDarkSurface,
-                                        labelColor = Color(0xFFA0ACCC)
-                                    )
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // 3. Wall Race Mode (9x11 fast board)
-        Card(
-            onClick = {
-                onStartGame(GameMode.RACE, OpponentType.LOCAL_PASS_PLAY, AiDifficulty.NORMAL)
-            },
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(1.dp, NeonBorder),
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("btn_wall_race")
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(NeonAmber.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DirectionsRun,
-                        contentDescription = "Race Mode",
-                        tint = NeonAmber,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Wall Race Mode",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Text(
-                        text = "9x11 Board • Race to top with 15 walls",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFA0ACCC)
-                    )
-                }
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = NeonAmber
-                )
-            }
-        }
+        // 🌐 1. ONLINE MULTI-PLAYER ARENAS (5 TABLES)
+        OnlineArenasSection(
+            userCoins = userProfile.coins,
+            arenas = onlineArenas,
+            onJoinOnlineArenaMatch = onJoinOnlineArenaMatch,
+            onOpenShop = { onNavigate(AppScreen.COIN_SHOP) },
+            onClaimDailyBonus = onClaimDailyBonus
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
-        // Two Column Grid: How to Play & Statistics
+        // ⚔️ 2. OFFLINE PRACTICE & AI BATTLES (SEPARATE SECTION)
+        OfflinePracticeSection(
+            userCoins = userProfile.coins,
+            offlineArena = offlineArena,
+            onJoinOfflineMatch = onJoinOfflineMatch,
+            onOpenShop = { onNavigate(AppScreen.COIN_SHOP) }
+        )
+
+        Spacer(modifier = Modifier.height(28.dp))
+
+        // Bottom Menu Cards (Rules & Stats & Settings)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -628,10 +429,10 @@ fun HomeScreen(
                 onClick = { onNavigate(AppScreen.RULES) },
                 colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, NeonBorder),
+                border = null,
                 modifier = Modifier
                     .weight(1f)
-                    .testTag("btn_how_to_play")
+                    .testTag("btn_rules")
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Box(
@@ -667,7 +468,7 @@ fun HomeScreen(
                 onClick = { onNavigate(AppScreen.HISTORY) },
                 colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, NeonBorder),
+                border = null,
                 modifier = Modifier
                     .weight(1f)
                     .testTag("btn_stats_history")
@@ -695,7 +496,7 @@ fun HomeScreen(
                         color = Color.White
                     )
                     Text(
-                        text = "$totalWins W / $totalMatches Matches",
+                        text = "$actualWins W / $actualMatches Matches",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFA0ACCC)
                     )
@@ -710,7 +511,7 @@ fun HomeScreen(
             onClick = { onNavigate(AppScreen.SETTINGS) },
             colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
             shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, NeonBorder),
+            border = null,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("btn_settings")
@@ -752,5 +553,473 @@ fun HomeScreen(
         }
 
         Spacer(modifier = Modifier.height(32.dp))
+    }
+}
+
+@Composable
+fun OnlineArenasSection(
+    userCoins: Int,
+    arenas: List<Arena>,
+    onJoinOnlineArenaMatch: (Arena) -> Unit,
+    onOpenShop: () -> Unit,
+    onClaimDailyBonus: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "🌐 ONLINE MULTI-PLAYER TABLES",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NeonCyan,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.2.sp
+                )
+                Text(
+                    text = "5 Ranked Table Tiers & Coin Stakes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFFA0ACCC)
+                )
+            }
+
+            if (userCoins < 50) {
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xFF261D0C),
+                    border = BorderStroke(1.dp, NeonAmber),
+                    modifier = Modifier.clickable { onClaimDailyBonus() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("📺 +25 🪙", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NeonAmber)
+                    }
+                }
+            }
+        }
+
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(arenas, key = { it.id }) { arena ->
+                OnlineArenaCard(
+                    arena = arena,
+                    userCoins = userCoins,
+                    onJoinOnlineArenaMatch = onJoinOnlineArenaMatch,
+                    onOpenShop = onOpenShop
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun OnlineArenaCard(
+    arena: Arena,
+    userCoins: Int,
+    onJoinOnlineArenaMatch: (Arena) -> Unit,
+    onOpenShop: () -> Unit
+) {
+    val hasEnoughCoins = userCoins >= arena.entryFee
+    val arenaColor = Color(arena.colorHex)
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+        border = null,
+        modifier = Modifier
+            .width(280.dp)
+            .testTag("online_arena_card_${arena.id}")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            // Header: Icon, Title & Badges
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(arenaColor.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when (arena.id) {
+                                "novice" -> Icons.Default.SportsEsports
+                                "amateur" -> Icons.Default.Shield
+                                "pro" -> Icons.Default.WorkspacePremium
+                                "highroller" -> Icons.Default.FlashOn
+                                "master" -> Icons.Default.EmojiEvents
+                                else -> Icons.Default.Shield
+                            },
+                            contentDescription = null,
+                            tint = arenaColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = arena.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                }
+
+                if (arena.isPopular) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = NeonCyan
+                    ) {
+                        Text(
+                            text = "POPULAR",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.Black,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                } else if (arena.isBestValue) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = NeonAmber
+                    ) {
+                        Text(
+                            text = "APEX TIER",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.Black,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = arena.subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFA0ACCC),
+                fontSize = 11.sp,
+                maxLines = 1
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Stakes Container (Entry Fee vs Winning Prize)
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = NeonDarkSurface,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Entry Fee
+                    Column {
+                        Text(
+                            text = "ENTRY FEE",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFBAC5E1)
+                        )
+                        Text(
+                            text = "🪙 ${arena.entryFee}",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = NeonAmber
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .height(24.dp)
+                            .width(1.dp)
+                            .background(Color(0xFF22293E))
+                    )
+
+                    // Winning Prize
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = "WINNER REWARD",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFBAC5E1)
+                        )
+                        Text(
+                            text = "🏆 ${arena.winningPrize} Coins",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = arenaColor
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Join Button
+            if (hasEnoughCoins) {
+                Button(
+                    onClick = { onJoinOnlineArenaMatch(arena) },
+                    colors = ButtonDefaults.buttonColors(containerColor = arenaColor),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("join_online_arena_${arena.id}")
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "JOIN MATCHMAKER (🪙 ${arena.entryFee})",
+                            fontWeight = FontWeight.Black,
+                            color = Color.Black,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onOpenShop,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF261D1F)),
+                    border = BorderStroke(1.dp, NeonAmber),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                ) {
+                    Text(
+                        text = "🛒 Get Coins (Need 🪙 ${arena.entryFee})",
+                        fontWeight = FontWeight.Bold,
+                        color = NeonAmber,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun OfflinePracticeSection(
+    userCoins: Int,
+    offlineArena: Arena,
+    onJoinOfflineMatch: (OpponentType, AiDifficulty, Boolean) -> Unit,
+    onOpenShop: () -> Unit
+) {
+    var selectedOpponent by remember { mutableStateOf(OpponentType.AI) }
+    var selectedDifficulty by remember { mutableStateOf(AiDifficulty.NORMAL) }
+    val sectionColor = Color(offlineArena.colorHex) // Electric Cyan Blue (0xFF0EA5E9)
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+        border = null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("offline_practice_section")
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            // Title & Notice
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(sectionColor.copy(alpha = 0.2f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SmartToy,
+                            contentDescription = null,
+                            tint = sectionColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "⚔️ OFFLINE & AI PRACTICE",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "No Exploit Farming: 0 Coins Reward",
+                            fontSize = 11.sp,
+                            color = sectionColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Opponent Selector Tabs (VS AI vs Local Pass & Play)
+            Text(
+                text = "Select Practice Mode:",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFA0ACCC)
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(NeonDarkSurface)
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedOpponent == OpponentType.AI) sectionColor.copy(alpha = 0.25f) else Color.Transparent)
+                        .clickable { selectedOpponent = OpponentType.AI }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🤖 VS AI Bot",
+                        fontSize = 12.sp,
+                        fontWeight = if (selectedOpponent == OpponentType.AI) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedOpponent == OpponentType.AI) Color.White else Color(0xFF6B7A99)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (selectedOpponent == OpponentType.LOCAL_PASS_PLAY) sectionColor.copy(alpha = 0.25f) else Color.Transparent)
+                        .clickable { selectedOpponent = OpponentType.LOCAL_PASS_PLAY }
+                        .padding(vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "⚡ Local Pass & Play",
+                        fontSize = 12.sp,
+                        fontWeight = if (selectedOpponent == OpponentType.LOCAL_PASS_PLAY) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedOpponent == OpponentType.LOCAL_PASS_PLAY) Color.White else Color(0xFF6B7A99)
+                    )
+                }
+            }
+
+            // AI Difficulty Selector
+            if (selectedOpponent == OpponentType.AI) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    AiDifficulty.entries.forEach { diff ->
+                        val isSelected = selectedDifficulty == diff
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSelected) sectionColor.copy(alpha = 0.2f) else Color(0xFF131726))
+                                .clickable { selectedDifficulty = diff }
+                                .padding(vertical = 6.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = diff.displayName,
+                                fontSize = 11.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = if (isSelected) sectionColor else Color(0xFFA0ACCC)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Two Entry Options for Offline / AI:
+            // Option 1: Pay 50 Coins Entry Fee
+            // Option 2: Watch Rewarded Ad (Free Entry)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Button 1: Pay 5 Coins
+                val canPay5 = userCoins >= offlineArena.entryFee
+                Button(
+                    onClick = { onJoinOfflineMatch(selectedOpponent, selectedDifficulty, false) },
+                    enabled = canPay5,
+                    colors = ButtonDefaults.buttonColors(containerColor = sectionColor),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .testTag("btn_offline_pay_coins")
+                ) {
+                    Text(
+                        text = "Pay 🪙 ${offlineArena.entryFee}",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black,
+                        fontSize = 12.sp
+                    )
+                }
+
+                // Button 2: Watch Rewarded Ad (Free Entry)
+                Button(
+                    onClick = { onJoinOfflineMatch(selectedOpponent, selectedDifficulty, true) },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .height(44.dp)
+                        .testTag("btn_offline_ad_free")
+                ) {
+                    Text(
+                        text = "📺 Watch Ad (Free Entry)",
+                        fontWeight = FontWeight.Black,
+                        color = Color.Black,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
     }
 }

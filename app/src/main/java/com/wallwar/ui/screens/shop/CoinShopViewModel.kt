@@ -1,12 +1,15 @@
 package com.wallwar.ui.screens.shop
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.UserProfile
+import com.wallwar.data.nakama.NakamaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class CoinPack(
@@ -19,7 +22,8 @@ data class CoinPack(
 
 @HiltViewModel
 class CoinShopViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val nakamaRepository: NakamaRepository
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
@@ -27,7 +31,7 @@ class CoinShopViewModel @Inject constructor(
     private val _purchaseMessage = MutableStateFlow<String?>(null)
     val purchaseMessage: StateFlow<String?> = _purchaseMessage.asStateFlow()
 
-    val coinPacks = listOf(
+    private val defaultCoinPacks = listOf(
         CoinPack("micro", "Micro Pack", 100, "$0.99"),
         CoinPack("starter", "Starter Pack", 300, "$2.49"),
         CoinPack("gamer", "Gamer Pack", 600, "$4.99"),
@@ -35,6 +39,22 @@ class CoinShopViewModel @Inject constructor(
         CoinPack("master", "Master Pack", 3000, "$17.99", popularTag = "GREAT VALUE"),
         CoinPack("champion", "Champion Vault", 7500, "$39.99", popularTag = "BEST VALUE")
     )
+
+    private val _coinPacks = MutableStateFlow<List<CoinPack>>(defaultCoinPacks)
+    val coinPacks: StateFlow<List<CoinPack>> = _coinPacks.asStateFlow()
+
+    init {
+        loadShopPackagesFromNakama()
+    }
+
+    fun loadShopPackagesFromNakama() {
+        viewModelScope.launch {
+            val remotePacks = nakamaRepository.fetchShopPacksFromNakama()
+            if (!remotePacks.isNullOrEmpty()) {
+                _coinPacks.value = remotePacks
+            }
+        }
+    }
 
     fun buyCoinPack(pack: CoinPack) {
         authRepository.addCoins(pack.coins)

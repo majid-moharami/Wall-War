@@ -15,7 +15,8 @@ object ProfileRoute
 data class GameBoardRoute(
     val mode: String = "DUEL",
     val opponent: String = "AI",
-    val difficulty: String = "NORMAL"
+    val difficulty: String = "NORMAL",
+    val arenaId: String = "pro"
 )
 
 @Serializable

@@ -330,6 +330,71 @@ class AuthRepository @Inject constructor(
         val current = _userProfile.value
         val updated = current.copy(coins = current.coins + amount)
         saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.rpcProcessCoinTransaction(amount, "coin_credit")
+        }
+    }
+
+    fun deductCoins(amount: Int): Boolean {
+        val current = _userProfile.value
+        if (current.coins < amount) return false
+        val updated = current.copy(coins = current.coins - amount)
+        saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.rpcProcessCoinTransaction(-amount, "entry_fee")
+        }
+        return true
+    }
+
+    fun recordArenaMatchResult(didWin: Boolean, wallsPlaced: Int, winningPrize: Int) {
+        val current = _userProfile.value
+        val newWins = if (didWin) current.wins + 1 else current.wins
+        val newMatches = current.totalMatches + 1
+        val newWalls = current.wallsPlaced + wallsPlaced
+        val newXp = current.xp + if (didWin) 150 else 50
+        val newTrophies = (current.trophies + if (didWin) 25 else -10).coerceAtLeast(0)
+        
+        // Payout winning prize if player won. Entry fee was already deducted when joining.
+        val prizeAmount = if (didWin) winningPrize else 0
+        val newCoins = current.coins + prizeAmount
+        val newLevel = (newXp / 500) + 1
+
+        val newRank = when {
+            newTrophies >= 1000 -> "Apex Cybermaster"
+            newTrophies >= 500 -> "Neon Grandmaster"
+            newTrophies >= 200 -> "Neon Knight"
+            else -> "Novice Duelist"
+        }
+
+        val updated = current.copy(
+            wins = newWins,
+            totalMatches = newMatches,
+            wallsPlaced = newWalls,
+            xp = newXp,
+            trophies = newTrophies,
+            level = newLevel,
+            rankTitle = newRank,
+            coins = newCoins
+        )
+        saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            if (prizeAmount > 0) {
+                nakamaRepository.rpcProcessCoinTransaction(prizeAmount, "arena_win_payout")
+            }
+            nakamaRepository.recordMatchHistoryToNakama(
+                MatchRecord(
+                    modeName = "Arena Match",
+                    opponentName = "Opponent",
+                    winnerPlayer = if (didWin) 0 else 1,
+                    totalMoves = 10,
+                    totalWallsPlaced = wallsPlaced,
+                    durationSeconds = 60L
+                )
+            )
+        }
     }
 
     fun recordMatchResult(didWin: Boolean, wallsPlaced: Int) {
