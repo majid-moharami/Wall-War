@@ -14,6 +14,8 @@ import com.wallwar.ui.screens.HistoryScreen
 import com.wallwar.ui.screens.HomeScreen
 import com.wallwar.ui.screens.RulesScreen
 import com.wallwar.ui.screens.SettingsScreen
+import com.wallwar.ui.screens.shop.CoinShopScreen
+import com.wallwar.ui.screens.shop.CoinShopViewModel
 import com.wallwar.ui.screens.game.GameViewModel
 import com.wallwar.ui.screens.history.HistoryViewModel
 import com.wallwar.ui.screens.home.HomeViewModel
@@ -58,6 +60,7 @@ fun WallWarNavGraph(
                         AppScreen.RULES -> navController.navigate(RulesRoute)
                         AppScreen.HISTORY -> navController.navigate(HistoryRoute)
                         AppScreen.SETTINGS -> navController.navigate(SettingsRoute)
+                        AppScreen.COIN_SHOP -> navController.navigate(CoinShopRoute)
                         AppScreen.HOME -> navController.navigate(HomeRoute) {
                             popUpTo(HomeRoute) { inclusive = true }
                         }
@@ -96,7 +99,8 @@ fun WallWarNavGraph(
                     navController.navigate(GameBoardRoute(opponent = "ONLINE"))
                 },
                 onNavigateToHistory = { navController.navigate(HistoryRoute) },
-                onNavigateToSettings = { navController.navigate(SettingsRoute) }
+                onNavigateToSettings = { navController.navigate(SettingsRoute) },
+                onNavigateToCoinShop = { navController.navigate(CoinShopRoute) }
             )
         }
 
@@ -186,6 +190,25 @@ fun WallWarNavGraph(
                 onSelectTheme = viewModel::setBoardTheme,
                 onUpdateNakamaConfig = viewModel::updateNakamaConfig,
                 onTestConnection = viewModel::testNakamaConnection,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeRoute)
+                    }
+                }
+            )
+        }
+
+        composable<CoinShopRoute> {
+            val viewModel: CoinShopViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val purchaseMessage by viewModel.purchaseMessage.collectAsStateWithLifecycle()
+
+            CoinShopScreen(
+                userProfile = userProfile,
+                coinPacks = viewModel.coinPacks,
+                purchaseMessage = purchaseMessage,
+                onBuyPack = viewModel::buyCoinPack,
+                onClearMessage = viewModel::clearPurchaseMessage,
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)

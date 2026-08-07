@@ -5,5 +5,6 @@ enum class AppScreen {
     GAME_BOARD,
     RULES,
     HISTORY,
-    SETTINGS
+    SETTINGS,
+    COIN_SHOP
 }

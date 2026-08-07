@@ -26,3 +26,6 @@ object HistoryRoute
 
 @Serializable
 object SettingsRoute
+
+@Serializable
+object CoinShopRoute

@@ -86,6 +86,7 @@ fun ProfileScreen(
     onChallengeFriend: (String) -> Unit = {},
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToCoinShop: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -219,6 +220,7 @@ fun ProfileScreen(
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color(0xFF2C2411))
                         .border(1.dp, NeonAmber, RoundedCornerShape(12.dp))
+                        .clickable { onNavigateToCoinShop() }
                         .padding(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Icon(

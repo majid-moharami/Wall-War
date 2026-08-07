@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.DirectionsRun
@@ -152,14 +154,16 @@ fun HomeScreen(
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(NeonDarkSurface)
-                    .border(1.dp, NeonAmber.copy(alpha = 0.5f), CircleShape)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .border(1.dp, NeonAmber.copy(alpha = 0.8f), CircleShape)
+                    .clickable { onNavigate(AppScreen.COIN_SHOP) }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .testTag("home_coins_pill")
             ) {
                 Box(
                     modifier = Modifier
                         .size(22.dp)
                         .clip(CircleShape)
-                        .background(NeonAmber.copy(alpha = 0.2f)),
+                        .background(NeonAmber.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -173,6 +177,13 @@ fun HomeScreen(
                     fontWeight = FontWeight.Bold,
                     color = NeonAmber,
                     fontSize = 13.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.AddCircle,
+                    contentDescription = "Buy Coins",
+                    tint = NeonAmber,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }

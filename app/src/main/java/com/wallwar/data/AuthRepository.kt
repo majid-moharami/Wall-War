@@ -326,6 +326,12 @@ class AuthRepository @Inject constructor(
         saveProfile(updated)
     }
 
+    fun addCoins(amount: Int) {
+        val current = _userProfile.value
+        val updated = current.copy(coins = current.coins + amount)
+        saveProfile(updated)
+    }
+
     fun recordMatchResult(didWin: Boolean, wallsPlaced: Int) {
         val current = _userProfile.value
         val newWins = if (didWin) current.wins + 1 else current.wins
