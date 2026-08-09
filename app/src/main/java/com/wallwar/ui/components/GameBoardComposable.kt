@@ -1,5 +1,11 @@
 package com.wallwar.ui.components
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -20,6 +26,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
@@ -63,6 +70,38 @@ fun GameBoardComposable(
     val isHighTier = boardTheme == BoardTheme.HIGH_ROLLER ||
             boardTheme == BoardTheme.MASTER ||
             boardTheme == BoardTheme.GRAND_CHAMPION
+
+    // Subtle breathing glow animation for board aura and corner lines
+    val infiniteTransition = rememberInfiniteTransition(label = "GameBoardGlowTransition")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseAlpha"
+    )
+
+    val pulseGlowRadius by infiniteTransition.animateFloat(
+        initialValue = 0.85f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "PulseGlowRadius"
+    )
+
+    val cornerAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.5f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CornerAlpha"
+    )
 
     // Internal drag-and-drop state for direct board touches
     var activeHoverWall by remember { mutableStateOf<Wall?>(null) }
@@ -216,56 +255,56 @@ fun GameBoardComposable(
                 colors = listOf(topPlayerColor, bottomPlayerColor)
             )
 
-            // 1. OUTSIDE AMBIENT SHINING GLOW
+            // 1. OUTSIDE AMBIENT SHINING GLOW (Animated Breathing Glow)
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        topPlayerColor.copy(alpha = 0.55f),
-                        topPlayerColor.copy(alpha = 0.2f),
+                        topPlayerColor.copy(alpha = 0.65f * pulseAlpha),
+                        topPlayerColor.copy(alpha = 0.22f * pulseAlpha),
                         Color.Transparent
                     ),
                     center = Offset(width * 0.25f, -8f),
-                    radius = width * 0.65f
+                    radius = width * 0.65f * pulseGlowRadius
                 )
             )
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        topPlayerColor.copy(alpha = 0.55f),
-                        topPlayerColor.copy(alpha = 0.2f),
+                        topPlayerColor.copy(alpha = 0.65f * pulseAlpha),
+                        topPlayerColor.copy(alpha = 0.22f * pulseAlpha),
                         Color.Transparent
                     ),
                     center = Offset(width * 0.75f, -8f),
-                    radius = width * 0.65f
+                    radius = width * 0.65f * pulseGlowRadius
                 )
             )
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        bottomPlayerColor.copy(alpha = 0.55f),
-                        bottomPlayerColor.copy(alpha = 0.2f),
+                        bottomPlayerColor.copy(alpha = 0.65f * pulseAlpha),
+                        bottomPlayerColor.copy(alpha = 0.22f * pulseAlpha),
                         Color.Transparent
                     ),
                     center = Offset(width * 0.25f, height + 8f),
-                    radius = width * 0.65f
+                    radius = width * 0.65f * pulseGlowRadius
                 )
             )
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        bottomPlayerColor.copy(alpha = 0.55f),
-                        bottomPlayerColor.copy(alpha = 0.2f),
+                        bottomPlayerColor.copy(alpha = 0.65f * pulseAlpha),
+                        bottomPlayerColor.copy(alpha = 0.22f * pulseAlpha),
                         Color.Transparent
                     ),
                     center = Offset(width * 0.75f, height + 8f),
-                    radius = width * 0.65f
+                    radius = width * 0.65f * pulseGlowRadius
                 )
             )
 
-            // Outward Expanding Gradient Blur Rings
+            // Outward Expanding Gradient Blur Rings (Animated Pulse)
             for (step in 14 downTo 1) {
-                val spread = step * 1.5f
-                val alphaVal = (0.32f * (1f - (step / 15f))).coerceIn(0.01f, 0.35f)
+                val spread = step * 1.5f * pulseGlowRadius
+                val alphaVal = (0.32f * pulseAlpha * (1f - (step / 15f))).coerceIn(0.01f, 0.40f)
                 val stepBrush = Brush.verticalGradient(
                     colors = listOf(
                         topPlayerColor.copy(alpha = alphaVal * 1.25f),
@@ -289,11 +328,59 @@ fun GameBoardComposable(
                 cornerRadius = CornerRadius(24f, 24f)
             )
 
-            // 3. Sharp High-Contrast Neon Edge Border Line
+            // 3. Sharp High-Contrast Neon Edge Border Line & Tactical Corner Viewfinder Lines
             drawRoundRect(
                 brush = verticalGlowBrush,
                 cornerRadius = CornerRadius(24f, 24f),
                 style = Stroke(width = if (isHighTier) 3.5f else 2.5f)
+            )
+
+            // Futuristic Corner Accent Lines (Top-Left, Top-Right, Bottom-Left, Bottom-Right)
+            val cornerLen = minOf(width, height) * 0.08f
+            val cornerStroke = if (isHighTier) 3.5f else 2.5f
+
+            // Top-Left Corner
+            drawPath(
+                path = Path().apply {
+                    moveTo(-8f, cornerLen)
+                    lineTo(-8f, -8f)
+                    lineTo(cornerLen, -8f)
+                },
+                color = topPlayerColor.copy(alpha = cornerAlpha),
+                style = Stroke(width = cornerStroke)
+            )
+
+            // Top-Right Corner
+            drawPath(
+                path = Path().apply {
+                    moveTo(width + 8f - cornerLen, -8f)
+                    lineTo(width + 8f, -8f)
+                    lineTo(width + 8f, cornerLen)
+                },
+                color = topPlayerColor.copy(alpha = cornerAlpha),
+                style = Stroke(width = cornerStroke)
+            )
+
+            // Bottom-Left Corner
+            drawPath(
+                path = Path().apply {
+                    moveTo(-8f, height + 8f - cornerLen)
+                    lineTo(-8f, height + 8f)
+                    lineTo(cornerLen, height + 8f)
+                },
+                color = bottomPlayerColor.copy(alpha = cornerAlpha),
+                style = Stroke(width = cornerStroke)
+            )
+
+            // Bottom-Right Corner
+            drawPath(
+                path = Path().apply {
+                    moveTo(width + 8f - cornerLen, height + 8f)
+                    lineTo(width + 8f, height + 8f)
+                    lineTo(width + 8f, height + 8f - cornerLen)
+                },
+                color = bottomPlayerColor.copy(alpha = cornerAlpha),
+                style = Stroke(width = cornerStroke)
             )
 
             // 4. Center Radar Circles & Crosshair Elements

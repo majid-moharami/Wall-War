@@ -1,7 +1,15 @@
 package com.wallwar.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,8 +62,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -622,6 +636,167 @@ fun OnlineArenasSection(
 }
 
 @Composable
+fun TableBoardPreviewAnimation(
+    arenaColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "TableBoardAnim")
+    val alphaGlow by infiniteTransition.animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "AlphaGlow"
+    )
+
+    val pulsePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "PulsePhase"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(NeonDarkSurface)
+            .border(
+                width = 1.dp,
+                brush = Brush.linearGradient(
+                    listOf(
+                        arenaColor.copy(alpha = alphaGlow),
+                        arenaColor.copy(alpha = 0.2f),
+                        NeonCyan.copy(alpha = alphaGlow)
+                    )
+                ),
+                shape = RoundedCornerShape(12.dp)
+            )
+            .padding(6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            val cols = 7
+            val rows = 3
+
+            val cellW = (w - (cols + 1) * 4f) / cols
+            val cellH = (h - (rows + 1) * 4f) / rows
+
+            // Mini board cells grid with wave pulse
+            for (r in 0 until rows) {
+                for (c in 0 until cols) {
+                    val x = 4f + c * (cellW + 4f)
+                    val y = 4f + r * (cellH + 4f)
+
+                    val waveDist = (c + r) / (cols + rows).toFloat()
+                    val isLit = ((pulsePhase + waveDist) % 1.0f) < 0.35f
+
+                    drawRoundRect(
+                        color = if (isLit) arenaColor.copy(alpha = 0.45f * alphaGlow) else Color(0xFF161B2B),
+                        topLeft = Offset(x, y),
+                        size = Size(cellW, cellH),
+                        cornerRadius = CornerRadius(3f, 3f)
+                    )
+                }
+            }
+
+            // Red & Blue / Arena Pawn Previews
+            val redX = 4f + 1 * (cellW + 4f) + cellW / 2f
+            val redY = 4f + 1 * (cellH + 4f) + cellH / 2f
+
+            val blueX = 4f + 5 * (cellW + 4f) + cellW / 2f
+            val blueY = 4f + 1 * (cellH + 4f) + cellH / 2f
+
+            drawCircle(
+                color = NeonMagenta,
+                radius = minOf(cellW, cellH) * 0.38f,
+                center = Offset(redX, redY)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = minOf(cellW, cellH) * 0.18f,
+                center = Offset(redX, redY)
+            )
+
+            drawCircle(
+                color = arenaColor,
+                radius = minOf(cellW, cellH) * 0.38f,
+                center = Offset(blueX, blueY)
+            )
+            drawCircle(
+                color = Color.White,
+                radius = minOf(cellW, cellH) * 0.18f,
+                center = Offset(blueX, blueY)
+            )
+
+            // Wall preview
+            val wallX = 4f + 3 * (cellW + 4f) - 2f
+            val wallY = 4f + 0 * (cellH + 4f)
+            val wallH = (cellH * 2f) + 4f
+
+            drawRoundRect(
+                color = arenaColor.copy(alpha = alphaGlow),
+                topLeft = Offset(wallX, wallY),
+                size = Size(4f, wallH),
+                cornerRadius = CornerRadius(2f, 2f)
+            )
+
+            // Tactical Corner Frame Viewfinder Lines
+            val cornerL = 8.dp.toPx()
+            val strokeW = 1.5.dp.toPx()
+
+            drawPath(
+                path = Path().apply {
+                    moveTo(0f, cornerL)
+                    lineTo(0f, 0f)
+                    lineTo(cornerL, 0f)
+                },
+                color = arenaColor.copy(alpha = alphaGlow),
+                style = Stroke(width = strokeW)
+            )
+
+            drawPath(
+                path = Path().apply {
+                    moveTo(w - cornerL, 0f)
+                    lineTo(w, 0f)
+                    lineTo(w, cornerL)
+                },
+                color = arenaColor.copy(alpha = alphaGlow),
+                style = Stroke(width = strokeW)
+            )
+
+            drawPath(
+                path = Path().apply {
+                    moveTo(0f, h - cornerL)
+                    lineTo(0f, h)
+                    lineTo(cornerL, h)
+                },
+                color = arenaColor.copy(alpha = alphaGlow),
+                style = Stroke(width = strokeW)
+            )
+
+            drawPath(
+                path = Path().apply {
+                    moveTo(w - cornerL, h)
+                    lineTo(w, h)
+                    lineTo(w, h - cornerL)
+                },
+                color = arenaColor.copy(alpha = alphaGlow),
+                style = Stroke(width = strokeW)
+            )
+        }
+    }
+}
+
+@Composable
 fun OnlineArenaCard(
     arena: Arena,
     userCoins: Int,
@@ -631,12 +806,38 @@ fun OnlineArenaCard(
     val hasEnoughCoins = userCoins >= arena.entryFee
     val arenaColor = Color(arena.colorHex)
 
+    val infiniteTransition = rememberInfiniteTransition(label = "OnlineArenaCardAnim")
+    val alphaGlow by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.95f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "AlphaGlow"
+    )
+
     Card(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-        border = null,
+        border = BorderStroke(
+            width = if (arena.isPopular || arena.isBestValue) 1.5.dp else 1.dp,
+            brush = Brush.linearGradient(
+                listOf(
+                    arenaColor.copy(alpha = alphaGlow),
+                    arenaColor.copy(alpha = 0.2f),
+                    NeonCyan.copy(alpha = alphaGlow)
+                )
+            )
+        ),
         modifier = Modifier
             .width(280.dp)
+            .shadow(
+                elevation = if (arena.isPopular || arena.isBestValue) 12.dp else 6.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = arenaColor.copy(alpha = alphaGlow),
+                ambientColor = arenaColor
+            )
             .testTag("online_arena_card_${arena.id}")
     ) {
         Column(
@@ -722,7 +923,12 @@ fun OnlineArenaCard(
                 maxLines = 1
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Animated Tactical Table Board Preview
+            TableBoardPreviewAnimation(arenaColor = arenaColor)
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Stakes Container (Entry Fee vs Winning Prize)
             Surface(
