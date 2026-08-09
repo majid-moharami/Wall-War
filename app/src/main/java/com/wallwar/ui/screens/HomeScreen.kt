@@ -666,10 +666,10 @@ fun TableBoardPreviewAnimation(
             .fillMaxWidth()
             .height(68.dp)
             .shadow(
-                elevation = 2.dp,
+                elevation = 4.dp,
                 shape = RoundedCornerShape(12.dp),
-                spotColor = arenaColor.copy(alpha = 0.25f),
-                ambientColor = Color.Black.copy(alpha = 0.2f)
+                spotColor = arenaColor.copy(alpha = 0.45f),
+                ambientColor = Color.Black.copy(alpha = 0.25f)
             )
             .clip(RoundedCornerShape(12.dp))
             .background(NeonDarkSurface)
@@ -856,10 +856,10 @@ fun OnlineArenaCard(
         modifier = Modifier
             .width(280.dp)
             .shadow(
-                elevation = if (arena.isPopular || arena.isBestValue) 4.dp else 2.dp,
+                elevation = if (arena.isPopular || arena.isBestValue) 10.dp else 6.dp,
                 shape = RoundedCornerShape(20.dp),
-                spotColor = arenaColor.copy(alpha = 0.3f),
-                ambientColor = Color.Black.copy(alpha = 0.2f)
+                spotColor = arenaColor.copy(alpha = 0.5f),
+                ambientColor = arenaColor.copy(alpha = 0.25f)
             )
             .testTag("online_arena_card_${arena.id}")
     ) {
