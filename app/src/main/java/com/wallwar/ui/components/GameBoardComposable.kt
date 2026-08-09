@@ -102,7 +102,7 @@ fun GameBoardComposable(
                         var isDrag = false
 
                         val turn = gameState.turn
-                        val fingerOffsetY = stepY * 2.5f
+                        val fingerOffsetY = stepY * 1.0f
                         
                         fun screenToLogic(x: Float, y: Float): Pair<Int, Int> {
                             val r = (((y - fingerOffsetY) / stepY) - 0.5f).roundToInt()

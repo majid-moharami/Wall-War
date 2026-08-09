@@ -82,6 +82,7 @@ import com.wallwar.ui.theme.NeonDarkBg
 import com.wallwar.ui.theme.NeonDarkCard
 import com.wallwar.ui.theme.NeonDarkSurface
 import com.wallwar.ui.theme.NeonMagenta
+import kotlin.math.hypot
 import kotlin.math.roundToInt
 
 import androidx.compose.material3.CircularProgressIndicator
@@ -831,40 +832,48 @@ fun WallItemButton(
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .pointerInput(isEnabled) {
                 if (!isEnabled) return@pointerInput
+                val touchSlop = 10.dp.toPx()
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val b = bounds ?: return@awaitEachGesture
-                    val startPos = if (isRotated) {
-                        Offset(b.right - down.position.x, b.bottom - down.position.y)
-                    } else {
-                        b.topLeft + down.position
-                    }
-                    onStartDrag(startPos)
+                    val startTouchPos = down.position
+                    var hasDragged = false
 
                     do {
                         val event = awaitPointerEvent()
                         val change = event.changes.firstOrNull() ?: break
                         if (change.pressed) {
-                            val updatePos = if (isRotated) {
-                                Offset(b.right - change.position.x, b.bottom - change.position.y)
-                            } else {
-                                b.topLeft + change.position
+                            val dist = hypot(change.position.x - startTouchPos.x, change.position.y - startTouchPos.y)
+                            if (!hasDragged && dist > touchSlop) {
+                                hasDragged = true
+                                val startPos = if (isRotated) {
+                                    Offset(b.right - change.position.x, b.bottom - change.position.y)
+                                } else {
+                                    b.topLeft + change.position
+                                }
+                                onStartDrag(startPos)
                             }
-                            onUpdateDrag(updatePos)
-                            change.consume()
+
+                            if (hasDragged) {
+                                val updatePos = if (isRotated) {
+                                    Offset(b.right - change.position.x, b.bottom - change.position.y)
+                                } else {
+                                    b.topLeft + change.position
+                                }
+                                onUpdateDrag(updatePos)
+                                change.consume()
+                            }
                         } else {
-                            onEndDrag()
+                            if (hasDragged) {
+                                onEndDrag()
+                            } else {
+                                onSelect()
+                            }
                             break
                         }
                     } while (true)
                 }
-            }
-            .clickable(
-                enabled = isEnabled,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onSelect
-            ),
+            },
         contentAlignment = Alignment.Center
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
