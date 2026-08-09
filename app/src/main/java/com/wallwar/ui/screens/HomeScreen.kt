@@ -661,25 +661,15 @@ fun TableBoardPreviewAnimation(
         label = "PulsePhase"
     )
 
-    val shimmerOffset by infiniteTransition.animateFloat(
-        initialValue = -120f,
-        targetValue = 600f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2200, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "ShimmerOffset"
-    )
-
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(68.dp)
             .shadow(
-                elevation = 8.dp,
+                elevation = 2.dp,
                 shape = RoundedCornerShape(12.dp),
-                spotColor = arenaColor,
-                ambientColor = arenaColor
+                spotColor = arenaColor.copy(alpha = 0.25f),
+                ambientColor = Color.Black.copy(alpha = 0.2f)
             )
             .clip(RoundedCornerShape(12.dp))
             .background(NeonDarkSurface)
@@ -824,20 +814,6 @@ fun TableBoardPreviewAnimation(
                 color = arenaColor.copy(alpha = alphaGlow),
                 style = Stroke(width = strokeW)
             )
-
-            // Sweeping Metallic Reflection / Shimmer Light Beam
-            val shimmerBrush = Brush.linearGradient(
-                colors = listOf(
-                    Color.Transparent,
-                    Color.White.copy(alpha = 0.15f * alphaGlow),
-                    Color.White.copy(alpha = 0.40f * alphaGlow),
-                    Color.White.copy(alpha = 0.15f * alphaGlow),
-                    Color.Transparent
-                ),
-                start = Offset(shimmerOffset, 0f),
-                end = Offset(shimmerOffset + 80f, h)
-            )
-            drawRect(brush = shimmerBrush)
         }
     }
 }
@@ -867,7 +843,7 @@ fun OnlineArenaCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
         border = BorderStroke(
-            width = if (arena.isPopular || arena.isBestValue) 2.dp else 1.5.dp,
+            width = if (arena.isPopular || arena.isBestValue) 1.5.dp else 1.dp,
             brush = Brush.linearGradient(
                 listOf(
                     arenaColor.copy(alpha = alphaGlow),
@@ -880,10 +856,10 @@ fun OnlineArenaCard(
         modifier = Modifier
             .width(280.dp)
             .shadow(
-                elevation = if (arena.isPopular || arena.isBestValue) 20.dp else 14.dp,
+                elevation = if (arena.isPopular || arena.isBestValue) 4.dp else 2.dp,
                 shape = RoundedCornerShape(20.dp),
-                spotColor = arenaColor,
-                ambientColor = arenaColor
+                spotColor = arenaColor.copy(alpha = 0.3f),
+                ambientColor = Color.Black.copy(alpha = 0.2f)
             )
             .testTag("online_arena_card_${arena.id}")
     ) {
