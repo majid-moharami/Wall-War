@@ -100,10 +100,11 @@ object GameEngine {
             // Opponent adjacent: try straight jump
             val r2 = r1 + dr
             val c2 = c1 + dc
+            val isStraightJumpBlocked = !inBounds(r2, c2) || isBlocked(state.walls, r1, c1, r2, c2)
             if (inBounds(r2, c2) && !isBlocked(state.walls, r1, c1, r2, c2)) {
                 moves.add(Position(r2, c2))
-            } else {
-                // Straight jump blocked: try diagonal sidesteps
+            } else if (isStraightJumpBlocked) {
+                // Straight jump blocked by wall OR board edge behind opponent: try diagonal sidesteps
                 val perps = if (dr == 0) {
                     arrayOf(intArrayOf(-1, 0), intArrayOf(1, 0))
                 } else {
