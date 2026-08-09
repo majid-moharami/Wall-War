@@ -581,7 +581,7 @@ fun OnlineArenasSection(
                     letterSpacing = 1.2.sp
                 )
                 Text(
-                    text = "5 Ranked Table Tiers & Coin Stakes",
+                    text = "7 Ranked Table Tiers & Scaling Board Themes",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFA0ACCC)
                 )
@@ -660,11 +660,13 @@ fun OnlineArenaCard(
                     ) {
                         Icon(
                             imageVector = when (arena.id) {
-                                "novice" -> Icons.Default.SportsEsports
-                                "amateur" -> Icons.Default.Shield
+                                "starter" -> Icons.Default.SportsEsports
+                                "novice" -> Icons.Default.Shield
+                                "amateur" -> Icons.Default.FlashOn
                                 "pro" -> Icons.Default.WorkspacePremium
                                 "highroller" -> Icons.Default.FlashOn
                                 "master" -> Icons.Default.EmojiEvents
+                                "grandchampion" -> Icons.Default.EmojiEvents
                                 else -> Icons.Default.Shield
                             },
                             contentDescription = null,

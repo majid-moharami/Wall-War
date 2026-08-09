@@ -63,7 +63,8 @@ class GameViewModel @Inject constructor(
     val arenaId: String = savedStateHandle.get<String>("arenaId") ?: "pro"
     val selectedArena: Arena = ArenaConfig.getArenaById(arenaId)
 
-    val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
+    private val _boardTheme = MutableStateFlow(selectedArena.boardTheme)
+    val boardTheme: StateFlow<BoardTheme> = _boardTheme.asStateFlow()
 
     val userProfile = authRepository.userProfile
 

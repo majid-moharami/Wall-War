@@ -29,6 +29,8 @@ import com.wallwar.engine.GameEngine
 import com.wallwar.model.BoardTheme
 import com.wallwar.model.GameState
 import com.wallwar.model.Position
+import com.wallwar.model.RadarType
+import com.wallwar.model.TilePattern
 import com.wallwar.model.Wall
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonMagenta
@@ -57,8 +59,10 @@ fun GameBoardComposable(
     val themeGridBg = Color(boardTheme.gridBg)
     val themeCellBg = Color(boardTheme.cellBg)
     val themePrimary = Color(boardTheme.primaryColor)
-    val themePawn1 = Color(0xFF7C5CFF)
-    val themePawn2 = Color(0xFFFFB800)
+
+    val isHighTier = boardTheme == BoardTheme.HIGH_ROLLER ||
+            boardTheme == BoardTheme.MASTER ||
+            boardTheme == BoardTheme.GRAND_CHAMPION
 
     // Internal drag-and-drop state for direct board touches
     var activeHoverWall by remember { mutableStateOf<Wall?>(null) }
@@ -200,20 +204,19 @@ fun GameBoardComposable(
                     }
                 }
         ) {
-            // Determine player edge colors based on board perspective (p0 = Blue, p1 = Red)
-            val p0Color = Color(0xFF3B82F6) // Player 0 Ball Color (Blue)
-            val p1Color = Color(0xFFEF4444) // Player 1 Ball Color (Red)
+            // Dynamic theme colors derived from selected BoardTheme
+            val topGlow = Color(boardTheme.topGlowColor)
+            val bottomGlow = Color(boardTheme.bottomGlowColor)
 
-            val topPlayerColor = if (shouldFlip) p0Color else p1Color
-            val bottomPlayerColor = if (shouldFlip) p1Color else p0Color
+            val topPlayerColor = if (shouldFlip) bottomGlow else topGlow
+            val bottomPlayerColor = if (shouldFlip) topGlow else bottomGlow
 
             // Combined vertical gradient brush for board border & glow
             val verticalGlowBrush = Brush.verticalGradient(
                 colors = listOf(topPlayerColor, bottomPlayerColor)
             )
 
-            // 1. OUTSIDE AMBIENT SHINING GLOW (Spills outward behind the board like the reference image)
-            // Corner Spotlights
+            // 1. OUTSIDE AMBIENT SHINING GLOW
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
@@ -281,7 +284,7 @@ fun GameBoardComposable(
             // 2. Solid Outer Board Background
             drawRoundRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF151D33), Color(0xFF101628))
+                    colors = listOf(Color(boardTheme.outerBgTop), Color(boardTheme.outerBgBottom))
                 ),
                 cornerRadius = CornerRadius(24f, 24f)
             )
@@ -290,12 +293,168 @@ fun GameBoardComposable(
             drawRoundRect(
                 brush = verticalGlowBrush,
                 cornerRadius = CornerRadius(24f, 24f),
-                style = Stroke(width = 2.5f)
+                style = Stroke(width = if (isHighTier) 3.5f else 2.5f)
             )
 
-            // 1. Draw Grid Cells & Border Grid Lines
-            val gridBorderColor = Color(0xFF1D2B4A)
-            val cellBgColor = Color(0xFF121B30)
+            // 4. Center Radar Circles & Crosshair Elements
+            val boardCenterX = width / 2f
+            val boardCenterY = height / 2f
+            val radarRadius = minOf(width, height) * 0.22f
+            val centerRingColor = Color(boardTheme.centerRingColor)
+
+            val drawRadarAction = {
+                when (boardTheme.radarType) {
+                    RadarType.SIMPLE_CROSSHAIR -> {
+                        drawLine(
+                            color = themePrimary.copy(alpha = 0.25f),
+                            start = Offset(boardCenterX - radarRadius, boardCenterY),
+                            end = Offset(boardCenterX + radarRadius, boardCenterY),
+                            strokeWidth = 1.5f
+                        )
+                        drawLine(
+                            color = themePrimary.copy(alpha = 0.25f),
+                            start = Offset(boardCenterX, boardCenterY - radarRadius),
+                            end = Offset(boardCenterX, boardCenterY + radarRadius),
+                            strokeWidth = 1.5f
+                        )
+                    }
+                    RadarType.METALLIC_RADAR -> {
+                        drawCircle(
+                            color = centerRingColor,
+                            radius = radarRadius,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 1.5f)
+                        )
+                        drawCircle(
+                            color = centerRingColor.copy(alpha = 0.25f),
+                            radius = radarRadius * 0.5f,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 1f)
+                        )
+                        drawLine(
+                            color = themePrimary.copy(alpha = 0.3f),
+                            start = Offset(boardCenterX - radarRadius * 1.2f, boardCenterY),
+                            end = Offset(boardCenterX + radarRadius * 1.2f, boardCenterY),
+                            strokeWidth = 1.5f
+                        )
+                        drawLine(
+                            color = themePrimary.copy(alpha = 0.3f),
+                            start = Offset(boardCenterX, boardCenterY - radarRadius * 1.2f),
+                            end = Offset(boardCenterX, boardCenterY + radarRadius * 1.2f),
+                            strokeWidth = 1.5f
+                        )
+                    }
+                    RadarType.CYBER_CROSSHAIR -> {
+                        drawCircle(
+                            color = centerRingColor,
+                            radius = radarRadius,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 2f)
+                        )
+                        drawCircle(
+                            color = themePrimary.copy(alpha = 0.15f),
+                            radius = radarRadius * 0.35f,
+                            center = Offset(boardCenterX, boardCenterY)
+                        )
+                        drawLine(
+                            color = themePrimary.copy(alpha = 0.4f),
+                            start = Offset(boardCenterX - radarRadius * 1.3f, boardCenterY),
+                            end = Offset(boardCenterX + radarRadius * 1.3f, boardCenterY),
+                            strokeWidth = 1.5f
+                        )
+                        drawLine(
+                            color = themePrimary.copy(alpha = 0.4f),
+                            start = Offset(boardCenterX, boardCenterY - radarRadius * 1.3f),
+                            end = Offset(boardCenterX, boardCenterY + radarRadius * 1.3f),
+                            strokeWidth = 1.5f
+                        )
+                    }
+                    RadarType.MATRIX_GRID -> {
+                        drawCircle(
+                            color = centerRingColor,
+                            radius = radarRadius,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 1.5f)
+                        )
+                        drawCircle(
+                            color = centerRingColor.copy(alpha = 0.5f),
+                            radius = radarRadius * 0.65f,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 1f)
+                        )
+                        drawCircle(
+                            color = centerRingColor.copy(alpha = 0.3f),
+                            radius = radarRadius * 0.3f,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 1f)
+                        )
+                    }
+                    RadarType.VOLCANIC_CORE -> {
+                        drawCircle(
+                            color = Color(0xFFFF5500).copy(alpha = 0.35f),
+                            radius = radarRadius * 1.1f,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 2.5f)
+                        )
+                        drawCircle(
+                            color = Color(0xFFEF4444).copy(alpha = 0.2f),
+                            radius = radarRadius * 0.6f,
+                            center = Offset(boardCenterX, boardCenterY)
+                        )
+                    }
+                    RadarType.CRYSTAL_ORB -> {
+                        drawCircle(
+                            color = Color(0xFFC77DFF).copy(alpha = 0.4f),
+                            radius = radarRadius,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 2f)
+                        )
+                        drawCircle(
+                            color = Color(0xFF3A0CA3).copy(alpha = 0.25f),
+                            radius = radarRadius * 0.5f,
+                            center = Offset(boardCenterX, boardCenterY)
+                        )
+                    }
+                    RadarType.ROYAL_COSMIC_RING -> {
+                        drawCircle(
+                            color = Color(0xFFFFD700).copy(alpha = 0.5f),
+                            radius = radarRadius * 1.25f,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 2.5f)
+                        )
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.35f),
+                            radius = radarRadius * 0.85f,
+                            center = Offset(boardCenterX, boardCenterY),
+                            style = Stroke(width = 1.5f)
+                        )
+                        drawCircle(
+                            color = Color(0xFFFFD700).copy(alpha = 0.2f),
+                            radius = radarRadius * 0.4f,
+                            center = Offset(boardCenterX, boardCenterY)
+                        )
+                        drawLine(
+                            color = Color(0xFFFFD700).copy(alpha = 0.5f),
+                            start = Offset(boardCenterX - radarRadius * 1.5f, boardCenterY),
+                            end = Offset(boardCenterX + radarRadius * 1.5f, boardCenterY),
+                            strokeWidth = 2f
+                        )
+                        drawLine(
+                            color = Color(0xFFFFD700).copy(alpha = 0.5f),
+                            start = Offset(boardCenterX, boardCenterY - radarRadius * 1.5f),
+                            end = Offset(boardCenterX, boardCenterY + radarRadius * 1.5f),
+                            strokeWidth = 2f
+                        )
+                    }
+                    else -> {}
+                }
+            }
+
+            drawRadarAction()
+
+            // 5. Draw Grid Cells & Border Grid Lines with Tile Patterns
+            val gridBorderColor = Color(boardTheme.gridBorderColor)
+            val cellBgColor = Color(boardTheme.cellBg)
 
             for (r in 0 until rows) {
                 for (c in 0 until cols) {
@@ -305,6 +464,7 @@ fun GameBoardComposable(
                     val x = drawC * stepX
                     val y = drawR * stepY
 
+                    // Surface
                     drawRoundRect(
                         color = cellBgColor,
                         topLeft = Offset(x, y),
@@ -312,6 +472,87 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(8f, 8f)
                     )
 
+                    // Tile Pattern Overlays
+                    when (boardTheme.tilePattern) {
+                        TilePattern.MATTE_DARK -> {
+                            drawRoundRect(
+                                color = Color.Black.copy(alpha = 0.25f),
+                                topLeft = Offset(x + 1f, y + 1f),
+                                size = Size(cellW - 2f, cellH - 2f),
+                                cornerRadius = CornerRadius(7f, 7f),
+                                style = Stroke(width = 1f)
+                            )
+                        }
+                        TilePattern.METALLIC_GRID -> {
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.18f),
+                                start = Offset(x + 3f, y + cellH - 3f),
+                                end = Offset(x + 3f, y + 3f),
+                                strokeWidth = 1.5f
+                            )
+                            drawLine(
+                                color = Color.White.copy(alpha = 0.18f),
+                                start = Offset(x + 3f, y + 3f),
+                                end = Offset(x + cellW - 3f, y + 3f),
+                                strokeWidth = 1.5f
+                            )
+                        }
+                        TilePattern.CARBON_FIBER -> {
+                            val stripeStep = cellW * 0.25f
+                            for (s in 1..3) {
+                                drawLine(
+                                    color = Color.White.copy(alpha = 0.08f),
+                                    start = Offset(x + s * stripeStep, y + 2f),
+                                    end = Offset(x + 2f, y + s * stripeStep),
+                                    strokeWidth = 1f
+                                )
+                            }
+                        }
+                        TilePattern.MATRIX_CIRCUIT -> {
+                            if ((r + c) % 2 == 0) {
+                                drawCircle(
+                                    color = themePrimary.copy(alpha = 0.35f),
+                                    radius = 2.5f,
+                                    center = Offset(x + cellW * 0.2f, y + cellH * 0.2f)
+                                )
+                                drawLine(
+                                    color = themePrimary.copy(alpha = 0.25f),
+                                    start = Offset(x + cellW * 0.2f, y + cellH * 0.2f),
+                                    end = Offset(x + cellW * 0.5f, y + cellH * 0.2f),
+                                    strokeWidth = 1f
+                                )
+                            }
+                        }
+                        TilePattern.VOLCANIC_ROCK -> {
+                            if ((r * 3 + c * 7) % 5 == 0) {
+                                drawLine(
+                                    color = Color(0xFFFF5500).copy(alpha = 0.45f),
+                                    start = Offset(x + cellW * 0.2f, y + cellH * 0.8f),
+                                    end = Offset(x + cellW * 0.8f, y + cellH * 0.2f),
+                                    strokeWidth = 1.5f
+                                )
+                            }
+                        }
+                        TilePattern.DARK_CRYSTAL -> {
+                            drawLine(
+                                color = Color(0xFFC77DFF).copy(alpha = 0.3f),
+                                start = Offset(x + cellW * 0.1f, y + cellH * 0.1f),
+                                end = Offset(x + cellW * 0.9f, y + cellH * 0.9f),
+                                strokeWidth = 1f
+                            )
+                        }
+                        TilePattern.OBSIDIAN_GOLD -> {
+                            drawRoundRect(
+                                color = Color(0xFFFFD700).copy(alpha = 0.25f),
+                                topLeft = Offset(x + 2f, y + 2f),
+                                size = Size(cellW - 4f, cellH - 4f),
+                                cornerRadius = CornerRadius(6f, 6f),
+                                style = Stroke(width = 1f)
+                            )
+                        }
+                    }
+
+                    // Border Grid Line
                     drawRoundRect(
                         color = gridBorderColor,
                         topLeft = Offset(x, y),
@@ -322,7 +563,7 @@ fun GameBoardComposable(
                 }
             }
 
-            // 2. Draw Valid Move Candidate Cells (Border with Quick Pass & Play style from HomeScreen)
+            // 6. Draw Valid Move Candidate Cells (Player Turn Interactive Tiles)
             for (pos in validHighlights) {
                 val drawR = if (shouldFlip) (rows - 1 - pos.r) else pos.r
                 val drawC = if (shouldFlip) (cols - 1 - pos.c) else pos.c
@@ -331,35 +572,34 @@ fun GameBoardComposable(
                 val y = drawR * stepY
 
                 val highlightColor = if (gameState.turn == 0) NeonCyan else NeonMagenta
-                val cellGradientBrush = Brush.horizontalGradient(
-                    colors = listOf(highlightColor.copy(alpha = 0.8f), highlightColor),
-                    startX = x,
-                    endX = x + cellW
+
+                // Outer ambient glow aura around valid target tile
+                drawRoundRect(
+                    color = highlightColor.copy(alpha = 0.25f),
+                    topLeft = Offset(x - 2f, y - 2f),
+                    size = Size(cellW + 4f, cellH + 4f),
+                    cornerRadius = CornerRadius(10f, 10f)
                 )
 
-                // Subtle inner glow overlay
+                // Soft semi-transparent overlay fill
                 drawRoundRect(
-                    brush = Brush.linearGradient(
-                        colors = listOf(highlightColor.copy(alpha = 0.15f), highlightColor.copy(alpha = 0.05f)),
-                        start = Offset(x, y),
-                        end = Offset(x + cellW, y + cellH)
-                    ),
+                    color = highlightColor.copy(alpha = 0.2f),
                     topLeft = Offset(x, y),
                     size = Size(cellW, cellH),
                     cornerRadius = CornerRadius(8f, 8f)
                 )
 
-                // High-visibility border
+                // Simple, clean, static highlighted border
                 drawRoundRect(
-                    brush = cellGradientBrush,
+                    color = highlightColor,
                     topLeft = Offset(x, y),
                     size = Size(cellW, cellH),
                     cornerRadius = CornerRadius(8f, 8f),
-                    style = Stroke(width = 2.dp.toPx())
+                    style = Stroke(width = 2.5.dp.toPx())
                 )
             }
 
-            // 3. Draw Snap Grid Target Dots when in Wall Mode / Dragging
+            // 7. Draw Snap Grid Target Dots when in Wall Mode / Dragging
             if ((isWallMode || effectiveHoverWall != null) && gameState.winner == null) {
                 val snapDotColor = if (gameState.turn == 0) Color(0xFF3B82F6) else Color(0xFFEF4444)
                 for (r in 0 until rows - 1) {
@@ -384,7 +624,7 @@ fun GameBoardComposable(
                 }
             }
 
-            // 4. Draw Placed Walls (Glowing Neon Pill Capsules in Player Ball Colors)
+            // 8. Draw Placed Walls
             val wallShadow = Color.Black.copy(alpha = 0.5f)
 
             for (wall in gameState.walls) {
@@ -403,7 +643,6 @@ fun GameBoardComposable(
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.9f
 
-                    // Wall Drop Shadow
                     drawRoundRect(
                         color = wallShadow,
                         topLeft = Offset(x, y + 3f),
@@ -411,7 +650,6 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(10f, 10f)
                     )
 
-                    // Wall Main Pill
                     drawRoundRect(
                         brush = Brush.horizontalGradient(colors = wallGradients),
                         topLeft = Offset(x, y),
@@ -419,7 +657,6 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(10f, 10f)
                     )
 
-                    // Top Highlight Line
                     drawRoundRect(
                         color = Color.White.copy(alpha = 0.4f),
                         topLeft = Offset(x + 4f, y + 2f),
@@ -432,7 +669,6 @@ fun GameBoardComposable(
                     val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
 
-                    // Wall Drop Shadow
                     drawRoundRect(
                         color = wallShadow,
                         topLeft = Offset(x + 3f, y),
@@ -440,7 +676,6 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(10f, 10f)
                     )
 
-                    // Wall Main Pill
                     drawRoundRect(
                         brush = Brush.verticalGradient(colors = wallGradients),
                         topLeft = Offset(x, y),
@@ -448,7 +683,6 @@ fun GameBoardComposable(
                         cornerRadius = CornerRadius(10f, 10f)
                     )
 
-                    // Left Highlight Line
                     drawRoundRect(
                         color = Color.White.copy(alpha = 0.4f),
                         topLeft = Offset(x + 2f, y + 4f),
@@ -458,7 +692,7 @@ fun GameBoardComposable(
                 }
             }
 
-            // 5. Live Drag Hover Preview Wall
+            // 9. Live Drag Hover Preview Wall
             val hover = effectiveHoverWall
             if (hover != null) {
                 val drawR = if (shouldFlip) (rows - 2 - hover.r) else hover.r
@@ -482,7 +716,6 @@ fun GameBoardComposable(
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.9f
 
-                    // Glow aura
                     drawRoundRect(
                         color = previewFill.copy(alpha = 0.35f),
                         topLeft = Offset(x - 4f, y - 4f),
@@ -510,7 +743,6 @@ fun GameBoardComposable(
                     val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
 
-                    // Glow aura
                     drawRoundRect(
                         color = previewFill.copy(alpha = 0.35f),
                         topLeft = Offset(x - 4f, y - 4f),
@@ -535,7 +767,7 @@ fun GameBoardComposable(
                 }
             }
 
-            // 6. Draw Player Pawns (3D Spheres with White Ring Halo for P1)
+            // 10. Draw Player Pawns
             for (p in gameState.pawns.indices) {
                 val pawnPos = gameState.pawns[p]
                 val drawR = if (shouldFlip) (rows - 1 - pawnPos.r) else pawnPos.r
@@ -547,7 +779,6 @@ fun GameBoardComposable(
 
                 val isTurn = gameState.turn == p && gameState.winner == null
 
-                // Drop Shadow
                 drawCircle(
                     color = Color.Black.copy(alpha = 0.5f),
                     radius = pawnRadius * 1.05f,
@@ -555,7 +786,6 @@ fun GameBoardComposable(
                 )
 
                 if (p == 0) {
-                    // Player 1 (Blue Pawn): Active White Ring Halo
                     drawCircle(
                         color = Color.White,
                         radius = pawnRadius * 1.25f,
@@ -563,7 +793,6 @@ fun GameBoardComposable(
                         style = Stroke(width = 3.5f)
                     )
 
-                    // 3D Blue Sphere
                     val sphereGradients = listOf(
                         Color(0xFFE0F2FE),
                         Color(0xFF93C5FD),
@@ -582,14 +811,12 @@ fun GameBoardComposable(
                         center = Offset(centerX, centerY)
                     )
 
-                    // Glossy Specular Reflection
                     drawCircle(
                         color = Color.White.copy(alpha = 0.7f),
                         radius = pawnRadius * 0.32f,
                         center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
                     )
                 } else {
-                    // Player 2 / AI (Red Coral Pawn)
                     if (isTurn) {
                         drawCircle(
                             color = Color(0xFFEF4444).copy(alpha = 0.35f),
@@ -604,7 +831,6 @@ fun GameBoardComposable(
                         )
                     }
 
-                    // 3D Red Sphere
                     val sphereGradients = listOf(
                         Color(0xFFFFE4E6),
                         Color(0xFFFCA5A5),
@@ -623,7 +849,6 @@ fun GameBoardComposable(
                         center = Offset(centerX, centerY)
                     )
 
-                    // Glossy Specular Reflection
                     drawCircle(
                         color = Color.White.copy(alpha = 0.7f),
                         radius = pawnRadius * 0.32f,
@@ -634,5 +859,6 @@ fun GameBoardComposable(
         }
     }
 }
+
 
 
