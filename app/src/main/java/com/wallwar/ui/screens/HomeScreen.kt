@@ -642,10 +642,10 @@ fun TableBoardPreviewAnimation(
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "TableBoardAnim")
     val alphaGlow by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.95f,
+        initialValue = 0.45f,
+        targetValue = 0.98f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
+            animation = tween(1400, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "AlphaGlow"
@@ -655,24 +655,40 @@ fun TableBoardPreviewAnimation(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = LinearEasing),
+            animation = tween(2600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "PulsePhase"
     )
 
+    val shimmerOffset by infiniteTransition.animateFloat(
+        initialValue = -120f,
+        targetValue = 600f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ShimmerOffset"
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .height(68.dp)
+            .shadow(
+                elevation = 8.dp,
+                shape = RoundedCornerShape(12.dp),
+                spotColor = arenaColor,
+                ambientColor = arenaColor
+            )
             .clip(RoundedCornerShape(12.dp))
             .background(NeonDarkSurface)
             .border(
-                width = 1.dp,
+                width = 1.2.dp,
                 brush = Brush.linearGradient(
                     listOf(
                         arenaColor.copy(alpha = alphaGlow),
-                        arenaColor.copy(alpha = 0.2f),
+                        arenaColor.copy(alpha = 0.3f),
                         NeonCyan.copy(alpha = alphaGlow)
                     )
                 ),
@@ -697,10 +713,10 @@ fun TableBoardPreviewAnimation(
                     val y = 4f + r * (cellH + 4f)
 
                     val waveDist = (c + r) / (cols + rows).toFloat()
-                    val isLit = ((pulsePhase + waveDist) % 1.0f) < 0.35f
+                    val isLit = ((pulsePhase + waveDist) % 1.0f) < 0.38f
 
                     drawRoundRect(
-                        color = if (isLit) arenaColor.copy(alpha = 0.45f * alphaGlow) else Color(0xFF161B2B),
+                        color = if (isLit) arenaColor.copy(alpha = 0.55f * alphaGlow) else Color(0xFF161B2B),
                         topLeft = Offset(x, y),
                         size = Size(cellW, cellH),
                         cornerRadius = CornerRadius(3f, 3f)
@@ -708,13 +724,21 @@ fun TableBoardPreviewAnimation(
                 }
             }
 
-            // Red & Blue / Arena Pawn Previews
+            // Red & Blue / Arena Pawn Previews + Radial Glow
             val redX = 4f + 1 * (cellW + 4f) + cellW / 2f
             val redY = 4f + 1 * (cellH + 4f) + cellH / 2f
 
             val blueX = 4f + 5 * (cellW + 4f) + cellW / 2f
             val blueY = 4f + 1 * (cellH + 4f) + cellH / 2f
 
+            // Red Pawn Glow
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(NeonMagenta.copy(alpha = 0.8f * alphaGlow), Color.Transparent),
+                    center = Offset(redX, redY),
+                    radius = cellW * 0.9f
+                )
+            )
             drawCircle(
                 color = NeonMagenta,
                 radius = minOf(cellW, cellH) * 0.38f,
@@ -726,6 +750,14 @@ fun TableBoardPreviewAnimation(
                 center = Offset(redX, redY)
             )
 
+            // Blue / Arena Pawn Glow
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(arenaColor.copy(alpha = 0.85f * alphaGlow), Color.Transparent),
+                    center = Offset(blueX, blueY),
+                    radius = cellW * 0.9f
+                )
+            )
             drawCircle(
                 color = arenaColor,
                 radius = minOf(cellW, cellH) * 0.38f,
@@ -737,7 +769,7 @@ fun TableBoardPreviewAnimation(
                 center = Offset(blueX, blueY)
             )
 
-            // Wall preview
+            // Wall preview with bright glow
             val wallX = 4f + 3 * (cellW + 4f) - 2f
             val wallY = 4f + 0 * (cellH + 4f)
             val wallH = (cellH * 2f) + 4f
@@ -745,13 +777,13 @@ fun TableBoardPreviewAnimation(
             drawRoundRect(
                 color = arenaColor.copy(alpha = alphaGlow),
                 topLeft = Offset(wallX, wallY),
-                size = Size(4f, wallH),
-                cornerRadius = CornerRadius(2f, 2f)
+                size = Size(5f, wallH),
+                cornerRadius = CornerRadius(2.5f, 2.5f)
             )
 
             // Tactical Corner Frame Viewfinder Lines
             val cornerL = 8.dp.toPx()
-            val strokeW = 1.5.dp.toPx()
+            val strokeW = 1.8.dp.toPx()
 
             drawPath(
                 path = Path().apply {
@@ -792,6 +824,20 @@ fun TableBoardPreviewAnimation(
                 color = arenaColor.copy(alpha = alphaGlow),
                 style = Stroke(width = strokeW)
             )
+
+            // Sweeping Metallic Reflection / Shimmer Light Beam
+            val shimmerBrush = Brush.linearGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color.White.copy(alpha = 0.15f * alphaGlow),
+                    Color.White.copy(alpha = 0.40f * alphaGlow),
+                    Color.White.copy(alpha = 0.15f * alphaGlow),
+                    Color.Transparent
+                ),
+                start = Offset(shimmerOffset, 0f),
+                end = Offset(shimmerOffset + 80f, h)
+            )
+            drawRect(brush = shimmerBrush)
         }
     }
 }
@@ -808,10 +854,10 @@ fun OnlineArenaCard(
 
     val infiniteTransition = rememberInfiniteTransition(label = "OnlineArenaCardAnim")
     val alphaGlow by infiniteTransition.animateFloat(
-        initialValue = 0.4f,
-        targetValue = 0.95f,
+        initialValue = 0.45f,
+        targetValue = 0.98f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1600, easing = FastOutSlowInEasing),
+            animation = tween(1500, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "AlphaGlow"
@@ -821,21 +867,22 @@ fun OnlineArenaCard(
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
         border = BorderStroke(
-            width = if (arena.isPopular || arena.isBestValue) 1.5.dp else 1.dp,
+            width = if (arena.isPopular || arena.isBestValue) 2.dp else 1.5.dp,
             brush = Brush.linearGradient(
                 listOf(
                     arenaColor.copy(alpha = alphaGlow),
-                    arenaColor.copy(alpha = 0.2f),
-                    NeonCyan.copy(alpha = alphaGlow)
+                    arenaColor.copy(alpha = 0.25f),
+                    NeonCyan.copy(alpha = alphaGlow),
+                    arenaColor.copy(alpha = alphaGlow)
                 )
             )
         ),
         modifier = Modifier
             .width(280.dp)
             .shadow(
-                elevation = if (arena.isPopular || arena.isBestValue) 12.dp else 6.dp,
+                elevation = if (arena.isPopular || arena.isBestValue) 20.dp else 14.dp,
                 shape = RoundedCornerShape(20.dp),
-                spotColor = arenaColor.copy(alpha = alphaGlow),
+                spotColor = arenaColor,
                 ambientColor = arenaColor
             )
             .testTag("online_arena_card_${arena.id}")
