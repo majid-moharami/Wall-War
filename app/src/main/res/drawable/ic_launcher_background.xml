@@ -5,24 +5,42 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:pathData="M0,0h108v108h-108z">
+    
+    <!-- Dark Background Radial Canvas -->
+    <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient
                 android:centerX="54"
                 android:centerY="54"
-                android:gradientRadius="70"
+                android:gradientRadius="75"
                 android:type="radial">
-                <item android:offset="0.0" android:color="#1A2234" />
-                <item android:offset="0.6" android:color="#101522" />
-                <item android:offset="1.0" android:color="#0A0D15" />
+                <item android:offset="0.0" android:color="#121828" />
+                <item android:offset="0.65" android:color="#0A0E18" />
+                <item android:offset="1.0" android:color="#04060B" />
             </gradient>
         </aapt:attr>
     </path>
-    <!-- Background Ambient Ring Glow -->
+
+    <!-- Tactical Grid Pattern -->
     <path
-        android:pathData="M54,12 A 42,42 0 1,1 53.9,12 Z"
-        android:strokeColor="#1200F0FF"
-        android:strokeWidth="12"
+        android:pathData="M 20,24 H 88 M 20,34 H 88 M 20,44 H 88 M 20,54 H 88 M 20,64 H 88 M 20,74 H 88 M 20,84 H 88"
+        android:strokeColor="#1800E5FF"
+        android:strokeWidth="0.8"
         android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 24,20 V 88 M 34,20 V 88 M 44,20 V 88 M 54,20 V 88 M 64,20 V 88 M 74,20 V 88 M 84,20 V 88"
+        android:strokeColor="#1800E5FF"
+        android:strokeWidth="0.8"
+        android:fillColor="#00000000" />
+
+    <!-- Top-Left Red Ambient Radial Glow -->
+    <path
+        android:pathData="M 38,32 m -20,0 a 20,20 0 1,0 40,0 a 20,20 0 1,0 -40,0"
+        android:fillColor="#22FF0055" />
+
+    <!-- Bottom-Right Blue Ambient Radial Glow -->
+    <path
+        android:pathData="M 70,70 m -20,0 a 20,20 0 1,0 40,0 a 20,20 0 1,0 -40,0"
+        android:fillColor="#2200F0FF" />
 </vector>

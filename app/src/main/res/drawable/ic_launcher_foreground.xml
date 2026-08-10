@@ -1,173 +1,145 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Outer Circular Neon Frame Arcs -->
+    <!-- Outer Beveled Frame with Dual Neon Borders -->
     <path
-        android:pathData="M 32,20 A 24,24 0 0 1 76,20"
+        android:pathData="M 28,18 H 80 A 10,10 0 0 1 90,28 V 80 A 10,10 0 0 1 80,90 H 28 A 10,10 0 0 1 18,80 V 28 A 10,10 0 0 1 28,18 Z"
+        android:fillColor="#0C101C"
+        android:strokeColor="#222C42"
+        android:strokeWidth="1.5" />
+
+    <!-- Left/Bottom Neon Cyan Frame Arc -->
+    <path
+        android:pathData="M 18,80 V 28 A 10,10 0 0 1 28,18 H 54 M 18,80 A 10,10 0 0 0 28,90 H 54"
         android:strokeColor="#00F0FF"
-        android:strokeWidth="2.5"
+        android:strokeWidth="2.2"
         android:strokeLineCap="round"
         android:fillColor="#00000000" />
 
+    <!-- Right/Top Neon Pink/Red Frame Arc -->
     <path
-        android:pathData="M 18,36 A 40,40 0 0 0 18,72"
-        android:strokeColor="#00C2FF"
-        android:strokeWidth="2"
+        android:pathData="M 54,18 H 80 A 10,10 0 0 1 90,28 V 54 M 54,90 H 80 A 10,10 0 0 0 90,80 V 54"
+        android:strokeColor="#FF0055"
+        android:strokeWidth="2.2"
         android:strokeLineCap="round"
         android:fillColor="#00000000" />
 
+    <!-- Corner Hexagon Tactical Icons -->
     <path
-        android:pathData="M 90,36 A 40,40 0 0 1 90,72"
-        android:strokeColor="#00C2FF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000" />
-
-    <path
-        android:pathData="M 26,82 A 38,38 0 0 0 82,82"
-        android:strokeColor="#00C2FF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000" />
-
-    <!-- "WW" Golden Neon Emblem at top center -->
-    <path
-        android:pathData="M 45,15.5 L 47,20.5 L 49,17.5 L 51,20.5 L 53,15.5"
-        android:strokeColor="#F5C46B"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000" />
-
-    <path
-        android:pathData="M 55,15.5 L 57,20.5 L 59,17.5 L 61,20.5 L 63,15.5"
-        android:strokeColor="#F5C46B"
-        android:strokeWidth="1.6"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000" />
-
-    <!-- Tactical Bronze Grid Board -->
-    <path
-        android:pathData="M 27,26 h 54 v 52 h -54 z"
-        android:strokeColor="#6E5E42"
-        android:strokeWidth="1.2"
-        android:fillColor="#121824" />
-
-    <!-- Grid Vertical Lines -->
-    <path
-        android:pathData="M 36,26 v 52 M 45,26 v 52 M 54,26 v 52 M 63,26 v 52 M 72,26 v 52"
-        android:strokeColor="#383020"
-        android:strokeWidth="0.8"
-        android:fillColor="#00000000" />
-
-    <!-- Grid Horizontal Lines -->
-    <path
-        android:pathData="M 27,35 h 54 M 27,44 h 54 M 27,53 h 54 M 27,62 h 54 M 27,71 h 54"
-        android:strokeColor="#383020"
-        android:strokeWidth="0.8"
-        android:fillColor="#00000000" />
-
-    <!-- Glowing Arching Bridge (Cyan + Red Dual Neon Cable) -->
-    <path
-        android:pathData="M 37,51 C 37,30 71,26 71,47"
-        android:strokeColor="#00F0FF"
-        android:strokeWidth="2.8"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000" />
-
-    <path
-        android:pathData="M 37,51 C 37,31.5 71,27.5 71,47"
-        android:strokeColor="#FF3B5C"
-        android:strokeWidth="1.4"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000" />
-
-    <!-- Cyan Concentric Pawn Node (Left) -->
-    <path
-        android:pathData="M 37,51 A 6.5,6.5 0 1,1 36.9,51 Z"
-        android:strokeColor="#00F0FF"
-        android:strokeWidth="1.5"
-        android:fillColor="#0A2433" />
-    <path
-        android:pathData="M 37,51 A 3.2,3.2 0 1,1 36.9,51 Z"
-        android:strokeColor="#00F0FF"
-        android:strokeWidth="1.2"
-        android:fillColor="#00F0FF" />
-
-    <!-- Red Concentric Pawn Node (Right) -->
-    <path
-        android:pathData="M 71,47 A 6.5,6.5 0 1,1 70.9,47 Z"
-        android:strokeColor="#FF3B5C"
-        android:strokeWidth="1.5"
-        android:fillColor="#330A14" />
-    <path
-        android:pathData="M 71,47 A 3.2,3.2 0 1,1 70.9,47 Z"
-        android:strokeColor="#FF3B5C"
-        android:strokeWidth="1.2"
-        android:fillColor="#FF3B5C" />
-
-    <!-- Bottom Board Inset Cutout for 3D Wall -->
-    <path
-        android:pathData="M 44,68 h 20 v 10 h -20 z"
-        android:fillColor="#0D111A"
-        android:strokeColor="#6E5E42"
-        android:strokeWidth="0.8" />
-
-    <!-- Circuit Traces at Bottom -->
-    <path
-        android:pathData="M 36,75 h 8 M 64,75 h 8 M 54,78 v 3"
-        android:strokeColor="#4A3D29"
-        android:strokeWidth="0.8"
-        android:fillColor="#00000000" />
-
-    <!-- Directional Arrow Indicators -->
-    <path
-        android:pathData="M 52,69.5 L 54,67.5 L 56,69.5"
-        android:strokeColor="#D6B265"
+        android:pathData="M 26,24 L 28,23 L 30,24 L 30,26 L 28,27 L 26,26 Z"
+        android:strokeColor="#FF0055"
         android:strokeWidth="1"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000" />
+        android:fillColor="#220011" />
 
     <path
-        android:pathData="M 52,80.5 L 54,82.5 L 56,80.5"
-        android:strokeColor="#D6B265"
+        android:pathData="M 78,82 L 80,81 L 82,82 L 82,84 L 80,85 L 78,84 Z"
+        android:strokeColor="#00F0FF"
         android:strokeWidth="1"
+        android:fillColor="#001822" />
+
+    <!-- TOP-LEFT GLOWING RED ORB -->
+    <path android:pathData="M 38,32 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="35"
+                android:centerY="29"
+                android:gradientRadius="10"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#FF7395" />
+                <item android:offset="0.45" android:color="#FF0044" />
+                <item android:offset="1.0" android:color="#5A0012" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path
+        android:pathData="M 38,32 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0"
+        android:strokeColor="#FF2A6D"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M 34,28 A 4,4 0 0 1 39,26"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
         android:strokeLineCap="round"
-        android:strokeLineJoin="round"
         android:fillColor="#00000000" />
 
+    <!-- BOTTOM-RIGHT GLOWING BLUE ORB -->
+    <path android:pathData="M 70,72 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="67"
+                android:centerY="69"
+                android:gradientRadius="10"
+                android:type="radial">
+                <item android:offset="0.0" android:color="#80F5FF" />
+                <item android:offset="0.45" android:color="#00B2FF" />
+                <item android:offset="1.0" android:color="#002D57" />
+            </gradient>
+        </aapt:attr>
+    </path>
     <path
-        android:pathData="M 46,75 L 44,75 L 46,75"
-        android:strokeColor="#D6B265"
+        android:pathData="M 70,72 m -9,0 a 9,9 0 1,0 18,0 a 9,9 0 1,0 -18,0"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M 66,68 A 4,4 0 0 1 71,66"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- DIAGONAL 3D WALL BARRIER -->
+    <!-- 3D Extrusion Side Face -->
+    <path android:pathData="M 31,80 L 36,83 L 78,39 L 73,36 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="31"
+                android:startY="80"
+                android:endX="78"
+                android:endY="39"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#007799" />
+                <item android:offset="0.5" android:color="#550088" />
+                <item android:offset="1.0" android:color="#880033" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- 3D Top Main Diagonal Wall Face -->
+    <path android:pathData="M 31,80 L 73,36 L 78,25 L 36,69 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="31"
+                android:startY="80"
+                android:endX="78"
+                android:endY="25"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#00F0FF" />
+                <item android:offset="0.45" android:color="#A800FF" />
+                <item android:offset="1.0" android:color="#FF0055" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Wall Edge Bevel Lines -->
+    <path
+        android:pathData="M 31,80 L 73,36 L 78,25 L 36,69 Z"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="1"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
         android:fillColor="#00000000" />
 
-    <!-- 3D Isometric Wall Block -->
-    <!-- Top Face -->
+    <!-- Wall Specular Highlight Beam -->
     <path
-        android:pathData="M 49,72 L 58,68 L 61,70 L 52,74 Z"
-        android:fillColor="#C4A058"
-        android:strokeColor="#E6C47A"
-        android:strokeWidth="0.5" />
-    <!-- Front/Left Face -->
-    <path
-        android:pathData="M 49,72 L 52,74 L 52,79 L 49,77 Z"
-        android:fillColor="#7A5E2B"
-        android:strokeColor="#B8934A"
-        android:strokeWidth="0.5" />
-    <!-- Side/Right Face -->
-    <path
-        android:pathData="M 52,74 L 61,70 L 61,75 L 52,79 Z"
-        android:fillColor="#4D3B1B"
-        android:strokeColor="#8A6B32"
-        android:strokeWidth="0.5" />
+        android:pathData="M 33,78 L 75,34"
+        android:strokeColor="#F0FFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
 
 </vector>
