@@ -34,7 +34,7 @@ fun WallWarNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = AuthRoute,
+        startDestination = HomeRoute,
         modifier = modifier
     ) {
         composable<AuthRoute> {
@@ -51,6 +51,7 @@ fun WallWarNavGraph(
                 onRegisterEmail = viewModel::registerWithEmail,
                 onSignInWithGoogle = viewModel::signInWithGoogle,
                 onContinueAsGuest = viewModel::continueAsGuest,
+                onPlayAsGuestDevice = viewModel::playAsGuestDevice,
                 onToggleAuthMode = viewModel::toggleAuthMode,
                 onClearError = viewModel::clearError,
                 onAuthSuccess = {

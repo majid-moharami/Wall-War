@@ -80,6 +80,7 @@ fun AuthScreen(
     onRegisterEmail: (String, String, String) -> Unit,
     onSignInWithGoogle: (android.content.Context) -> Unit,
     onContinueAsGuest: () -> Unit,
+    onPlayAsGuestDevice: (android.content.Context) -> Unit = {},
     onToggleAuthMode: () -> Unit,
     onClearError: () -> Unit,
     onAuthSuccess: () -> Unit,
@@ -445,19 +446,22 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Play as Guest Option
+                    // Play as Guest Option (Device Auth)
                     OutlinedButton(
-                        onClick = onContinueAsGuest,
+                        onClick = { onPlayAsGuestDevice(context) },
                         enabled = authUiState !is AuthUiState.Loading,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFA0ACCC)),
-                        border = BorderStroke(1.dp, Color(0xFF374151))
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonAmber),
+                        border = BorderStroke(1.5.dp, NeonAmber)
                     ) {
                         Text(
-                            text = "Play as Guest (Offline)",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
+                            text = "Play as Guest (Device ID)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeonAmber
                         )
                     }
                 }

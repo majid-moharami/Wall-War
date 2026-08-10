@@ -217,29 +217,51 @@ class NakamaRepository @Inject constructor(
             }
         }
 
-    suspend fun authenticateWithDevice(username: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun authenticateWithDevice(deviceId: String, username: String? = null): Boolean = withContext(Dispatchers.IO) {
         try {
-            var deviceId = prefs.getString("nakama_device_id", null)
-            if (deviceId == null) {
-                deviceId = UUID.randomUUID().toString()
-                prefs.edit().putString("nakama_device_id", deviceId).apply()
-            }
-            val sanitizedUsername = username.filter { it.isLetterOrDigit() }.ifBlank { "Player${(1000..9999).random()}" }
+            prefs.edit().putString("nakama_device_id", deviceId).apply()
+            val sanitizedUsername = username?.filter { it.isLetterOrDigit() }?.ifBlank { null }
             
-            try {
-                session = client.authenticateDevice(deviceId, true, sanitizedUsername).await()
+            session = try {
+                if (sanitizedUsername != null) {
+                    client.authenticateDevice(deviceId, true, sanitizedUsername).await()
+                } else {
+                    client.authenticateDevice(deviceId, true).await()
+                }
             } catch (e: Exception) {
-                Log.w("NakamaRepository", "Device auth with username '$sanitizedUsername' failed: ${e.message}")
-                // If it fails, try one more time with a slightly different username to avoid conflicts
-                val fallbackUsername = "Guest${(100000..999999).random()}"
-                session = client.authenticateDevice(deviceId, true, fallbackUsername).await()
+                Log.w("NakamaRepository", "Device auth with username '$sanitizedUsername' failed: ${e.message}, retrying without username")
+                client.authenticateDevice(deviceId, true).await()
             }
             
             onSessionAuthenticated()
             true
         } catch (e: Exception) {
-            Log.w("NakamaRepository", "Device auth total failure: ${e.message}")
+            Log.e("NakamaRepository", "Device auth failed: ${e.message}", e)
             false
+        }
+    }
+
+    suspend fun linkGoogle(idToken: String): Boolean = withContext(Dispatchers.IO) {
+        val currentSession = session ?: throw IllegalStateException("No active Nakama session to link")
+        try {
+            client.linkGoogle(currentSession, idToken).await()
+            onSessionAuthenticated()
+            true
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Failed to link Google account: ${e.message}", e)
+            throw e
+        }
+    }
+
+    suspend fun linkEmail(email: String, password: String): Boolean = withContext(Dispatchers.IO) {
+        val currentSession = session ?: throw IllegalStateException("No active Nakama session to link")
+        try {
+            client.linkEmail(currentSession, email.trim(), password.trim()).await()
+            onSessionAuthenticated()
+            true
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Failed to link Email account: ${e.message}", e)
+            throw e
         }
     }
 
@@ -264,7 +286,11 @@ class NakamaRepository @Inject constructor(
         if (session != null && !session!!.IsExpired()) {
             return@withContext true
         }
-        return@withContext authenticateWithDevice(username)
+        var deviceId = prefs.getString("nakama_device_id", null)
+        if (deviceId == null) {
+            deviceId = UUID.randomUUID().toString()
+        }
+        return@withContext authenticateWithDevice(deviceId, username)
     }
 
     fun getNakamaUserId(): String? = nakamaUserId

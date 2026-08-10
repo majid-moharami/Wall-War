@@ -143,6 +143,35 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun playAsGuestDevice(context: Context) {
+        viewModelScope.launch {
+            _authUiState.value = AuthUiState.Loading
+            val androidId = try {
+                android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID)
+            } catch (e: Exception) {
+                null
+            }
+            val deviceId = if (!androidId.isNullOrBlank() && androidId != "9774d56d682e549c") {
+                androidId
+            } else {
+                java.util.UUID.randomUUID().toString()
+            }
+
+            val result = authRepository.authenticateWithDevice(deviceId, userProfile.value.displayName)
+            when (result) {
+                is SignInResult.Success -> {
+                    _authUiState.value = AuthUiState.Success(result.name, result.email)
+                }
+                is SignInResult.Error -> {
+                    _authUiState.value = AuthUiState.Error(result.message)
+                }
+                is SignInResult.Cancelled -> {
+                    _authUiState.value = AuthUiState.Idle
+                }
+            }
+        }
+    }
+
     fun continueAsGuest() {
         viewModelScope.launch {
             _authUiState.value = AuthUiState.Loading

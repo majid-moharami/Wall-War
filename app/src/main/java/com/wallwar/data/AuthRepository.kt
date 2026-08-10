@@ -73,6 +73,65 @@ class AuthRepository @Inject constructor(
         return nakamaRepository.hasValidSession()
     }
 
+    suspend fun authenticateWithDevice(deviceId: String, username: String? = null): SignInResult {
+        return try {
+            val displayName = username?.ifBlank { "Guest_${deviceId.takeLast(4)}" } ?: "Guest_${deviceId.takeLast(4)}"
+            val success = nakamaRepository.authenticateWithDevice(deviceId, displayName)
+            if (success) {
+                syncFromNakamaServer()
+                val current = _userProfile.value
+                val updated = current.copy(
+                    isLoggedIn = true,
+                    displayName = if (current.displayName.isBlank()) displayName else current.displayName,
+                    email = "guest@wallwar.app",
+                    nakamaUserId = nakamaRepository.getNakamaUserId()
+                )
+                saveProfile(updated)
+                SignInResult.Success(updated.displayName, updated.email)
+            } else {
+                SignInResult.Error("Device authentication failed. Please check server connection.")
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error in authenticateWithDevice: ${e.message}", e)
+            SignInResult.Error(e.localizedMessage ?: e.message ?: "Device authentication error")
+        }
+    }
+
+    suspend fun linkGoogle(idToken: String): SignInResult {
+        return try {
+            nakamaRepository.linkGoogle(idToken)
+            syncFromNakamaServer()
+            val current = _userProfile.value
+            val updated = current.copy(
+                isLoggedIn = true,
+                nakamaUserId = nakamaRepository.getNakamaUserId()
+            )
+            saveProfile(updated)
+            SignInResult.Success(updated.displayName, updated.email)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error linking Google account: ${e.message}", e)
+            SignInResult.Error(e.localizedMessage ?: e.message ?: "Failed to link Google account")
+        }
+    }
+
+    suspend fun linkEmail(email: String, password: String): SignInResult {
+        return try {
+            nakamaRepository.linkEmail(email, password)
+            syncFromNakamaServer()
+            val current = _userProfile.value
+            val updated = current.copy(
+                isLoggedIn = true,
+                email = email,
+                nakamaUserId = nakamaRepository.getNakamaUserId()
+            )
+            saveProfile(updated)
+            SignInResult.Success(updated.displayName, email)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error linking Email account: ${e.message}", e)
+            SignInResult.Error(e.localizedMessage ?: e.message ?: "Failed to link Email account")
+        }
+    }
+
     suspend fun authenticateWithEmail(
         email: String,
         password: String,
