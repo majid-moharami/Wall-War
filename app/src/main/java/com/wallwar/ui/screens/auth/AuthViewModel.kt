@@ -47,10 +47,16 @@ class AuthViewModel @Inject constructor(
             if (nakamaRepository.hasValidSession()) {
                 authRepository.syncFromNakamaServer()
                 val current = authRepository.userProfile.value
-                _hasSavedSession.value = true
-                _authUiState.value = AuthUiState.Success(current.displayName, current.email)
+                if (current.isLoggedIn) {
+                    _hasSavedSession.value = true
+                    _authUiState.value = AuthUiState.Success(current.displayName, current.email)
+                } else {
+                    _hasSavedSession.value = false
+                    _authUiState.value = AuthUiState.Idle
+                }
             } else {
                 _hasSavedSession.value = false
+                _authUiState.value = AuthUiState.Idle
             }
         }
     }
