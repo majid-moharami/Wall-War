@@ -87,6 +87,7 @@ fun ProfileScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToCoinShop: () -> Unit = {},
+    onNavigateToAuth: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -271,16 +272,32 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Official Sign in with Google / Logout Button
+                // Official Sign in with Google / Email / Logout Button
                 if (!userProfile.isLoggedIn) {
                     Button(
-                        onClick = { onSignInWithGoogle(context) },
+                        onClick = onNavigateToAuth,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
+                            containerColor = NeonCyan,
                             contentColor = Color.Black
                         )
+                    ) {
+                        Text(
+                            text = "Log In or Create Account",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 15.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = { onSignInWithGoogle(context) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                        border = BorderStroke(1.dp, Color.White)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -296,40 +313,16 @@ fun ProfileScreen(
                             Text(
                                 text = "Sign in with Google",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = Color.Black
+                                fontSize = 14.sp
                             )
-                        }
-                    }
-                    if (signInStatus == null && LocalContext.current.getString(com.wallwar.R.string.default_web_client_id).isEmpty()) {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2411)),
-                            border = BorderStroke(1.dp, NeonAmber)
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = "Configuration Required",
-                                    color = NeonAmber,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = "To enable Google Sign-In, you must add your Web Client ID to strings.xml. For now, you are playing in Guest Mode.",
-                                    color = Color(0xFFE2C275),
-                                    fontSize = 11.sp,
-                                    lineHeight = 16.sp
-                                )
-                            }
                         }
                     }
                 } else {
                     OutlinedButton(
-                        onClick = { onSignOut(context) },
+                        onClick = {
+                            onSignOut(context)
+                            onNavigateToAuth()
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta),
@@ -342,7 +335,7 @@ fun ProfileScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Sign Out from Google", fontWeight = FontWeight.Bold)
+                            Text(text = "Sign Out from Nakama", fontWeight = FontWeight.Bold)
                         }
                     }
                 }

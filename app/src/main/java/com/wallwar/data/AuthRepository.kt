@@ -31,6 +31,9 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+import com.wallwar.data.auth.GoogleAuthManager
+import com.wallwar.data.auth.GoogleAuthResult
+
 sealed class SignInResult {
     data class Success(val name: String, val email: String) : SignInResult()
     object Cancelled : SignInResult()
@@ -41,7 +44,8 @@ sealed class SignInResult {
 class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val nakamaRepository: NakamaRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val googleAuthManager: GoogleAuthManager
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("wall_war_auth", Context.MODE_PRIVATE)
@@ -55,9 +59,52 @@ class AuthRepository @Inject constructor(
 
     init {
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            val initialProfile = _userProfile.value
-            nakamaRepository.ensureAuthenticatedGuest(initialProfile.displayName)
+            if (nakamaRepository.hasValidSession()) {
+                syncFromNakamaServer()
+            } else {
+                val initialProfile = _userProfile.value
+                nakamaRepository.ensureAuthenticatedGuest(initialProfile.displayName)
+                syncFromNakamaServer()
+            }
+        }
+    }
+
+    fun hasValidSavedSession(): Boolean {
+        return nakamaRepository.hasValidSession()
+    }
+
+    suspend fun authenticateWithEmail(
+        email: String,
+        password: String,
+        isRegister: Boolean,
+        username: String? = null
+    ): SignInResult {
+        return try {
+            val displayName = username?.ifBlank { email.substringBefore("@") } ?: email.substringBefore("@")
+            nakamaRepository.authenticateWithEmail(
+                email = email,
+                password = password,
+                create = isRegister,
+                username = displayName
+            )
+
+            // Sync user data directly from Nakama Account and Storage
             syncFromNakamaServer()
+
+            val current = _userProfile.value
+            val updated = current.copy(
+                isLoggedIn = true,
+                displayName = if (current.displayName.contains("Guest", ignoreCase = true)) displayName else current.displayName,
+                email = email,
+                nakamaUserId = nakamaRepository.getNakamaUserId()
+            )
+            saveProfile(updated)
+            SignInResult.Success(updated.displayName, email)
+        } catch (e: IllegalArgumentException) {
+            SignInResult.Error(e.message ?: "Authentication failed")
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error in authenticateWithEmail: ${e.message}", e)
+            SignInResult.Error(e.localizedMessage ?: e.message ?: "Email authentication error")
         }
     }
 
@@ -204,99 +251,35 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun signInWithGoogle(callingContext: Context, serverClientId: String? = null): SignInResult {
-        val clientId = serverClientId ?: getWebClientId(callingContext)
-        if (clientId.isBlank()) {
-            Log.w("AuthRepository", "Google Server Web Client ID is missing. Falling back to Guest Mode.")
-            // Automatically ensure guest authentication if Google ID is missing
-            val success = nakamaRepository.ensureAuthenticatedGuest(_userProfile.value.displayName)
-            return if (success) {
-                SignInResult.Error("Google Sign-In is not configured yet. You are playing as a Guest. Add your Client ID to strings.xml to link your Google account.")
-            } else {
-                SignInResult.Error("Guest authentication failed. Please check your server connection.")
-            }
-        }
-
-        val activityContext = callingContext.findActivity() ?: callingContext
-
-        val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
-            .setServerClientId(clientId)
-            .setAutoSelectEnabled(false)
-            .setNonce("wallwar_login_${System.currentTimeMillis()}")
-            .build()
-
-        val request = GetCredentialRequest.Builder()
-            .addCredentialOption(googleIdOption)
-            .build()
-
-        val credentialManager = CredentialManager.create(activityContext)
-
+    suspend fun authenticateWithGoogle(idToken: String, displayName: String? = null): SignInResult {
         return try {
-            val result = credentialManager.getCredential(context = activityContext, request = request)
-            val credential = result.credential
+            val name = displayName?.ifBlank { "Duelist" } ?: "Duelist"
+            nakamaRepository.authenticateWithGoogle(idToken, name)
+            syncFromNakamaServer()
 
-            if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
-                val idToken = googleIdTokenCredential.idToken
-
-                var displayName = googleIdTokenCredential.displayName
-                    ?: googleIdTokenCredential.id.substringBefore("@")
-                var email = googleIdTokenCredential.id
-                var photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
-
-                // Validate ID Token with Firebase Auth if available
-                try {
-                    val authCredential = GoogleAuthProvider.getCredential(idToken, null)
-                    val authResult = firebaseAuth.signInWithCredential(authCredential).awaitTask()
-                    val firebaseUser = authResult.user
-
-                    if (firebaseUser != null) {
-                        displayName = firebaseUser.displayName ?: displayName
-                        email = firebaseUser.email ?: email
-                        photoUrl = firebaseUser.photoUrl?.toString() ?: photoUrl
-                    }
-                } catch (e: Exception) {
-                    Log.w("AuthRepository", "Firebase Auth token exchange skipped or failed: ${e.message}")
-                }
-
-                // Authenticate with Nakama Server
-                try {
-                    nakamaRepository.authenticateWithGoogle(idToken, displayName)
-                } catch (e: Exception) {
-                    Log.w("AuthRepository", "Nakama Google authentication skipped: ${e.message}")
-                }
-
-                val current = _userProfile.value
-                val updated = current.copy(
-                    isLoggedIn = true,
-                    displayName = displayName,
-                    email = email,
-                    photoUrl = photoUrl
-                )
-                saveProfile(updated)
-                SignInResult.Success(displayName, email)
-            } else {
-                SignInResult.Error("Unsupported credential type returned from Credential Manager.")
-            }
-        } catch (e: GetCredentialCancellationException) {
-            Log.i("AuthRepository", "User cancelled Google Sign-In bottom sheet")
-            SignInResult.Cancelled
-        } catch (e: NoCredentialException) {
-            Log.w("AuthRepository", "No credential found or available: ${e.message}")
-            val helpMsg = "No Google account found or app not registered. \n\n" +
-                         "1. Ensure you have a Google account on this device.\n" +
-                         "2. Check if your SHA-1 fingerprint is added to Google Cloud Console for package: ${context.packageName}"
-            SignInResult.Error(helpMsg)
-        } catch (e: GetCredentialException) {
-            Log.e("AuthRepository", "Credential Manager exception [${e.type}]: ${e.message}", e)
-            SignInResult.Error("Google Sign-In failed: ${e.message} (Type: ${e.type})")
-        } catch (e: GoogleIdTokenParsingException) {
-            Log.e("AuthRepository", "Invalid Google ID Token: ${e.message}", e)
-            SignInResult.Error("Failed to parse Google ID token.")
+            val current = _userProfile.value
+            val updated = current.copy(
+                isLoggedIn = true,
+                displayName = name,
+                nakamaUserId = nakamaRepository.getNakamaUserId()
+            )
+            saveProfile(updated)
+            SignInResult.Success(updated.displayName, updated.email)
         } catch (e: Exception) {
-            Log.e("AuthRepository", "Authentication error: ${e.message}", e)
-            SignInResult.Error("Sign in failed: ${e.localizedMessage ?: e.message}")
+            Log.e("AuthRepository", "Error in authenticateWithGoogle: ${e.message}", e)
+            SignInResult.Error(e.localizedMessage ?: e.message ?: "Google authentication error")
+        }
+    }
+
+    suspend fun signInWithGoogle(callingContext: Context, serverClientId: String? = null): SignInResult {
+        val googleResult = googleAuthManager.getGoogleIdToken(callingContext, serverClientId)
+        return when (googleResult) {
+            is GoogleAuthResult.Success -> {
+                // Authenticate with Nakama Server using extracted Google ID Token
+                authenticateWithGoogle(googleResult.idToken, googleResult.displayName)
+            }
+            is GoogleAuthResult.Cancelled -> SignInResult.Cancelled
+            is GoogleAuthResult.Error -> SignInResult.Error(googleResult.message)
         }
     }
 
@@ -315,6 +298,9 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e("AuthRepository", "Error clearing credential state: ${e.message}")
         }
+
+        // Cleanly clear local Nakama session without wiping server data
+        nakamaRepository.logout()
 
         val current = _userProfile.value
         val updated = current.copy(

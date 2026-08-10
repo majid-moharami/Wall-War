@@ -9,6 +9,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.wallwar.ui.AppScreen
+import com.wallwar.ui.screens.auth.AuthScreen
+import com.wallwar.ui.screens.auth.AuthViewModel
 import com.wallwar.ui.screens.GameBoardScreen
 import com.wallwar.ui.screens.HistoryScreen
 import com.wallwar.ui.screens.HomeScreen
@@ -32,9 +34,33 @@ fun WallWarNavGraph(
 ) {
     NavHost(
         navController = navController,
-        startDestination = HomeRoute,
+        startDestination = AuthRoute,
         modifier = modifier
     ) {
+        composable<AuthRoute> {
+            val viewModel: AuthViewModel = hiltViewModel()
+            val authUiState by viewModel.authUiState.collectAsStateWithLifecycle()
+            val isRegisterMode by viewModel.isRegisterMode.collectAsStateWithLifecycle()
+            val hasSavedSession by viewModel.hasSavedSession.collectAsStateWithLifecycle()
+
+            AuthScreen(
+                authUiState = authUiState,
+                isRegisterMode = isRegisterMode,
+                hasSavedSession = hasSavedSession,
+                onLoginEmail = viewModel::loginWithEmail,
+                onRegisterEmail = viewModel::registerWithEmail,
+                onSignInWithGoogle = viewModel::signInWithGoogle,
+                onContinueAsGuest = viewModel::continueAsGuest,
+                onToggleAuthMode = viewModel::toggleAuthMode,
+                onClearError = viewModel::clearError,
+                onAuthSuccess = {
+                    navController.navigate(HomeRoute) {
+                        popUpTo(AuthRoute) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable<HomeRoute> {
             val viewModel: HomeViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
@@ -124,7 +150,12 @@ fun WallWarNavGraph(
                 },
                 onNavigateToHistory = { navController.navigate(HistoryRoute) },
                 onNavigateToSettings = { navController.navigate(SettingsRoute) },
-                onNavigateToCoinShop = { navController.navigate(CoinShopRoute) }
+                onNavigateToCoinShop = { navController.navigate(CoinShopRoute) },
+                onNavigateToAuth = {
+                    navController.navigate(AuthRoute) {
+                        popUpTo(HomeRoute) { inclusive = true }
+                    }
+                }
             )
         }
 

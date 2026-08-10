@@ -133,6 +133,62 @@ class NakamaRepository @Inject constructor(
         client = createClient(newConfig)
     }
 
+    fun hasValidSession(): Boolean {
+        val s = session
+        return s != null && !s.IsExpired()
+    }
+
+    fun logout() {
+        session = null
+        nakamaUserId = null
+        nakamaUsername = null
+        prefs.edit()
+            .remove("nakama_jwt_token")
+            .remove("nakama_user_id")
+            .remove("nakama_username")
+            .apply()
+
+        scope.launch {
+            try {
+                socket?.disconnectSocket()
+                socket = null
+            } catch (e: Exception) {
+                Log.w("NakamaRepository", "Socket disconnect on logout: ${e.message}")
+            }
+        }
+    }
+
+    suspend fun authenticateWithEmail(
+        email: String,
+        password: String,
+        create: Boolean,
+        username: String? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val sanitizedUsername = username?.filter { it.isLetterOrDigit() }?.ifBlank { null }
+            session = if (!sanitizedUsername.isNullOrBlank()) {
+                client.authenticateEmail(email.trim(), password.trim(), create, sanitizedUsername).await()
+            } else {
+                client.authenticateEmail(email.trim(), password.trim(), create).await()
+            }
+            onSessionAuthenticated()
+            true
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Error in authenticateWithEmail (create=$create): ${e.message}", e)
+            val msg = e.localizedMessage ?: e.message ?: "Authentication failed"
+            val errorDetails = when {
+                msg.contains("password", ignoreCase = true) || msg.contains("invalid", ignoreCase = true) || msg.contains("unauthenticated", ignoreCase = true) ->
+                    if (create) "Registration failed. Password must be at least 8 characters." else "Invalid email or password."
+                msg.contains("already", ignoreCase = true) || msg.contains("exists", ignoreCase = true) || msg.contains("username", ignoreCase = true) ->
+                    "An account with this email/username already exists. Try logging in instead."
+                msg.contains("connect", ignoreCase = true) || msg.contains("timeout", ignoreCase = true) || msg.contains("host", ignoreCase = true) ->
+                    "Unable to connect to Nakama Server. Check network connection or server settings."
+                else -> msg
+            }
+            throw IllegalArgumentException(errorDetails)
+        }
+    }
+
     suspend fun authenticateWithGoogle(googleIdToken: String, username: String): Boolean =
         withContext(Dispatchers.IO) {
             try {

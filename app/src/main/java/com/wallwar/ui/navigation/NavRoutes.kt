@@ -3,6 +3,9 @@ package com.wallwar.ui.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
+object AuthRoute
+
+@Serializable
 object HomeRoute
 
 @Serializable
