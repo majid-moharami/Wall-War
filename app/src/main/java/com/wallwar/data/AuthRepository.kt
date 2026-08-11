@@ -183,7 +183,7 @@ class AuthRepository @Inject constructor(
             val avatarUrl = stats.optString("avatarUrl", current.photoUrl ?: "")
 
             val updated = current.copy(
-                isLoggedIn = true,
+                isLoggedIn = current.isLoggedIn,
                 trophies = trophies,
                 coins = coins,
                 wins = wins,
@@ -198,7 +198,7 @@ class AuthRepository @Inject constructor(
             saveProfile(updated)
         } else {
             val updated = current.copy(
-                isLoggedIn = true,
+                isLoggedIn = current.isLoggedIn,
                 coins = if (current.coins > 0) current.coins else 150,
                 nakamaUserId = nakamaUserId
             )
