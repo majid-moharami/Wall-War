@@ -168,19 +168,22 @@ class AuthRepository @Inject constructor(
 
     suspend fun syncFromNakamaServer() {
         val stats = nakamaRepository.fetchUserProfileFromNakama()
+        val nakamaUserId = nakamaRepository.getNakamaUserId()
+        val current = _userProfile.value
+
         if (stats != null) {
-            val current = _userProfile.value
-            val trophies = stats.optInt("trophies", current.trophies)
-            val coins = stats.optInt("coins", current.coins)
-            val wins = stats.optInt("wins", current.wins)
-            val totalMatches = stats.optInt("totalMatches", current.totalMatches)
-            val wallsPlaced = stats.optInt("wallsPlaced", current.wallsPlaced)
-            val level = stats.optInt("level", current.level)
-            val xp = stats.optInt("xp", current.xp)
-            val rankTitle = stats.optString("rankTitle", current.rankTitle)
+            val trophies = stats.optInt("trophies", 0)
+            val coins = stats.optInt("coins", 0)
+            val wins = stats.optInt("wins", 0)
+            val totalMatches = stats.optInt("totalMatches", 0)
+            val wallsPlaced = stats.optInt("wallsPlaced", 0)
+            val level = stats.optInt("level", 1)
+            val xp = stats.optInt("xp", 0)
+            val rankTitle = stats.optString("rankTitle", "Novice Duelist")
             val avatarUrl = stats.optString("avatarUrl", current.photoUrl ?: "")
 
             val updated = current.copy(
+                isLoggedIn = true,
                 trophies = trophies,
                 coins = coins,
                 wins = wins,
@@ -188,9 +191,16 @@ class AuthRepository @Inject constructor(
                 wallsPlaced = wallsPlaced,
                 level = level,
                 xp = xp,
-                rankTitle = rankTitle,
+                rankTitle = if (rankTitle.isBlank()) "Novice Duelist" else rankTitle,
                 photoUrl = if (avatarUrl.isBlank()) null else avatarUrl,
-                nakamaUserId = nakamaRepository.getNakamaUserId()
+                nakamaUserId = nakamaUserId
+            )
+            saveProfile(updated)
+        } else {
+            val updated = current.copy(
+                isLoggedIn = true,
+                coins = if (current.coins > 0) current.coins else 150,
+                nakamaUserId = nakamaUserId
             )
             saveProfile(updated)
         }
