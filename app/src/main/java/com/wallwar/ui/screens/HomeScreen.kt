@@ -187,14 +187,16 @@ fun HomeScreen(
             .fillMaxSize()
             .background(NeonDarkBg)
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
         // Header Area
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -296,7 +298,9 @@ fun HomeScreen(
                 1.5.dp,
                 Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta))
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -359,7 +363,9 @@ fun HomeScreen(
 
         // Bento Stats
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Card(
@@ -436,7 +442,9 @@ fun HomeScreen(
 
         // Bottom Menu Cards (Rules & Stats & Settings)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Card(
@@ -528,6 +536,7 @@ fun HomeScreen(
             border = null,
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 20.dp)
                 .testTag("btn_settings")
         ) {
             Row(
@@ -582,6 +591,7 @@ fun OnlineArenasSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 20.dp)
                 .padding(bottom = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -620,7 +630,7 @@ fun OnlineArenasSection(
 
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
             items(arenas, key = { it.id }) { arena ->
@@ -1075,6 +1085,7 @@ fun OfflinePracticeSection(
         border = null,
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 20.dp)
             .testTag("offline_practice_section")
     ) {
         Column(
