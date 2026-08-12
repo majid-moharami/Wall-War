@@ -34,6 +34,11 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.wallwar.data.AuthRepository
+import com.wallwar.data.UserProfile
 import com.wallwar.ui.navigation.HomeRoute
 import com.wallwar.ui.navigation.ProfileRoute
 import com.wallwar.ui.navigation.RankingRoute
@@ -42,6 +47,16 @@ import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonDarkBg
 import com.wallwar.ui.theme.NeonDarkSurface
 import com.wallwar.ui.theme.NeonMagenta
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.StateFlow
+import javax.inject.Inject
+
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    authRepository: AuthRepository
+) : ViewModel() {
+    val userProfile: StateFlow<UserProfile> = authRepository.userProfile
+}
 
 sealed class BottomTab(
     val route: Any,
@@ -55,7 +70,10 @@ sealed class BottomTab(
 }
 
 @Composable
-fun MainContainerScreen() {
+fun MainContainerScreen(
+    viewModel: MainViewModel = hiltViewModel()
+) {
+    val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination

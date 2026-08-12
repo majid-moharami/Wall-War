@@ -46,12 +46,71 @@ import com.wallwar.ui.theme.NeonEmerald
 import com.wallwar.ui.theme.NeonMagenta
 import com.wallwar.ui.theme.NeonPurple
 
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.ui.text.style.TextAlign
+
 @Composable
 fun RankingScreen(
     userProfile: UserProfile,
     leaderboard: List<LeaderboardPlayer>,
+    onNavigateToProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    if (!userProfile.isLoggedIn) {
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(NeonDarkBg)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(NeonCyan.copy(alpha = 0.12f))
+                    .border(2.dp, NeonCyan, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(20.dp))
+            Text(
+                text = "Ranking Arena",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Sign in to access the Ranking Arena, view global leaderboard standings, and compete in ranked season duels.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFFA0ACCC),
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = onNavigateToProfile,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Sign In to Access Ranking Arena",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()

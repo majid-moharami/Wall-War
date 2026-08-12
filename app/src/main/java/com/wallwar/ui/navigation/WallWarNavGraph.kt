@@ -129,7 +129,12 @@ fun WallWarNavGraph(
 
             RankingScreen(
                 userProfile = userProfile,
-                leaderboard = leaderboard
+                leaderboard = leaderboard,
+                onNavigateToProfile = {
+                    navController.navigate(ProfileRoute) {
+                        popUpTo(HomeRoute)
+                    }
+                }
             )
         }
 

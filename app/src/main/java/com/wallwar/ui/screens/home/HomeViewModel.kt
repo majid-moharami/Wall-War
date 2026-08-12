@@ -50,6 +50,10 @@ class HomeViewModel @Inject constructor(
         arena: Arena,
         onSuccess: (GameMode, OpponentType, AiDifficulty, Arena) -> Unit
     ) {
+        if (!userProfile.value.isLoggedIn) {
+            _arenaErrorMessage.value = "Sign in required to access Ranked Online Arenas!"
+            return
+        }
         val currentCoins = userProfile.value.coins
         if (currentCoins < arena.entryFee) {
             _arenaErrorMessage.value = "Not enough coins for ${arena.title}! Entry fee is ${arena.entryFee} Coins."
