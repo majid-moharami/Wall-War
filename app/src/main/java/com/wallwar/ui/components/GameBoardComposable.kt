@@ -1,10 +1,14 @@
 package com.wallwar.ui.components
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -15,7 +19,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -28,9 +34,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.wallwar.audio.SoundManager
 import com.wallwar.engine.GameEngine
 import com.wallwar.model.BoardTheme
@@ -130,6 +138,78 @@ fun GameBoardComposable(
 
         val stepX = cellW + gapW
         val stepY = cellH + gapH
+
+        // Target & Animated Pawn Locations for Smooth Ball Movement Animations
+        val p0Pos = gameState.pawns.getOrNull(0) ?: Position(rows - 1, cols / 2)
+        val p0DrawR = if (shouldFlip) (rows - 1 - p0Pos.r) else p0Pos.r
+        val p0DrawC = if (shouldFlip) (cols - 1 - p0Pos.c) else p0Pos.c
+        val p0TargetX = p0DrawC * stepX + cellW / 2f
+        val p0TargetY = p0DrawR * stepY + cellH / 2f
+
+        val p1Pos = gameState.pawns.getOrNull(1) ?: Position(0, cols / 2)
+        val p1DrawR = if (shouldFlip) (rows - 1 - p1Pos.r) else p1Pos.r
+        val p1DrawC = if (shouldFlip) (cols - 1 - p1Pos.c) else p1Pos.c
+        val p1TargetX = p1DrawC * stepX + cellW / 2f
+        val p1TargetY = p1DrawR * stepY + cellH / 2f
+
+        val animP0X by animateFloatAsState(
+            targetValue = p0TargetX,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "AnimP0X"
+        )
+        val animP0Y by animateFloatAsState(
+            targetValue = p0TargetY,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "AnimP0Y"
+        )
+
+        val animP1X by animateFloatAsState(
+            targetValue = p1TargetX,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "AnimP1X"
+        )
+        val animP1Y by animateFloatAsState(
+            targetValue = p1TargetY,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioLowBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "AnimP1Y"
+        )
+
+        // Wall placement animations state map
+        val wallAnimMap = remember { mutableStateMapOf<String, Animatable<Float, androidx.compose.animation.core.AnimationVector1D>>() }
+
+        LaunchedEffect(gameState.walls) {
+            val currentKeys = mutableSetOf<String>()
+            for (wall in gameState.walls) {
+                val key = "${wall.r}_${wall.c}_${wall.isHorizontal}_${wall.playerOwner}"
+                currentKeys.add(key)
+                if (!wallAnimMap.containsKey(key)) {
+                    val anim = Animatable(0f)
+                    wallAnimMap[key] = anim
+                    launch {
+                        anim.animateTo(
+                            targetValue = 1f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessLow
+                            )
+                        )
+                    }
+                }
+            }
+            wallAnimMap.keys.retainAll(currentKeys)
+        }
 
         Canvas(
             modifier = Modifier
@@ -718,6 +798,10 @@ fun GameBoardComposable(
                 val drawR = if (shouldFlip) (rows - 2 - wall.r) else wall.r
                 val drawC = if (shouldFlip) (cols - 2 - wall.c) else wall.c
 
+                val wallKey = "${wall.r}_${wall.c}_${wall.isHorizontal}_${wall.playerOwner}"
+                val animProgress = wallAnimMap[wallKey]?.value ?: 1f
+                val scale = 0.15f + 0.85f * animProgress
+
                 val wallGradients = if (wall.playerOwner == 0) {
                     listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
                 } else {
@@ -729,53 +813,89 @@ fun GameBoardComposable(
                     val y = drawR * stepY + cellH + (gapH * 0.05f)
                     val wallWidth = cellW * 2 + gapW
                     val wallHeight = gapH * 0.9f
+                    val centerX = x + wallWidth / 2f
+                    val centerY = y + wallHeight / 2f
 
-                    drawRoundRect(
-                        color = wallShadow,
-                        topLeft = Offset(x, y + 3f),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f)
-                    )
+                    if (animProgress < 0.99f) {
+                        val wallGlowColor = if (wall.playerOwner == 0) Color(0xFF60A5FA) else Color(0xFFFCA5A5)
+                        val auraAlpha = (1f - animProgress).coerceIn(0f, 0.85f)
+                        val auraSpread = (1f - animProgress) * 16f
+                        drawRoundRect(
+                            color = wallGlowColor.copy(alpha = auraAlpha * 0.7f),
+                            topLeft = Offset(x - auraSpread, y - auraSpread),
+                            size = Size(wallWidth + auraSpread * 2f, wallHeight + auraSpread * 2f),
+                            cornerRadius = CornerRadius(14f, 14f)
+                        )
+                    }
 
-                    drawRoundRect(
-                        brush = Brush.horizontalGradient(colors = wallGradients),
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f)
-                    )
+                    withTransform({
+                        scale(scaleX = scale, scaleY = scale, pivot = Offset(centerX, centerY))
+                    }) {
+                        drawRoundRect(
+                            color = wallShadow,
+                            topLeft = Offset(x, y + 3f),
+                            size = Size(wallWidth, wallHeight),
+                            cornerRadius = CornerRadius(10f, 10f)
+                        )
 
-                    drawRoundRect(
-                        color = Color.White.copy(alpha = 0.4f),
-                        topLeft = Offset(x + 4f, y + 2f),
-                        size = Size(wallWidth - 8f, wallHeight * 0.3f),
-                        cornerRadius = CornerRadius(5f, 5f)
-                    )
+                        drawRoundRect(
+                            brush = Brush.horizontalGradient(colors = wallGradients),
+                            topLeft = Offset(x, y),
+                            size = Size(wallWidth, wallHeight),
+                            cornerRadius = CornerRadius(10f, 10f)
+                        )
+
+                        drawRoundRect(
+                            color = Color.White.copy(alpha = 0.4f),
+                            topLeft = Offset(x + 4f, y + 2f),
+                            size = Size(wallWidth - 8f, wallHeight * 0.3f),
+                            cornerRadius = CornerRadius(5f, 5f)
+                        )
+                    }
                 } else {
                     val x = drawC * stepX + cellW + (gapW * 0.05f)
                     val y = drawR * stepY
                     val wallWidth = gapW * 0.9f
                     val wallHeight = cellH * 2 + gapH
+                    val centerX = x + wallWidth / 2f
+                    val centerY = y + wallHeight / 2f
 
-                    drawRoundRect(
-                        color = wallShadow,
-                        topLeft = Offset(x + 3f, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f)
-                    )
+                    if (animProgress < 0.99f) {
+                        val wallGlowColor = if (wall.playerOwner == 0) Color(0xFF60A5FA) else Color(0xFFFCA5A5)
+                        val auraAlpha = (1f - animProgress).coerceIn(0f, 0.85f)
+                        val auraSpread = (1f - animProgress) * 16f
+                        drawRoundRect(
+                            color = wallGlowColor.copy(alpha = auraAlpha * 0.7f),
+                            topLeft = Offset(x - auraSpread, y - auraSpread),
+                            size = Size(wallWidth + auraSpread * 2f, wallHeight + auraSpread * 2f),
+                            cornerRadius = CornerRadius(14f, 14f)
+                        )
+                    }
 
-                    drawRoundRect(
-                        brush = Brush.verticalGradient(colors = wallGradients),
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f)
-                    )
+                    withTransform({
+                        scale(scaleX = scale, scaleY = scale, pivot = Offset(centerX, centerY))
+                    }) {
+                        drawRoundRect(
+                            color = wallShadow,
+                            topLeft = Offset(x + 3f, y),
+                            size = Size(wallWidth, wallHeight),
+                            cornerRadius = CornerRadius(10f, 10f)
+                        )
 
-                    drawRoundRect(
-                        color = Color.White.copy(alpha = 0.4f),
-                        topLeft = Offset(x + 2f, y + 4f),
-                        size = Size(wallWidth * 0.3f, wallHeight - 8f),
-                        cornerRadius = CornerRadius(5f, 5f)
-                    )
+                        drawRoundRect(
+                            brush = Brush.verticalGradient(colors = wallGradients),
+                            topLeft = Offset(x, y),
+                            size = Size(wallWidth, wallHeight),
+                            cornerRadius = CornerRadius(10f, 10f)
+                        )
+
+                        drawRoundRect(
+                            color = Color.White.copy(alpha = 0.4f),
+                            topLeft = Offset(x + 2f, y + 4f),
+                            size = Size(wallWidth * 0.3f, wallHeight - 8f),
+                            cornerRadius = CornerRadius(5f, 5f)
+                        )
+                    }
                 }
             }
 
@@ -854,25 +974,45 @@ fun GameBoardComposable(
                 }
             }
 
-            // 10. Draw Player Pawns
+            // 10. Draw Player Pawns with Smooth Ball Movement & Motion Dynamics
             for (p in gameState.pawns.indices) {
-                val pawnPos = gameState.pawns[p]
-                val drawR = if (shouldFlip) (rows - 1 - pawnPos.r) else pawnPos.r
-                val drawC = if (shouldFlip) (cols - 1 - pawnPos.c) else pawnPos.c
+                val centerX = if (p == 0) animP0X else animP1X
+                val centerY = if (p == 0) animP0Y else animP1Y
+                val targetX = if (p == 0) p0TargetX else p1TargetX
+                val targetY = if (p == 0) p0TargetY else p1TargetY
 
-                val centerX = drawC * stepX + cellW / 2f
-                val centerY = drawR * stepY + cellH / 2f
-                val pawnRadius = minOf(cellW, cellH) * 0.38f
+                val distToTarget = hypot(targetX - centerX, targetY - centerY)
+                val motionRatio = (distToTarget / stepX).coerceIn(0f, 1f)
+                val scaleFactor = 1f + (motionRatio * 0.18f)
+                val shadowOffsetY = 5f + (motionRatio * 8f)
+
+                val basePawnRadius = minOf(cellW, cellH) * 0.38f
+                val pawnRadius = basePawnRadius * scaleFactor
 
                 val isTurn = gameState.turn == p && gameState.winner == null
 
+                // Dynamic drop shadow (stretches and lightens slightly while ball is in motion)
                 drawCircle(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    radius = pawnRadius * 1.05f,
-                    center = Offset(centerX + 2f, centerY + 5f)
+                    color = Color.Black.copy(alpha = (0.5f - motionRatio * 0.15f).coerceIn(0.15f, 0.5f)),
+                    radius = pawnRadius * (1.05f + motionRatio * 0.1f),
+                    center = Offset(centerX + 2f, centerY + shadowOffsetY)
                 )
 
                 if (p == 0) {
+                    if (isTurn) {
+                        drawCircle(
+                            color = NeonCyan.copy(alpha = 0.35f),
+                            radius = pawnRadius * 1.35f,
+                            center = Offset(centerX, centerY)
+                        )
+                        drawCircle(
+                            color = NeonCyan,
+                            radius = pawnRadius * 1.2f,
+                            center = Offset(centerX, centerY),
+                            style = Stroke(width = 3f)
+                        )
+                    }
+
                     drawCircle(
                         color = Color.White,
                         radius = pawnRadius * 1.25f,

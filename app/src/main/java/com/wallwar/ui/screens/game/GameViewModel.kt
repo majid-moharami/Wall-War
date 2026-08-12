@@ -63,7 +63,7 @@ class GameViewModel @Inject constructor(
     val arenaId: String = savedStateHandle.get<String>("arenaId") ?: "pro"
     val selectedArena: Arena = ArenaConfig.getArenaById(arenaId)
 
-    private val _boardTheme = MutableStateFlow(selectedArena.boardTheme)
+    private val _boardTheme = MutableStateFlow(settingsRepository.boardTheme.value)
     val boardTheme: StateFlow<BoardTheme> = _boardTheme.asStateFlow()
 
     val userProfile = authRepository.userProfile
@@ -108,6 +108,12 @@ class GameViewModel @Inject constructor(
     private var disconnectTimerJob: kotlinx.coroutines.Job? = null
 
     init {
+        viewModelScope.launch {
+            settingsRepository.boardTheme.collect { theme ->
+                _boardTheme.value = theme
+            }
+        }
+
         val initialState = _gameState.value
         updateHighlightsForState(initialState)
         matchStartTime = System.currentTimeMillis()

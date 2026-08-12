@@ -80,6 +80,7 @@ import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
 import com.wallwar.data.UserProfile
 import com.wallwar.model.AiDifficulty
+import com.wallwar.model.BoardTheme
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
 import com.wallwar.ui.AppScreen
@@ -100,6 +101,7 @@ fun HomeScreen(
     totalMatches: Int,
     onlineArenas: List<Arena> = ArenaConfig.onlineArenas,
     offlineArena: Arena = ArenaConfig.offlineAiArena,
+    boardTheme: BoardTheme = BoardTheme.ELEGANT_DARK,
     arenaErrorMessage: String? = null,
     bonusMessage: String? = null,
     onJoinOnlineArenaMatch: (Arena) -> Unit = {},
@@ -560,13 +562,19 @@ fun HomeScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
-                Text(
-                    text = "Settings & Board Themes",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Settings & Board Themes",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Active Theme: ${boardTheme.title}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(boardTheme.primaryColor)
+                    )
+                }
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,

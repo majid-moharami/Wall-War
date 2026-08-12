@@ -10,6 +10,8 @@ import com.wallwar.data.UserProfile
 import com.wallwar.model.AiDifficulty
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
+import com.wallwar.data.SettingsRepository
+import com.wallwar.model.BoardTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,8 +23,11 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     gameRepository: GameRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
 

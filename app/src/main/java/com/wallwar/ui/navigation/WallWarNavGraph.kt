@@ -69,6 +69,7 @@ fun WallWarNavGraph(
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
             val arenaErrorMessage by viewModel.arenaErrorMessage.collectAsStateWithLifecycle()
             val bonusMessage by viewModel.bonusMessage.collectAsStateWithLifecycle()
+            val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
 
             HomeScreen(
                 userProfile = userProfile,
@@ -76,6 +77,7 @@ fun WallWarNavGraph(
                 totalMatches = totalMatches,
                 onlineArenas = viewModel.onlineArenas,
                 offlineArena = viewModel.offlineArena,
+                boardTheme = boardTheme,
                 arenaErrorMessage = arenaErrorMessage,
                 bonusMessage = bonusMessage,
                 onJoinOnlineArenaMatch = { arena ->
