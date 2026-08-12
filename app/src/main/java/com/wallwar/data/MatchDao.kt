@@ -14,6 +14,9 @@ interface MatchDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMatch(match: MatchRecord)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMatches(matches: List<MatchRecord>)
+
     @Query("DELETE FROM match_records")
     suspend fun clearHistory()
 

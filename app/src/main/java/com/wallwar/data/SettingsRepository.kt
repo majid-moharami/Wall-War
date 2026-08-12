@@ -26,4 +26,8 @@ class SettingsRepository @Inject constructor(
             }
         }
     }
+
+    fun restoreDefaults() {
+        setBoardTheme(BoardTheme.ELEGANT_DARK)
+    }
 }

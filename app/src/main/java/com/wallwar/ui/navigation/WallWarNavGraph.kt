@@ -247,6 +247,10 @@ fun WallWarNavGraph(
                 onSelectTheme = viewModel::setBoardTheme,
                 onUpdateNakamaConfig = viewModel::updateNakamaConfig,
                 onTestConnection = viewModel::testNakamaConnection,
+                onRestoreFromNakamaServer = viewModel::restoreFromNakamaServer,
+                onExportDataBackup = viewModel::exportDataBackup,
+                onRestoreDataFromBackup = viewModel::restoreDataFromBackup,
+                onRestoreDefaultSettings = viewModel::restoreDefaultSettings,
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)

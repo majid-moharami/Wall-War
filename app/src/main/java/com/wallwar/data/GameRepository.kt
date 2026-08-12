@@ -14,6 +14,12 @@ class GameRepository @Inject constructor(private val matchDao: MatchDao) {
         matchDao.insertMatch(match)
     }
 
+    suspend fun restoreMatches(matches: List<MatchRecord>) {
+        if (matches.isNotEmpty()) {
+            matchDao.insertMatches(matches)
+        }
+    }
+
     suspend fun clearAllHistory() {
         matchDao.clearHistory()
     }

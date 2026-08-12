@@ -1,5 +1,6 @@
 package com.wallwar.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -48,11 +49,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.nakama.NakamaConfig
 import com.wallwar.model.BoardTheme
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonPurple
+
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import com.wallwar.ui.theme.NeonAmber
+import com.wallwar.ui.theme.NeonEmerald
+import com.wallwar.ui.theme.NeonMagenta
 
 @Composable
 fun SettingsScreen(
@@ -62,9 +79,14 @@ fun SettingsScreen(
     onSelectTheme: (BoardTheme) -> Unit,
     onUpdateNakamaConfig: (host: String, port: Int, key: String, ssl: Boolean) -> Unit = { _, _, _, _ -> },
     onTestConnection: ((Boolean) -> Unit) -> Unit = {},
+    onRestoreFromNakamaServer: ((Boolean, String) -> Unit) -> Unit = { _ -> },
+    onExportDataBackup: ((String) -> Unit) -> Unit = { _ -> },
+    onRestoreDataFromBackup: (String, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
+    onRestoreDefaultSettings: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val clipboardManager = LocalClipboardManager.current
     var isSoundOn by remember { mutableStateOf(soundManager.isSoundEnabled) }
     var isVibroOn by remember { mutableStateOf(soundManager.isVibrationEnabled) }
 
@@ -72,6 +94,151 @@ fun SettingsScreen(
     var serverPort by remember(nakamaConfig) { mutableStateOf(nakamaConfig.port.toString()) }
     var serverKey by remember(nakamaConfig) { mutableStateOf(nakamaConfig.serverKey) }
     var testResultStatus by remember { mutableStateOf<String?>(null) }
+
+    var restoreStatusMessage by remember { mutableStateOf<String?>(null) }
+    var restoreStatusIsSuccess by remember { mutableStateOf(true) }
+
+    var showExportDialog by remember { mutableStateOf(false) }
+    var exportedJsonText by remember { mutableStateOf("") }
+
+    var showImportDialog by remember { mutableStateOf(false) }
+    var importJsonText by remember { mutableStateOf("") }
+
+    var showResetDialog by remember { mutableStateOf(false) }
+
+    // Export Dialog
+    if (showExportDialog) {
+        AlertDialog(
+            onDismissRequest = { showExportDialog = false },
+            title = { Text("Export Data Backup", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Copy this backup JSON code to save your user profile, settings, and match logs:", color = Color(0xFFA0ACCC))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = exportedJsonText,
+                        onValueChange = {},
+                        readOnly = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = Color(0xFF374151),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(exportedJsonText))
+                        restoreStatusIsSuccess = true
+                        restoreStatusMessage = "Backup JSON copied to clipboard!"
+                        showExportDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                ) {
+                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy JSON", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExportDialog = false }) {
+                    Text("Close", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E2638)
+        )
+    }
+
+    // Import / Restore Dialog
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportDialog = false },
+            title = { Text("Restore Data from Backup", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    Text("Paste your JSON backup code below to restore profile, settings, and match history:", color = Color(0xFFA0ACCC))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = importJsonText,
+                        onValueChange = { importJsonText = it },
+                        placeholder = { Text("Paste JSON backup code here...", color = Color(0xFF6B7280)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = Color(0xFF374151),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (importJsonText.isNotBlank()) {
+                            onRestoreDataFromBackup(importJsonText) { success, msg ->
+                                restoreStatusIsSuccess = success
+                                restoreStatusMessage = msg
+                                if (success) showImportDialog = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonEmerald)
+                ) {
+                    Icon(imageVector = Icons.Default.FileDownload, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Restore Now", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showImportDialog = false }) {
+                    Text("Cancel", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E2638)
+        )
+    }
+
+    // Reset Defaults Dialog
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            title = { Text("Restore Default Settings?", color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text("This will reset board theme, audio preferences, and server configuration back to factory default values.", color = Color(0xFFA0ACCC)) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onRestoreDefaultSettings()
+                        isSoundOn = true
+                        isVibroOn = true
+                        serverHost = "10.0.2.2"
+                        serverPort = "7350"
+                        serverKey = "defaultkey"
+                        restoreStatusIsSuccess = true
+                        restoreStatusMessage = "Settings restored to factory defaults!"
+                        showResetDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
+                ) {
+                    Text("Reset Defaults", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showResetDialog = false }) {
+                    Text("Cancel", color = Color.White)
+                }
+            },
+            containerColor = Color(0xFF1E2638)
+        )
+    }
 
     Column(
         modifier = modifier
@@ -375,6 +542,122 @@ fun SettingsScreen(
                             tint = NeonPurple
                         )
                     }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Data Backup & Restore Section
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Backup,
+                        contentDescription = null,
+                        tint = NeonCyan,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Data Backup & Restore",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Cloud sync, JSON backup export & restore",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Restore from Nakama Server Button
+                Button(
+                    onClick = {
+                        restoreStatusMessage = "Restoring from Nakama Cloud..."
+                        onRestoreFromNakamaServer { success, msg ->
+                            restoreStatusIsSuccess = success
+                            restoreStatusMessage = msg
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(imageVector = Icons.Default.CloudDownload, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Restore Stats from Server", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Export JSON Backup
+                    OutlinedButton(
+                        onClick = {
+                            onExportDataBackup { jsonStr ->
+                                exportedJsonText = jsonStr
+                                showExportDialog = true
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(1.dp, NeonCyan)
+                    ) {
+                        Icon(imageVector = Icons.Default.FileUpload, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Export Backup", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+
+                    // Import & Restore JSON Backup
+                    OutlinedButton(
+                        onClick = {
+                            importJsonText = ""
+                            showImportDialog = true
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1f),
+                        border = BorderStroke(1.dp, NeonEmerald)
+                    ) {
+                        Icon(imageVector = Icons.Default.FileDownload, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Restore Backup", color = NeonEmerald, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Restore Factory Defaults Button
+                OutlinedButton(
+                    onClick = { showResetDialog = true },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    border = BorderStroke(1.dp, NeonMagenta)
+                ) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = NeonMagenta, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Restore Default Settings", color = NeonMagenta, fontWeight = FontWeight.Bold)
+                }
+
+                restoreStatusMessage?.let { status ->
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = status,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (restoreStatusIsSuccess) NeonEmerald else NeonMagenta,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }

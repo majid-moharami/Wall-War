@@ -12,6 +12,7 @@ import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
+import com.wallwar.R
 import com.google.android.gms.tasks.Task
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
@@ -168,22 +169,19 @@ class AuthRepository @Inject constructor(
 
     suspend fun syncFromNakamaServer() {
         val stats = nakamaRepository.fetchUserProfileFromNakama()
-        val nakamaUserId = nakamaRepository.getNakamaUserId()
-        val current = _userProfile.value
-
         if (stats != null) {
-            val trophies = stats.optInt("trophies", 0)
-            val coins = stats.optInt("coins", 0)
-            val wins = stats.optInt("wins", 0)
-            val totalMatches = stats.optInt("totalMatches", 0)
-            val wallsPlaced = stats.optInt("wallsPlaced", 0)
-            val level = stats.optInt("level", 1)
-            val xp = stats.optInt("xp", 0)
-            val rankTitle = stats.optString("rankTitle", "Novice Duelist")
+            val current = _userProfile.value
+            val trophies = stats.optInt("trophies", current.trophies)
+            val coins = stats.optInt("coins", current.coins)
+            val wins = stats.optInt("wins", current.wins)
+            val totalMatches = stats.optInt("totalMatches", current.totalMatches)
+            val wallsPlaced = stats.optInt("wallsPlaced", current.wallsPlaced)
+            val level = stats.optInt("level", current.level)
+            val xp = stats.optInt("xp", current.xp)
+            val rankTitle = stats.optString("rankTitle", current.rankTitle)
             val avatarUrl = stats.optString("avatarUrl", current.photoUrl ?: "")
 
             val updated = current.copy(
-                isLoggedIn = current.isLoggedIn,
                 trophies = trophies,
                 coins = coins,
                 wins = wins,
@@ -191,16 +189,9 @@ class AuthRepository @Inject constructor(
                 wallsPlaced = wallsPlaced,
                 level = level,
                 xp = xp,
-                rankTitle = if (rankTitle.isBlank()) "Novice Duelist" else rankTitle,
+                rankTitle = rankTitle,
                 photoUrl = if (avatarUrl.isBlank()) null else avatarUrl,
-                nakamaUserId = nakamaUserId
-            )
-            saveProfile(updated)
-        } else {
-            val updated = current.copy(
-                isLoggedIn = current.isLoggedIn,
-                coins = if (current.coins > 0) current.coins else 150,
-                nakamaUserId = nakamaUserId
+                nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
         }
@@ -265,6 +256,10 @@ class AuthRepository @Inject constructor(
         )
     }
 
+    fun restoreProfileData(restoredProfile: UserProfile) {
+        saveProfile(restoredProfile)
+    }
+
     private fun saveProfile(profile: UserProfile) {
         prefs.edit()
             .putBoolean("is_logged_in", profile.isLoggedIn)
@@ -285,6 +280,19 @@ class AuthRepository @Inject constructor(
         // Sync to Nakama
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             nakamaRepository.syncUserProfileToNakama(profile)
+        }
+    }
+
+    private fun getWebClientId(context: Context): String {
+        val resId = context.resources.getIdentifier("default_web_client_id", "string", context.packageName)
+        if (resId != 0) {
+            val client = context.getString(resId)
+            if (client.isNotBlank()) return client
+        }
+        return try {
+            context.getString(R.string.default_web_client_id)
+        } catch (e: Exception) {
+            ""
         }
     }
 
