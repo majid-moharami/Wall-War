@@ -33,6 +33,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CropLandscape
 import androidx.compose.material.icons.filled.CropPortrait
@@ -40,9 +43,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import com.wallwar.ui.theme.*
 import androidx.compose.material3.AlertDialog
@@ -362,7 +362,7 @@ fun GameBoardScreen(
                         modifier = Modifier.testTag("btn_sound_toggle")
                     ) {
                         Icon(
-                            imageVector = if (soundManager.isSoundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                            imageVector = if (soundManager.isSoundEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
                             contentDescription = "Sound Toggle",
                             tint = if (soundManager.isSoundEnabled) NeonCyan else Color(0xFFA0ACCC)
                         )
@@ -563,7 +563,7 @@ fun GameBoardScreen(
                     .fillMaxWidth(0.7f)
                     .height(44.dp)
             ) {
-                Icon(imageVector = Icons.Default.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
                 Text("Undo", fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
