@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.OndemandVideo
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.Star
@@ -36,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,6 +71,10 @@ fun CoinShopScreen(
     userProfile: UserProfile,
     coinPacks: List<CoinPack>,
     purchaseMessage: String?,
+    isRewardedAdLoading: Boolean = false,
+    isRewardedAdReady: Boolean = true,
+    isAdPlaying: Boolean = false,
+    onWatchRewardedAd: () -> Unit = {},
     onBuyPack: (CoinPack) -> Unit,
     onClearMessage: () -> Unit,
     onBack: () -> Unit
@@ -239,6 +245,96 @@ fun CoinShopScreen(
                         tint = NeonAmber,
                         modifier = Modifier.size(30.dp)
                     )
+                }
+            }
+        }
+
+        // 📺 Rewarded Ad Placement (+50 Free Coins)
+        Card(
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonCyan, NeonAmber))),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 20.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = NeonCyan.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, NeonCyan)
+                        ) {
+                            Text(
+                                text = "FREE REWARD",
+                                color = NeonCyan,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Watch Ad (+50 Coins)",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 17.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Watch a quick sponsored video to earn +50 Free Coins instantly!",
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Button(
+                    onClick = onWatchRewardedAd,
+                    enabled = isRewardedAdReady && !isRewardedAdLoading && !isAdPlaying,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonAmber,
+                        contentColor = Color.Black,
+                        disabledContainerColor = Color(0xFF333A4D),
+                        disabledContentColor = Color(0xFF8893A8)
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.testTag("watch_rewarded_ad_button")
+                ) {
+                    if (isRewardedAdLoading || !isRewardedAdReady) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Loading Ad...",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.OndemandVideo,
+                            contentDescription = "Watch Ad",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "+50 Coins",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp
+                        )
+                    }
                 }
             }
         }

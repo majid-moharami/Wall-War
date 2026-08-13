@@ -115,6 +115,7 @@ fun GameBoardScreen(
     onRestart: () -> Unit,
     onResign: () -> Unit = {},
     onBack: () -> Unit,
+    onTriggerMatchEndInterstitial: (onClosed: () -> Unit) -> Unit = { it() },
     modifier: Modifier = Modifier
 ) {
     var activeDragWall by remember { mutableStateOf<Wall?>(null) }
@@ -790,7 +791,11 @@ fun GameBoardScreen(
             confirmButton = {
                 if (opponentType != OpponentType.ONLINE) {
                     Button(
-                        onClick = onRestart,
+                        onClick = {
+                            onTriggerMatchEndInterstitial {
+                                onRestart()
+                            }
+                        },
                         colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
                         shape = RoundedCornerShape(10.dp)
                     ) {
@@ -800,7 +805,11 @@ fun GameBoardScreen(
             },
             dismissButton = {
                 OutlinedButton(
-                    onClick = onBack,
+                    onClick = {
+                        onTriggerMatchEndInterstitial {
+                            onBack()
+                        }
+                    },
                     border = BorderStroke(1.dp, NeonBorder),
                     shape = RoundedCornerShape(10.dp)
                 ) {

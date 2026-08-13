@@ -1,5 +1,6 @@
 package com.wallwar.ui.screens.game
 
+import android.app.Activity
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +11,7 @@ import com.wallwar.data.AuthRepository
 import com.wallwar.data.GameRepository
 import com.wallwar.data.MatchRecord
 import com.wallwar.data.SettingsRepository
+import com.wallwar.data.ad.AdManager
 import com.wallwar.data.nakama.NakamaRepository
 import com.wallwar.data.nakama.OnlineMatchEvent
 import com.wallwar.data.nakama.OnlineMatchState
@@ -39,7 +41,8 @@ class GameViewModel @Inject constructor(
     private val gameRepository: GameRepository,
     private val nakamaRepository: NakamaRepository,
     val soundManager: SoundManager,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    val adManager: AdManager
 ) : ViewModel() {
 
     val gameMode: GameMode = try {
@@ -489,10 +492,17 @@ class GameViewModel @Inject constructor(
         checkGameEndAndTriggerAiIfNeeded(newState)
     }
 
+    fun showMatchEndInterstitial(activity: Activity? = null, onClosed: () -> Unit) {
+        adManager.showInterstitialIfTriggered(activity = activity, onAdClosed = onClosed)
+    }
+
     private fun saveMatchToHistory(finalState: GameState) {
         val winnerIndex = finalState.winner ?: return
         val didWin = winnerIndex == _myPlayerIndex.value
         val wallsPlacedCount = finalState.moveHistory.count { it is Move.WallPlacement && (it.wall.playerOwner == _myPlayerIndex.value) }
+
+        // Track completed matches in AdManager for Interstitial rule (every 2 matches)
+        adManager.recordMatchCompleted()
 
         if (opponentType == OpponentType.ONLINE) {
             val opponentName = _onlineOpponentName.value

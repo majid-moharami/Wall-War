@@ -1,9 +1,11 @@
 package com.wallwar.ui.screens.shop
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.UserProfile
+import com.wallwar.data.ad.AdManager
 import com.wallwar.data.nakama.NakamaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,10 +25,16 @@ data class CoinPack(
 @HiltViewModel
 class CoinShopViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val nakamaRepository: NakamaRepository
+    private val nakamaRepository: NakamaRepository,
+    private val adManager: AdManager
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
+
+    val isRewardedAdLoading: StateFlow<Boolean> = adManager.isRewardedAdLoading
+    val isRewardedAdReady: StateFlow<Boolean> = adManager.isRewardedAdReady
+    val isAdPlaying: StateFlow<Boolean> = adManager.isAdPlaying
+    val rewardToast: StateFlow<String?> = adManager.rewardToast
 
     private val _purchaseMessage = MutableStateFlow<String?>(null)
     val purchaseMessage: StateFlow<String?> = _purchaseMessage.asStateFlow()
@@ -61,7 +69,18 @@ class CoinShopViewModel @Inject constructor(
         _purchaseMessage.value = "Successfully purchased ${pack.nameEn}! +${pack.coins} Coins added."
     }
 
+    fun watchRewardedAdForCoins(activity: Activity? = null) {
+        adManager.watchRewardedAd(
+            activity = activity,
+            rewardCoins = 50,
+            onSuccess = { coins ->
+                _purchaseMessage.value = "🎉 +$coins Coins Earned from Watching Rewarded Ad!"
+            }
+        )
+    }
+
     fun clearPurchaseMessage() {
         _purchaseMessage.value = null
+        adManager.clearRewardToast()
     }
 }

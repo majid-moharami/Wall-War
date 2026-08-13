@@ -1,8 +1,10 @@
 package com.wallwar.ui.navigation
 
+import android.app.Activity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -181,6 +183,8 @@ fun WallWarNavGraph(
             val turnTimeLeft by viewModel.turnTimeLeft.collectAsStateWithLifecycle()
             val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
 
+            val activity = LocalContext.current as? Activity
+
             GameBoardScreen(
                 gameState = gameState,
                 boardTheme = boardTheme,
@@ -205,6 +209,9 @@ fun WallWarNavGraph(
                 onUndoMove = viewModel::undoMove,
                 onRestart = viewModel::restartGame,
                 onResign = viewModel::resignGame,
+                onTriggerMatchEndInterstitial = { onClosed ->
+                    viewModel.showMatchEndInterstitial(activity, onClosed)
+                },
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)
@@ -271,11 +278,20 @@ fun WallWarNavGraph(
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val coinPacks by viewModel.coinPacks.collectAsStateWithLifecycle()
             val purchaseMessage by viewModel.purchaseMessage.collectAsStateWithLifecycle()
+            val isRewardedAdLoading by viewModel.isRewardedAdLoading.collectAsStateWithLifecycle()
+            val isRewardedAdReady by viewModel.isRewardedAdReady.collectAsStateWithLifecycle()
+            val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
+
+            val activity = LocalContext.current as? Activity
 
             CoinShopScreen(
                 userProfile = userProfile,
                 coinPacks = coinPacks,
                 purchaseMessage = purchaseMessage,
+                isRewardedAdLoading = isRewardedAdLoading,
+                isRewardedAdReady = isRewardedAdReady,
+                isAdPlaying = isAdPlaying,
+                onWatchRewardedAd = { viewModel.watchRewardedAdForCoins(activity) },
                 onBuyPack = viewModel::buyCoinPack,
                 onClearMessage = viewModel::clearPurchaseMessage,
                 onBack = {

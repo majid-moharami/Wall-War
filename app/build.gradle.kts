@@ -116,6 +116,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation(libs.nakama.java)
+  implementation(libs.play.services.ads)
   implementation("com.google.protobuf:protobuf-java:3.25.1")
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)

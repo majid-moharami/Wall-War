@@ -39,6 +39,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.UserProfile
+import com.wallwar.data.ad.AdManager
+import com.wallwar.ui.components.AdOverlayDialog
 import com.wallwar.ui.navigation.HomeRoute
 import com.wallwar.ui.navigation.ProfileRoute
 import com.wallwar.ui.navigation.RankingRoute
@@ -53,9 +55,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    authRepository: AuthRepository
+    authRepository: AuthRepository,
+    val adManager: AdManager
 ) : ViewModel() {
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
+    val isAdPlaying = adManager.isAdPlaying
+    val activeNetwork = adManager.activeNetwork
+    val currentAdType = adManager.currentAdType
+    val adCountdown = adManager.adCountdown
 }
 
 sealed class BottomTab(
@@ -74,6 +81,11 @@ fun MainContainerScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+    val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
+    val activeNetwork by viewModel.activeNetwork.collectAsStateWithLifecycle()
+    val currentAdType by viewModel.currentAdType.collectAsStateWithLifecycle()
+    val adCountdown by viewModel.adCountdown.collectAsStateWithLifecycle()
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -87,78 +99,88 @@ fun MainContainerScreen(
         }
     } == true
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = NeonDarkBg,
-        bottomBar = {
-            if (showBottomBar) {
-                Surface(
-                    color = NeonDarkSurface,
-                    tonalElevation = 8.dp
-                ) {
-                    Column {
-                        // Glowing Cyber Accent Line
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(2.dp)
-                                .background(Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta, NeonCyan)))
-                        )
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = NeonDarkBg,
+            bottomBar = {
+                if (showBottomBar) {
+                    Surface(
+                        color = NeonDarkSurface,
+                        tonalElevation = 8.dp
+                    ) {
+                        Column {
+                            // Glowing Cyber Accent Line
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.dp)
+                                    .background(Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta, NeonCyan)))
+                            )
 
-                        NavigationBar(
-                            containerColor = NeonDarkSurface,
-                            contentColor = Color.White,
-                            tonalElevation = 0.dp
-                        ) {
-                            tabs.forEach { tab ->
-                                val tabName = tab.route::class.simpleName ?: ""
-                                val isSelected = currentDestination?.hierarchy?.any {
-                                    it.route?.contains(tabName) == true
-                                } == true
+                            NavigationBar(
+                                containerColor = NeonDarkSurface,
+                                contentColor = Color.White,
+                                tonalElevation = 0.dp
+                            ) {
+                                tabs.forEach { tab ->
+                                    val tabName = tab.route::class.simpleName ?: ""
+                                    val isSelected = currentDestination?.hierarchy?.any {
+                                        it.route?.contains(tabName) == true
+                                    } == true
 
-                                NavigationBarItem(
-                                    selected = isSelected,
-                                    onClick = {
-                                        navController.navigate(tab.route) {
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
+                                    NavigationBarItem(
+                                        selected = isSelected,
+                                        onClick = {
+                                            navController.navigate(tab.route) {
+                                                popUpTo(navController.graph.findStartDestination().id) {
+                                                    saveState = true
+                                                }
+                                                launchSingleTop = true
+                                                restoreState = true
                                             }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
-                                    },
-                                    icon = {
-                                        Icon(
-                                            imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                            contentDescription = tab.title,
-                                            modifier = Modifier.size(24.dp)
+                                        },
+                                        icon = {
+                                            Icon(
+                                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                                contentDescription = tab.title,
+                                                modifier = Modifier.size(24.dp)
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = tab.title,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                fontSize = 11.sp
+                                            )
+                                        },
+                                        colors = NavigationBarItemDefaults.colors(
+                                            selectedIconColor = NeonCyan,
+                                            selectedTextColor = NeonCyan,
+                                            indicatorColor = Color(0xFF003847),
+                                            unselectedIconColor = Color(0xFFA0ACCC),
+                                            unselectedTextColor = Color(0xFFA0ACCC)
                                         )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = tab.title,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                            fontSize = 11.sp
-                                        )
-                                    },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = NeonCyan,
-                                        selectedTextColor = NeonCyan,
-                                        indicatorColor = Color(0xFF003847),
-                                        unselectedIconColor = Color(0xFFA0ACCC),
-                                        unselectedTextColor = Color(0xFFA0ACCC)
                                     )
-                                )
+                                }
                             }
                         }
                     }
                 }
             }
+        ) { innerPadding ->
+            WallWarNavGraph(
+                navController = navController,
+                modifier = Modifier.padding(innerPadding)
+            )
         }
-    ) { innerPadding ->
-        WallWarNavGraph(
-            navController = navController,
-            modifier = Modifier.padding(innerPadding)
+
+        // Global Dual Ad Overlay Dialog
+        AdOverlayDialog(
+            isAdPlaying = isAdPlaying,
+            network = activeNetwork,
+            adType = currentAdType,
+            countdown = adCountdown
         )
     }
 }

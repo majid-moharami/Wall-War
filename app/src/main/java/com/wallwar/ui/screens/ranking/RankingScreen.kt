@@ -90,7 +90,7 @@ fun RankingScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Sign in to access the Ranking Arena, view global leaderboard standings, and compete in ranked season duels.",
+                text = "Sign in to view global leaderboard standings, track your position, and compete on the seasonal rank boards.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFFA0ACCC),
                 textAlign = TextAlign.Center
@@ -102,7 +102,7 @@ fun RankingScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "Sign In to Access Ranking Arena",
+                    text = "Sign In to View Leaderboard",
                     color = Color.Black,
                     fontWeight = FontWeight.Bold
                 )
