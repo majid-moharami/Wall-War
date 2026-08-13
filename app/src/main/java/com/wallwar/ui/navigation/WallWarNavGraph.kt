@@ -1,6 +1,7 @@
 package com.wallwar.ui.navigation
 
 import android.app.Activity
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -190,7 +191,7 @@ fun WallWarNavGraph(
             val localDisconnectSeconds by viewModel.localDisconnectSeconds.collectAsStateWithLifecycle()
             val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
 
-            val activity = LocalContext.current as? Activity
+            val activity = LocalActivity.current
 
             GameBoardScreen(
                 gameState = gameState,
@@ -301,7 +302,7 @@ fun WallWarNavGraph(
             val isRewardedAdReady by viewModel.isRewardedAdReady.collectAsStateWithLifecycle()
             val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
 
-            val activity = LocalContext.current as? Activity
+            val activity = LocalActivity.current
 
             CoinShopScreen(
                 userProfile = userProfile,
