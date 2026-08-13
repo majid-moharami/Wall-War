@@ -239,10 +239,22 @@ fun GameBoardScreen(
         isValidDrag = false
     }
 
+    val themePrimary = Color(boardTheme.primaryColor)
+    val themeOuterTop = Color(boardTheme.outerBgTop)
+    val themeOuterBottom = Color(boardTheme.outerBgBottom)
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(NeonDarkBg)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        themeOuterTop.copy(alpha = 0.85f),
+                        NeonDarkBg,
+                        themeOuterBottom.copy(alpha = 0.85f)
+                    )
+                )
+            )
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -293,7 +305,7 @@ fun GameBoardScreen(
                 Text(
                     text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
                     style = MaterialTheme.typography.bodySmall,
-                    color = NeonCyan,
+                    color = themePrimary,
                     fontWeight = FontWeight.Bold
                 )
             }
