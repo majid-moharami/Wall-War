@@ -116,9 +116,22 @@ class GameViewModel @Inject constructor(
     private val _turnTimeLeft = MutableStateFlow(30)
     val turnTimeLeft: StateFlow<Int> = _turnTimeLeft.asStateFlow()
 
+    private val _isOpponentDisconnected = MutableStateFlow(false)
+    val isOpponentDisconnected: StateFlow<Boolean> = _isOpponentDisconnected.asStateFlow()
+
+    private val _disconnectSecondsRemaining = MutableStateFlow(60)
+    val disconnectSecondsRemaining: StateFlow<Int> = _disconnectSecondsRemaining.asStateFlow()
+
+    private val _isLocalDisconnected = MutableStateFlow(false)
+    val isLocalDisconnected: StateFlow<Boolean> = _isLocalDisconnected.asStateFlow()
+
+    private val _localDisconnectSeconds = MutableStateFlow(15)
+    val localDisconnectSeconds: StateFlow<Int> = _localDisconnectSeconds.asStateFlow()
+
     private var matchStartTime: Long = System.currentTimeMillis()
     private var timerJob: kotlinx.coroutines.Job? = null
     private var disconnectTimerJob: kotlinx.coroutines.Job? = null
+    private var localDisconnectJob: kotlinx.coroutines.Job? = null
 
     init {
         val initialState = _gameState.value
@@ -135,7 +148,12 @@ class GameViewModel @Inject constructor(
                             _onlineOpponentName.value = event.opponentName
                             _myPlayerIndex.value = event.selfPlayerIndex
                             _onlineErrorMessage.value = null
+                            _isOpponentDisconnected.value = false
+                            _isLocalDisconnected.value = false
                             
+                            // Mark match as active in persistent storage for crash/disconnect recovery
+                            authRepository.markActiveOnlineMatch(event.matchId)
+
                             // Set the initial turn based on the deterministic starter index
                             val currentState = _gameState.value
                             val nextState = currentState.copy(turn = event.starterIndex)
@@ -160,20 +178,26 @@ class GameViewModel @Inject constructor(
                             saveMatchToHistory(next)
                             timerJob?.cancel()
                         }
+                        is OnlineMatchEvent.OpponentDisconnected -> {
+                            handleOpponentDisconnected()
+                        }
+                        is OnlineMatchEvent.OpponentReconnected -> {
+                            handleOpponentReconnected()
+                        }
                         else -> {}
                     }
                 }
             }
 
-            // Handle disconnection during match
+            // Handle local socket disconnection during match
             viewModelScope.launch {
                 onlineMatchState.collect { state ->
                     if (state == OnlineMatchState.DISCONNECTED || state == OnlineMatchState.ERROR) {
-                        if (_gameState.value.winner == null) {
-                            startDisconnectTimer()
+                        if (_gameState.value.winner == null && !_isOpponentDisconnected.value) {
+                            handleLocalConnectionLost()
                         }
                     } else if (state == OnlineMatchState.IN_MATCH) {
-                        disconnectTimerJob?.cancel()
+                        handleLocalConnectionRestored()
                     }
                 }
             }
@@ -182,21 +206,81 @@ class GameViewModel @Inject constructor(
         }
     }
 
-    private fun startDisconnectTimer() {
-        disconnectTimerJob?.cancel()
-        disconnectTimerJob = viewModelScope.launch {
-            delay(60000) // 1 minute
-            if (_gameState.value.winner == null) {
-                // If still disconnected after 1 min, current player loses (assuming they are the one who disconnected)
-                // Actually, if we are here, we can't tell who disconnected easily.
-                // But usually the one receiving this event is the one with local issues.
-                // For now, let's just mark it as a loss to prevent infinite waiting.
+    private fun handleLocalConnectionLost() {
+        if (_gameState.value.winner != null) return
+        _isLocalDisconnected.value = true
+        _localDisconnectSeconds.value = 60
+
+        localDisconnectJob?.cancel()
+        localDisconnectJob = viewModelScope.launch {
+            for (sec in 60 downTo 1) {
+                _localDisconnectSeconds.value = sec
+                if (sec % 2 == 0 || sec == 60) {
+                    nakamaRepository.attemptReconnectActiveMatch()
+                }
+                delay(1000)
+                if (!_isLocalDisconnected.value) return@launch
+            }
+            if (_isLocalDisconnected.value && _gameState.value.winner == null) {
+                // 60s local reconnect timeout -> forfeit loss
                 val winner = 1 - _myPlayerIndex.value
                 val next = _gameState.value.copy(winner = winner)
                 _gameState.value = next
+                soundManager.vibrateShort()
                 saveMatchToHistory(next)
+                _isLocalDisconnected.value = false
             }
         }
+    }
+
+    private fun handleLocalConnectionRestored() {
+        _isLocalDisconnected.value = false
+        localDisconnectJob?.cancel()
+    }
+
+    fun forfeitAndQuitLocalMatch() {
+        if (_gameState.value.winner == null) {
+            val winner = 1 - _myPlayerIndex.value
+            val next = _gameState.value.copy(winner = winner)
+            _gameState.value = next
+            saveMatchToHistory(next)
+        }
+        _isLocalDisconnected.value = false
+        localDisconnectJob?.cancel()
+        authRepository.clearActiveOnlineMatch()
+    }
+
+    private fun handleOpponentDisconnected() {
+        if (_gameState.value.winner != null) return
+        _isOpponentDisconnected.value = true
+        _disconnectSecondsRemaining.value = 60
+
+        disconnectTimerJob?.cancel()
+        disconnectTimerJob = viewModelScope.launch {
+            for (sec in 60 downTo 1) {
+                _disconnectSecondsRemaining.value = sec
+                delay(1000)
+                if (!_isOpponentDisconnected.value) return@launch
+            }
+            _disconnectSecondsRemaining.value = 0
+            if (_isOpponentDisconnected.value && _gameState.value.winner == null) {
+                // 1-minute timeout passed -> Remaining player wins automatically!
+                val winner = _myPlayerIndex.value
+                val next = _gameState.value.copy(winner = winner)
+                _gameState.value = next
+                soundManager.playVictoryFanfare()
+                soundManager.vibrateSuccess()
+                saveMatchToHistory(next)
+                timerJob?.cancel()
+                _isOpponentDisconnected.value = false
+            }
+        }
+    }
+
+    private fun handleOpponentReconnected() {
+        _isOpponentDisconnected.value = false
+        _disconnectSecondsRemaining.value = 60
+        disconnectTimerJob?.cancel()
     }
 
     fun startOnlineMatchmaking() {
@@ -528,6 +612,7 @@ class GameViewModel @Inject constructor(
                 
                 // Update local profile with arena payouts and sync to Nakama
                 authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+                authRepository.clearActiveOnlineMatch()
             }
         } else if (opponentType == OpponentType.AI || opponentType == OpponentType.LOCAL_PASS_PLAY) {
             // Also record AI / Local Arena matches with arena payouts

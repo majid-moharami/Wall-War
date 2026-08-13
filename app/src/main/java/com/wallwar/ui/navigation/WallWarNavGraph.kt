@@ -71,6 +71,7 @@ fun WallWarNavGraph(
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
             val arenaErrorMessage by viewModel.arenaErrorMessage.collectAsStateWithLifecycle()
             val bonusMessage by viewModel.bonusMessage.collectAsStateWithLifecycle()
+            val abandonedMatchNotice by viewModel.abandonedMatchNotice.collectAsStateWithLifecycle()
             val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
 
             HomeScreen(
@@ -82,6 +83,7 @@ fun WallWarNavGraph(
                 boardTheme = boardTheme,
                 arenaErrorMessage = arenaErrorMessage,
                 bonusMessage = bonusMessage,
+                abandonedMatchNotice = abandonedMatchNotice,
                 onJoinOnlineArenaMatch = { arena ->
                     viewModel.joinOnlineArenaMatch(arena) { mode, opp, diff, ar ->
                         navController.navigate(
@@ -109,6 +111,7 @@ fun WallWarNavGraph(
                 onClaimDailyBonus = viewModel::claimDailyBonus,
                 onClearArenaError = viewModel::clearArenaErrorMessage,
                 onClearBonusMessage = viewModel::clearBonusMessage,
+                onClearAbandonedMatchNotice = viewModel::clearAbandonedMatchNotice,
                 onNavigate = { targetScreen ->
                     when (targetScreen) {
                         AppScreen.GAME_BOARD -> navController.navigate(GameBoardRoute())
@@ -181,6 +184,10 @@ fun WallWarNavGraph(
             val onlineOpponentName by viewModel.onlineOpponentName.collectAsStateWithLifecycle()
             val myPlayerIndex by viewModel.myPlayerIndex.collectAsStateWithLifecycle()
             val turnTimeLeft by viewModel.turnTimeLeft.collectAsStateWithLifecycle()
+            val isOpponentDisconnected by viewModel.isOpponentDisconnected.collectAsStateWithLifecycle()
+            val disconnectSecondsRemaining by viewModel.disconnectSecondsRemaining.collectAsStateWithLifecycle()
+            val isLocalDisconnected by viewModel.isLocalDisconnected.collectAsStateWithLifecycle()
+            val localDisconnectSeconds by viewModel.localDisconnectSeconds.collectAsStateWithLifecycle()
             val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
 
             val activity = LocalContext.current as? Activity
@@ -198,10 +205,15 @@ fun WallWarNavGraph(
                 onlineOpponentName = onlineOpponentName,
                 myPlayerIndex = myPlayerIndex,
                 turnTimeLeft = turnTimeLeft,
+                isOpponentDisconnected = isOpponentDisconnected,
+                disconnectSecondsRemaining = disconnectSecondsRemaining,
+                isLocalDisconnected = isLocalDisconnected,
+                localDisconnectSeconds = localDisconnectSeconds,
                 arenaTitle = viewModel.selectedArena.title,
                 onlineErrorMessage = onlineErrorMessage,
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
+                onForfeitAndQuitLocalMatch = viewModel::forfeitAndQuitLocalMatch,
                 onCellClick = viewModel::selectCell,
                 onPlaceWall = viewModel::placeWall,
                 onSelectWallOrientation = viewModel::selectWallOrientation,

@@ -43,6 +43,8 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Warning
+import com.wallwar.ui.theme.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -103,10 +105,15 @@ fun GameBoardScreen(
     onlineOpponentName: String = "Online Opponent",
     myPlayerIndex: Int = 0,
     turnTimeLeft: Int = 30,
+    isOpponentDisconnected: Boolean = false,
+    disconnectSecondsRemaining: Int = 60,
+    isLocalDisconnected: Boolean = false,
+    localDisconnectSeconds: Int = 15,
     arenaTitle: String = "Pro Arena",
     onlineErrorMessage: String? = null,
     onRetryOnlineConnection: () -> Unit = {},
     onCancelOnlineMatchmaking: () -> Unit = {},
+    onForfeitAndQuitLocalMatch: () -> Unit = {},
     onCellClick: (r: Int, c: Int) -> Unit,
     onPlaceWall: (r: Int, c: Int, isHorizontal: Boolean) -> Unit,
     onSelectWallOrientation: (isHorizontal: Boolean) -> Unit,
@@ -694,6 +701,179 @@ fun GameBoardScreen(
                     Text("Abort Matchmaking", color = Color.White)
                 }
             }
+        )
+    }
+
+    // Local Connection Lost Modal
+    if (opponentType == OpponentType.ONLINE && isLocalDisconnected && gameState.winner == null) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = NeonDarkCard,
+            titleContentColor = NeonAmber,
+            textContentColor = Color(0xFFA0ACCC),
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(NeonAmber.copy(alpha = 0.15f))
+                            .border(1.5.dp, NeonAmber, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = NeonAmber,
+                            modifier = Modifier.size(28.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "CONNECTION LOST",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeonAmber,
+                        letterSpacing = 1.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Attempting to reconnect to server...",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(NeonDarkSurface)
+                            .border(1.dp, NeonAmber.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Reconnecting: ${localDisconnectSeconds}s",
+                                color = NeonCyan,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Re-establishing connection to match...\nIf restored within 60 seconds, the match will automatically resume!",
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 12.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onForfeitAndQuitLocalMatch,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Forfeit & Leave Match", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {}
+        )
+    }
+
+    // Opponent Disconnected Announcement Overlay Dialog Modal
+    if (opponentType == OpponentType.ONLINE && isOpponentDisconnected && gameState.winner == null) {
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = NeonDarkCard,
+            titleContentColor = NeonAmber,
+            textContentColor = Color(0xFFA0ACCC),
+            title = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Box(
+                        modifier = Modifier
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(NeonAmber.copy(alpha = 0.15f))
+                            .border(1.5.dp, NeonAmber, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = NeonAmber,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text(
+                        text = "OPPONENT DISCONNECTED",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeonAmber,
+                        letterSpacing = 1.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "$onlineOpponentName lost connection.",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(NeonDarkSurface)
+                            .border(1.dp, NeonAmber.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Waiting: ${disconnectSecondsRemaining}s",
+                                color = NeonCyan,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "If opponent reconnects within 60 seconds, the match will resume.\nOtherwise, you will automatically win!",
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 12.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        lineHeight = 16.sp
+                    )
+                }
+            },
+            confirmButton = {},
+            dismissButton = {}
         )
     }
 

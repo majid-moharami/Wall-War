@@ -57,7 +57,11 @@ class AuthRepository @Inject constructor(
     private val _userProfile = MutableStateFlow(loadStoredProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
+    private val _abandonedMatchNotice = MutableStateFlow<String?>(null)
+    val abandonedMatchNotice: StateFlow<String?> = _abandonedMatchNotice.asStateFlow()
+
     init {
+        checkAndResolveAbandonedMatch()
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             if (nakamaRepository.hasValidSession()) {
                 syncFromNakamaServer()
@@ -66,6 +70,33 @@ class AuthRepository @Inject constructor(
                 nakamaRepository.ensureAuthenticatedGuest(initialProfile.displayName)
                 syncFromNakamaServer()
             }
+        }
+    }
+
+    fun clearAbandonedMatchNotice() {
+        _abandonedMatchNotice.value = null
+    }
+
+    fun markActiveOnlineMatch(matchId: String) {
+        prefs.edit()
+            .putString("active_online_match_id", matchId)
+            .putLong("active_online_match_time", System.currentTimeMillis())
+            .apply()
+    }
+
+    fun clearActiveOnlineMatch() {
+        prefs.edit()
+            .remove("active_online_match_id")
+            .remove("active_online_match_time")
+            .apply()
+    }
+
+    fun checkAndResolveAbandonedMatch() {
+        val abandonedMatchId = prefs.getString("active_online_match_id", null)
+        if (!abandonedMatchId.isNullOrEmpty()) {
+            clearActiveOnlineMatch()
+            recordArenaMatchResult(didWin = false, wallsPlaced = 0, winningPrize = 0)
+            _abandonedMatchNotice.value = "An unfinished online match was detected from your previous session. A forfeit loss (-10 trophies) has been recorded."
         }
     }
 

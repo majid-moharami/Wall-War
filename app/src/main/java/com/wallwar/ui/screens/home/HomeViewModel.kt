@@ -30,6 +30,11 @@ class HomeViewModel @Inject constructor(
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
+    val abandonedMatchNotice: StateFlow<String?> = authRepository.abandonedMatchNotice
+
+    fun clearAbandonedMatchNotice() {
+        authRepository.clearAbandonedMatchNotice()
+    }
 
     val totalWins: StateFlow<Int> = gameRepository.playerWins
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)

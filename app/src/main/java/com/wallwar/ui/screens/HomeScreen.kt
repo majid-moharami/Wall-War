@@ -104,16 +104,47 @@ fun HomeScreen(
     boardTheme: BoardTheme = BoardTheme.ELEGANT_DARK,
     arenaErrorMessage: String? = null,
     bonusMessage: String? = null,
+    abandonedMatchNotice: String? = null,
     onJoinOnlineArenaMatch: (Arena) -> Unit = {},
     onJoinOfflineMatch: (OpponentType, AiDifficulty, Boolean) -> Unit = { _, _, _ -> },
     onClaimDailyBonus: () -> Unit = {},
     onClearArenaError: () -> Unit = {},
     onClearBonusMessage: () -> Unit = {},
+    onClearAbandonedMatchNotice: () -> Unit = {},
     onNavigate: (AppScreen) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val actualWins = totalWins.coerceAtLeast(userProfile.wins)
     val actualMatches = totalMatches.coerceAtLeast(userProfile.totalMatches)
+
+    // Alert dialog for abandoned match notice
+    if (abandonedMatchNotice != null) {
+        AlertDialog(
+            onDismissRequest = onClearAbandonedMatchNotice,
+            containerColor = NeonDarkCard,
+            title = {
+                Text(
+                    text = "Match Forfeited ⚠️",
+                    color = NeonAmber,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = abandonedMatchNotice,
+                    color = Color(0xFFA0ACCC)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = onClearAbandonedMatchNotice,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                ) {
+                    Text("Got It", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     // Alert dialog for insufficient coins error
     if (arenaErrorMessage != null) {

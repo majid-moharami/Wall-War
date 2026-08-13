@@ -16,6 +16,7 @@ import com.heroiclabs.nakama.DefaultClient
 import com.heroiclabs.nakama.DefaultSession
 import com.heroiclabs.nakama.MatchData
 import com.heroiclabs.nakama.MatchmakerMatched
+import com.heroiclabs.nakama.MatchPresenceEvent
 import com.heroiclabs.nakama.PermissionRead
 import com.heroiclabs.nakama.PermissionWrite
 import com.heroiclabs.nakama.Session
@@ -50,6 +51,8 @@ sealed class OnlineMatchEvent {
     data class OpponentMove(val move: Move) : OnlineMatchEvent()
     data class TurnTimeout(val playerIndex: Int) : OnlineMatchEvent()
     data class OpponentSurrendered(val winnerIndex: Int) : OnlineMatchEvent()
+    object OpponentDisconnected : OnlineMatchEvent()
+    object OpponentReconnected : OnlineMatchEvent()
     data class MatchEnded(val winnerIndex: Int, val coinReward: Int = 75) : OnlineMatchEvent()
     data class Error(val message: String) : OnlineMatchEvent()
 }
@@ -637,10 +640,27 @@ class NakamaRepository @Inject constructor(
                             handleIncomingMatchData(matchData)
                         }
 
+                        override fun onMatchPresence(matchPresence: MatchPresenceEvent) {
+                            scope.launch {
+                                val leaves = matchPresence.leaves
+                                val joins = matchPresence.joins
+                                if (leaves != null && leaves.any { it.userId != nakamaUserId }) {
+                                    _matchEvents.emit(OnlineMatchEvent.OpponentDisconnected)
+                                }
+                                if (joins != null && joins.any { it.userId != nakamaUserId }) {
+                                    _matchEvents.emit(OnlineMatchEvent.OpponentReconnected)
+                                }
+                            }
+                        }
+
                         override fun onDisconnect(t: Throwable?) {
                             Log.w("NakamaRepository", "Socket disconnected: ${t?.message}")
-                            _matchState.value = OnlineMatchState.IDLE
                             socket = null
+                            if (activeMatchId != null) {
+                                _matchState.value = OnlineMatchState.DISCONNECTED
+                            } else {
+                                _matchState.value = OnlineMatchState.IDLE
+                            }
                         }
                     })?.await()
                 }
@@ -806,6 +826,63 @@ class NakamaRepository @Inject constructor(
             activeMatchId?.let { socket?.leaveMatch(it) }
             activeMatchId = null
             _matchState.value = OnlineMatchState.IDLE
+        }
+    }
+
+    fun attemptReconnectActiveMatch() {
+        val matchId = activeMatchId ?: return
+        scope.launch {
+            try {
+                if (session == null || session!!.IsExpired()) {
+                    val username = nakamaUsername ?: "Player"
+                    authenticateWithDevice(username)
+                }
+                if (session != null) {
+                    if (socket == null) {
+                        socket = client.createSocket()
+                        socket?.connect(session!!, object : AbstractSocketListener() {
+                            override fun onMatchmakerMatched(matched: MatchmakerMatched) {
+                                handleMatchmakerMatched(matched)
+                            }
+
+                            override fun onMatchData(matchData: MatchData) {
+                                handleIncomingMatchData(matchData)
+                            }
+
+                            override fun onMatchPresence(matchPresence: MatchPresenceEvent) {
+                                scope.launch {
+                                    val leaves = matchPresence.leaves
+                                    val joins = matchPresence.joins
+                                    if (leaves != null && leaves.any { it.userId != nakamaUserId }) {
+                                        _matchEvents.emit(OnlineMatchEvent.OpponentDisconnected)
+                                    }
+                                    if (joins != null && joins.any { it.userId != nakamaUserId }) {
+                                        _matchEvents.emit(OnlineMatchEvent.OpponentReconnected)
+                                    }
+                                }
+                            }
+
+                            override fun onDisconnect(t: Throwable?) {
+                                Log.w("NakamaRepository", "Socket disconnected: ${t?.message}")
+                                socket = null
+                                if (activeMatchId != null) {
+                                    _matchState.value = OnlineMatchState.DISCONNECTED
+                                } else {
+                                    _matchState.value = OnlineMatchState.IDLE
+                                }
+                            }
+                        })?.await()
+                    }
+
+                    if (socket != null && activeMatchId != null) {
+                        socket?.joinMatch(matchId)?.await()
+                        _matchState.value = OnlineMatchState.IN_MATCH
+                        Log.d("NakamaRepository", "Successfully reconnected and rejoined match: $matchId")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("NakamaRepository", "Reconnect attempt failed: ${e.message}")
+            }
         }
     }
 }
