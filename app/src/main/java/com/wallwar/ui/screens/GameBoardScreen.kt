@@ -764,8 +764,14 @@ fun GameBoardScreen(
     // Victory/Defeat Celebration Dialog Modal
     if (gameState.winner != null) {
         val isWinner = gameState.winner == myPlayerIndex
-        val titleText = if (isWinner) "🏆 YOU WIN!" else "💀 YOU LOSE!"
-        val titleColor = if (isWinner) NeonCyan else NeonMagenta
+        val titleText = if (opponentType == OpponentType.LOCAL_PASS_PLAY) {
+            if (gameState.winner == 0) "🏆 PLAYER 1 WINS!" else "🏆 PLAYER 2 WINS!"
+        } else if (isWinner) {
+            "🏆 YOU WIN!"
+        } else {
+            "💀 YOU LOSE!"
+        }
+        val titleColor = if (opponentType == OpponentType.LOCAL_PASS_PLAY || isWinner) NeonCyan else NeonMagenta
 
         AlertDialog(
             onDismissRequest = {},

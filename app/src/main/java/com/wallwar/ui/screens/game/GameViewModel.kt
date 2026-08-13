@@ -317,7 +317,8 @@ class GameViewModel @Inject constructor(
 
     private fun applyUserMove(move: Move) {
         val currentState = _gameState.value
-        val nextState = GameEngine.applyMove(currentState, move) ?: return
+        val playerIdx = if (opponentType == OpponentType.ONLINE) _myPlayerIndex.value else currentState.turn
+        val nextState = GameEngine.applyMove(currentState, move, playerIdx) ?: return
 
         val isWall = move is Move.WallPlacement
         soundManager.playMoveSound(isMine = true, isWall = isWall)
@@ -331,7 +332,8 @@ class GameViewModel @Inject constructor(
 
     private fun applyRemoteMove(move: Move) {
         val currentState = _gameState.value
-        val nextState = GameEngine.applyMove(currentState, move) ?: return
+        val oppIndex = 1 - _myPlayerIndex.value
+        val nextState = GameEngine.applyMove(currentState, move, oppIndex) ?: return
 
         val isWall = move is Move.WallPlacement
         soundManager.playMoveSound(isMine = false, isWall = isWall)
@@ -341,6 +343,7 @@ class GameViewModel @Inject constructor(
         startTurnTimer()
 
         if (nextState.winner != null) {
+            timerJob?.cancel()
             if (nextState.winner == _myPlayerIndex.value) {
                 soundManager.playVictoryFanfare()
                 soundManager.vibrateSuccess()
@@ -512,7 +515,7 @@ class GameViewModel @Inject constructor(
                 val record = MatchRecord(
                     modeName = "${selectedArena.title} (${finalState.mode.displayName})",
                     opponentName = opponentName,
-                    winnerPlayer = winnerIndex,
+                    winnerPlayer = if (didWin) 0 else 1,
                     totalMoves = finalState.moveHistory.size,
                     totalWallsPlaced = finalState.walls.size,
                     durationSeconds = durationSeconds

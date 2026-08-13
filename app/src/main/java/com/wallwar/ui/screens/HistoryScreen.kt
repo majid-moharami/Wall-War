@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,10 +29,13 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.SportsEsports
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -64,6 +68,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wallwar.data.MatchRecord
+import com.wallwar.data.UserProfile
+import com.wallwar.ui.screens.history.HistoryFilter
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
@@ -80,21 +86,26 @@ import kotlin.math.max
 
 enum class ChartType(val title: String) {
     RATING_TREND("Rating Trend"),
-    WALLS_VS_MOVES("Walls & Moves")
+    WALLS_VS_MOVES("Walls & Moves"),
+    WIN_RATE_MOMENTUM("Win Rate %")
 }
 
 @Composable
 fun HistoryScreen(
-    matchHistory: List<MatchRecord>,
+    userProfile: UserProfile,
+    allMatches: List<MatchRecord>,
+    filteredMatches: List<MatchRecord>,
+    selectedFilter: HistoryFilter,
     totalWins: Int,
     totalMatches: Int,
+    onFilterSelected: (HistoryFilter) -> Unit,
     onClearHistory: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val winRate = if (totalMatches > 0) ((totalWins.toFloat() / totalMatches) * 100).toInt() else 0
-    val avgWalls = if (totalMatches > 0) matchHistory.map { it.totalWallsPlaced }.average().toInt() else 0
-    val avgMoves = if (totalMatches > 0) matchHistory.map { it.totalMoves }.average().toInt() else 0
+    val avgWalls = if (allMatches.isNotEmpty()) allMatches.map { it.totalWallsPlaced }.average().toInt() else 0
+    val avgMoves = if (allMatches.isNotEmpty()) allMatches.map { it.totalMoves }.average().toInt() else 0
 
     var selectedChartType by remember { mutableStateOf(ChartType.RATING_TREND) }
     var selectedMatchForDetails by remember { mutableStateOf<MatchRecord?>(null) }
@@ -104,7 +115,7 @@ fun HistoryScreen(
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             title = { Text("Clear Match History?", color = Color.White, fontWeight = FontWeight.Bold) },
-            text = { Text("This will reset all recorded match statistics. This action cannot be undone.", color = Color(0xFFA0ACCC)) },
+            text = { Text("This will reset all recorded match statistics and performance logs. This action cannot be undone.", color = Color(0xFFA0ACCC)) },
             containerColor = NeonDarkCard,
             confirmButton = {
                 TextButton(
@@ -169,7 +180,7 @@ fun HistoryScreen(
                         color = Color.White
                     )
                 }
-                if (matchHistory.isNotEmpty()) {
+                if (allMatches.isNotEmpty()) {
                     IconButton(
                         onClick = { showClearDialog = true },
                         modifier = Modifier
@@ -188,11 +199,11 @@ fun HistoryScreen(
             }
         }
 
-        // Summary Stats Bento Grid
+        // Summary Stats (Total Matches & Win Rate)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatBentoCard(
                     title = "Total Matches",
@@ -209,29 +220,9 @@ fun HistoryScreen(
                     modifier = Modifier.weight(1f)
                 )
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatBentoCard(
-                    title = "Avg Walls",
-                    value = "$avgWalls / game",
-                    icon = Icons.Default.Layers,
-                    accentColor = NeonAmber,
-                    modifier = Modifier.weight(1f)
-                )
-                StatBentoCard(
-                    title = "Avg Moves",
-                    value = "$avgMoves / game",
-                    icon = Icons.Default.Speed,
-                    accentColor = NeonPurple,
-                    modifier = Modifier.weight(1f)
-                )
-            }
         }
 
-        // Interactive Game Chart Section
+        // Rating Trend Chart Section
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
@@ -239,64 +230,38 @@ fun HistoryScreen(
                 border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonCyan.copy(alpha = 0.6f), NeonMagenta.copy(alpha = 0.6f)))),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(NeonCyan.copy(alpha = 0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = if (selectedChartType == ChartType.RATING_TREND) Icons.Default.ShowChart else Icons.Default.BarChart,
-                                    contentDescription = null,
-                                    tint = NeonCyan,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = "Performance Chart",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(NeonCyan.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ShowChart,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(16.dp)
                             )
                         }
-
-                        // Chart Type Selector
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            ChartType.values().forEach { chartType ->
-                                FilterChip(
-                                    selected = selectedChartType == chartType,
-                                    onClick = { selectedChartType = chartType },
-                                    label = {
-                                        Text(
-                                            text = chartType.title,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    },
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        selectedContainerColor = NeonCyan,
-                                        selectedLabelColor = Color.Black,
-                                        containerColor = NeonDarkSurface,
-                                        labelColor = Color(0xFFA0ACCC)
-                                    )
-                                )
-                            }
-                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Rating Trend",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Canvas Chart Render
-                    if (matchHistory.isEmpty()) {
+                    if (filteredMatches.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -307,7 +272,7 @@ fun HistoryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No match history available yet.\nPlay matches to populate the chart!",
+                                text = "No match history available.\nPlay matches to populate analytics!",
                                 color = Color(0xFFA0ACCC),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -315,27 +280,21 @@ fun HistoryScreen(
                             )
                         }
                     } else {
-                        val displayMatches = matchHistory.takeLast(10)
+                        val displayMatches = filteredMatches.reversed().takeLast(12)
 
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(200.dp)
+                                .height(210.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(NeonDarkSurface)
                                 .border(1.dp, NeonBorder, RoundedCornerShape(12.dp))
                         ) {
-                            if (selectedChartType == ChartType.RATING_TREND) {
-                                NeonRatingTrendChart(
-                                    matches = displayMatches,
-                                    onSelectMatch = { match -> selectedMatchForDetails = match }
-                                )
-                            } else {
-                                NeonWallsVsMovesBarChart(
-                                    matches = displayMatches,
-                                    onSelectMatch = { match -> selectedMatchForDetails = match }
-                                )
-                            }
+                            NeonRatingTrendChart(
+                                matches = displayMatches,
+                                baseRating = 1200 + userProfile.trophies,
+                                onSelectMatch = { match -> selectedMatchForDetails = match }
+                            )
                         }
                     }
 
@@ -357,7 +316,7 @@ fun HistoryScreen(
                                 ) {
                                     Column {
                                         Text(
-                                            text = "Selected Match: ${match.modeName} vs ${match.opponentName}",
+                                            text = "Match: ${match.modeName} vs ${match.opponentName}",
                                             style = MaterialTheme.typography.bodySmall,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.White
@@ -377,7 +336,7 @@ fun HistoryScreen(
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     ) {
                                         Text(
-                                            text = if (isWin) "VICTORY" else "DEFEAT",
+                                            text = if (isWin) "VICTORY (+25 ELO)" else "DEFEAT (-18 ELO)",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = if (isWin) NeonEmerald else NeonMagenta
@@ -391,18 +350,75 @@ fun HistoryScreen(
             }
         }
 
-        // Recent Matches List Section Header
+        // Match Filter Row
         item {
-            Text(
-                text = "MATCH LOGS",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFFA0ACCC),
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
-            )
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = null,
+                            tint = Color(0xFFA0ACCC),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "MATCH LOGS",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFFA0ACCC),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    Text(
+                        text = "${filteredMatches.size} record(s)",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = NeonCyan,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(HistoryFilter.values()) { filter ->
+                        FilterChip(
+                            selected = selectedFilter == filter,
+                            onClick = { onFilterSelected(filter) },
+                            label = {
+                                Text(
+                                    text = filter.title,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = NeonCyan,
+                                selectedLabelColor = Color.Black,
+                                containerColor = NeonDarkCard,
+                                labelColor = Color(0xFFA0ACCC)
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = selectedFilter == filter,
+                                borderColor = NeonBorder,
+                                selectedBorderColor = NeonCyan
+                            )
+                        )
+                    }
+                }
+            }
         }
 
-        if (matchHistory.isEmpty()) {
+        if (filteredMatches.isEmpty()) {
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
@@ -417,7 +433,7 @@ fun HistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No recorded matches yet.\nPlay a match in Tactical Arena to see logs!",
+                            text = "No recorded matches found for the selected filter.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFFA0ACCC),
                             fontWeight = FontWeight.Medium,
@@ -427,7 +443,7 @@ fun HistoryScreen(
                 }
             }
         } else {
-            items(matchHistory.reversed()) { match ->
+            items(filteredMatches) { match ->
                 NeonMatchHistoryCard(match)
             }
         }
@@ -453,12 +469,12 @@ private fun StatBentoCard(
         modifier = modifier
     ) {
         Row(
-            modifier = Modifier.padding(14.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(38.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(accentColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
@@ -467,10 +483,10 @@ private fun StatBentoCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accentColor,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Column {
                 Text(
                     text = value,
@@ -491,11 +507,12 @@ private fun StatBentoCard(
 @Composable
 private fun NeonRatingTrendChart(
     matches: List<MatchRecord>,
+    baseRating: Int,
     onSelectMatch: (MatchRecord) -> Unit
 ) {
     var tappedIndex by remember { mutableStateOf<Int?>(null) }
     val points = remember(matches) {
-        var cumRating = 1200
+        var cumRating = max(1000, baseRating - (matches.size * 5))
         matches.map { match ->
             if (match.winnerPlayer == 0) {
                 cumRating += 25 + (match.totalWallsPlaced * 2)
@@ -516,7 +533,6 @@ private fun NeonRatingTrendChart(
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Legend Header Bar inside chart container
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -526,34 +542,19 @@ private fun NeonRatingTrendChart(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(NeonCyan)
-                    )
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonCyan))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Rating Path", fontSize = 10.sp, color = Color(0xFFA0ACCC), fontWeight = FontWeight.Bold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(NeonEmerald)
-                    )
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonEmerald))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Victory", fontSize = 10.sp, color = NeonEmerald, fontWeight = FontWeight.Bold)
+                    Text("Win (+25)", fontSize = 10.sp, color = NeonEmerald, fontWeight = FontWeight.Bold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(NeonMagenta)
-                    )
+                    Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonMagenta))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Defeat", fontSize = 10.sp, color = NeonMagenta, fontWeight = FontWeight.Bold)
+                    Text("Loss (-18)", fontSize = 10.sp, color = NeonMagenta, fontWeight = FontWeight.Bold)
                 }
             }
             if (tappedIndex != null) {
@@ -600,13 +601,10 @@ private fun NeonRatingTrendChart(
             val usableWidth = width - paddingLeft - paddingRight
             val usableHeight = height - paddingTop - paddingBottom
 
-            // Draw horizontal grid lines & Y-Axis labels
             val gridLines = 3
             val range = maxVal - minVal
             for (i in 0..gridLines) {
                 val y = paddingTop + (usableHeight / gridLines) * i
-                val valAtY = maxVal - (range / gridLines) * i
-
                 drawLine(
                     color = NeonBorder.copy(alpha = 0.35f),
                     start = Offset(paddingLeft, y),
@@ -629,7 +627,6 @@ private fun NeonRatingTrendChart(
                 Offset(paddingLeft + index * stepX, getY(valNum))
             }
 
-            // Draw Smooth Area Gradient under curve
             if (pathPoints.size >= 2) {
                 val fillPath = Path().apply {
                     moveTo(pathPoints.first().x, height - paddingBottom)
@@ -661,7 +658,6 @@ private fun NeonRatingTrendChart(
                     )
                 )
 
-                // Draw Line Path
                 val linePath = Path().apply {
                     moveTo(pathPoints.first().x, pathPoints.first().y)
                     for (i in 0 until pathPoints.size - 1) {
@@ -682,7 +678,6 @@ private fun NeonRatingTrendChart(
                 )
             }
 
-            // Draw data point dots & selection highlights
             pathPoints.forEachIndexed { idx, point ->
                 val match = matches.getOrNull(idx)
                 val isWin = match?.winnerPlayer == 0
@@ -690,7 +685,6 @@ private fun NeonRatingTrendChart(
                 val isSelected = tappedIndex == idx
 
                 if (isSelected) {
-                    // Vertical guide line
                     drawLine(
                         color = NeonCyan.copy(alpha = 0.5f),
                         start = Offset(point.x, paddingTop),
@@ -700,14 +694,12 @@ private fun NeonRatingTrendChart(
                     )
                 }
 
-                // Outer Glow ring
                 drawCircle(
                     color = if (isSelected) NeonCyan else dotColor.copy(alpha = 0.35f),
                     radius = if (isSelected) 10.dp.toPx() else 6.5.dp.toPx(),
                     center = point
                 )
 
-                // Inner solid dot
                 drawCircle(
                     color = if (isSelected) Color.White else dotColor,
                     radius = if (isSelected) 5.dp.toPx() else 3.5.dp.toPx(),
@@ -731,7 +723,6 @@ private fun NeonWallsVsMovesBarChart(
     )
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Legend Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -741,22 +732,12 @@ private fun NeonWallsVsMovesBarChart(
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp, 10.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(NeonCyan)
-                    )
+                    Box(modifier = Modifier.size(10.dp, 10.dp).clip(RoundedCornerShape(2.dp)).background(NeonCyan))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Walls Placed", fontSize = 10.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp, 10.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(NeonMagenta)
-                    )
+                    Box(modifier = Modifier.size(10.dp, 10.dp).clip(RoundedCornerShape(2.dp)).background(NeonMagenta))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("Total Moves", fontSize = 10.sp, color = NeonMagenta, fontWeight = FontWeight.Bold)
                 }
@@ -807,7 +788,6 @@ private fun NeonWallsVsMovesBarChart(
 
             val maxVal = (matches.maxOfOrNull { max(it.totalMoves, it.totalWallsPlaced) } ?: 30).coerceAtLeast(15)
 
-            // Grid reference lines
             val gridCount = 3
             for (i in 0..gridCount) {
                 val y = paddingTop + (usableHeight / gridCount) * i
@@ -834,7 +814,6 @@ private fun NeonWallsVsMovesBarChart(
 
                 val isSelected = tappedIndex == idx
 
-                // Walls Bar (Cyan)
                 drawRoundRect(
                     color = if (isSelected) NeonCyan else NeonCyan.copy(alpha = 0.85f),
                     topLeft = Offset(groupStartX, wallsY),
@@ -842,12 +821,185 @@ private fun NeonWallsVsMovesBarChart(
                     cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                 )
 
-                // Moves Bar (Magenta)
                 drawRoundRect(
                     color = if (isSelected) NeonMagenta else NeonMagenta.copy(alpha = 0.85f),
                     topLeft = Offset(groupStartX + barWidth + 4.dp.toPx(), movesY),
                     size = Size(barWidth, movesHeight),
                     cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NeonWinRateMomentumChart(
+    matches: List<MatchRecord>,
+    onSelectMatch: (MatchRecord) -> Unit
+) {
+    var tappedIndex by remember { mutableStateOf<Int?>(null) }
+    
+    // Compute rolling 5-game win percentage momentum
+    val momentumPoints = remember(matches) {
+        matches.mapIndexed { idx, _ ->
+            val window = matches.subList(max(0, idx - 4), idx + 1)
+            val winsInWindow = window.count { it.winnerPlayer == 0 }
+            (winsInWindow.toFloat() / window.size * 100).toInt()
+        }
+    }
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(900),
+        label = "momentum_anim"
+    )
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonEmerald))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Rolling Win % Momentum", fontSize = 10.sp, color = NeonEmerald, fontWeight = FontWeight.Bold)
+            }
+            if (tappedIndex != null) {
+                Text(
+                    text = "Win Rate: ${momentumPoints.getOrNull(tappedIndex ?: 0) ?: 0}%",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = NeonEmerald
+                )
+            }
+        }
+
+        Canvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(matches) {
+                    detectTapGestures { offset ->
+                        val width = size.width
+                        val paddingLeft = 40.dp.toPx()
+                        val paddingRight = 20.dp.toPx()
+                        val usableWidth = width - paddingLeft - paddingRight
+                        val stepX = if (momentumPoints.size > 1) usableWidth / (momentumPoints.size - 1) else usableWidth
+
+                        val closestIdx = momentumPoints.indices.minByOrNull { idx ->
+                            val x = paddingLeft + idx * stepX
+                            kotlin.math.abs(x - offset.x)
+                        }
+
+                        if (closestIdx != null && closestIdx < matches.size) {
+                            tappedIndex = closestIdx
+                            onSelectMatch(matches[closestIdx])
+                        }
+                    }
+                }
+        ) {
+            val width = size.width
+            val height = size.height
+
+            val paddingLeft = 40.dp.toPx()
+            val paddingRight = 20.dp.toPx()
+            val paddingTop = 15.dp.toPx()
+            val paddingBottom = 20.dp.toPx()
+
+            val usableWidth = width - paddingLeft - paddingRight
+            val usableHeight = height - paddingTop - paddingBottom
+
+            val gridLines = 4
+            for (i in 0..gridLines) {
+                val y = paddingTop + (usableHeight / gridLines) * i
+                drawLine(
+                    color = NeonBorder.copy(alpha = 0.35f),
+                    start = Offset(paddingLeft, y),
+                    end = Offset(width - paddingRight, y),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
+                )
+            }
+
+            if (momentumPoints.isEmpty()) return@Canvas
+
+            val stepX = if (momentumPoints.size > 1) usableWidth / (momentumPoints.size - 1) else usableWidth
+
+            fun getY(valNum: Int): Float {
+                val ratio = valNum / 100f
+                return (paddingTop + usableHeight * (1f - ratio * animatedProgress)).coerceIn(paddingTop, height - paddingBottom)
+            }
+
+            val pathPoints = momentumPoints.mapIndexed { index, valNum ->
+                Offset(paddingLeft + index * stepX, getY(valNum))
+            }
+
+            if (pathPoints.size >= 2) {
+                val fillPath = Path().apply {
+                    moveTo(pathPoints.first().x, height - paddingBottom)
+                    lineTo(pathPoints.first().x, pathPoints.first().y)
+
+                    for (i in 0 until pathPoints.size - 1) {
+                        val p1 = pathPoints[i]
+                        val p2 = pathPoints[i + 1]
+                        val controlX1 = p1.x + (p2.x - p1.x) / 2
+                        val controlY1 = p1.y
+                        val controlX2 = p1.x + (p2.x - p1.x) / 2
+                        val controlY2 = p2.y
+                        cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
+                    }
+
+                    lineTo(pathPoints.last().x, height - paddingBottom)
+                    close()
+                }
+
+                drawPath(
+                    path = fillPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            NeonEmerald.copy(alpha = 0.35f),
+                            NeonEmerald.copy(alpha = 0.01f)
+                        ),
+                        startY = paddingTop,
+                        endY = height - paddingBottom
+                    )
+                )
+
+                val linePath = Path().apply {
+                    moveTo(pathPoints.first().x, pathPoints.first().y)
+                    for (i in 0 until pathPoints.size - 1) {
+                        val p1 = pathPoints[i]
+                        val p2 = pathPoints[i + 1]
+                        val controlX1 = p1.x + (p2.x - p1.x) / 2
+                        val controlY1 = p1.y
+                        val controlX2 = p1.x + (p2.x - p1.x) / 2
+                        val controlY2 = p2.y
+                        cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
+                    }
+                }
+
+                drawPath(
+                    path = linePath,
+                    color = NeonEmerald,
+                    style = Stroke(width = 3.dp.toPx())
+                )
+            }
+
+            pathPoints.forEachIndexed { idx, point ->
+                val isSelected = tappedIndex == idx
+
+                drawCircle(
+                    color = if (isSelected) NeonEmerald else NeonEmerald.copy(alpha = 0.4f),
+                    radius = if (isSelected) 10.dp.toPx() else 6.dp.toPx(),
+                    center = point
+                )
+
+                drawCircle(
+                    color = if (isSelected) Color.White else NeonEmerald,
+                    radius = if (isSelected) 5.dp.toPx() else 3.5.dp.toPx(),
+                    center = point
                 )
             }
         }

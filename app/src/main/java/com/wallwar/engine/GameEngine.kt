@@ -210,9 +210,9 @@ object GameEngine {
                 hasPath(testWalls, state.pawns[1], p1Goal, state.cols, state.rows)
     }
 
-    fun applyMove(state: GameState, move: Move): GameState? {
+    fun applyMove(state: GameState, move: Move, playerIndex: Int? = null): GameState? {
         if (state.winner != null) return null
-        val p = state.turn
+        val p = playerIndex ?: state.turn
 
         return when (move) {
             is Move.PawnStep -> {
@@ -233,13 +233,14 @@ object GameEngine {
                 )
             }
             is Move.WallPlacement -> {
-                if (!canPlaceWall(state, p, move.wall)) return null
+                val wallToPlace = if (move.wall.playerOwner != p) move.wall.copy(playerOwner = p) else move.wall
+                if (!canPlaceWall(state, p, wallToPlace)) return null
 
                 val newLeft = state.leftWalls.clone()
                 newLeft[p]--
 
                 state.copy(
-                    walls = state.walls + move.wall,
+                    walls = state.walls + wallToPlace,
                     leftWalls = newLeft,
                     turn = 1 - p,
                     moveHistory = state.moveHistory + move
