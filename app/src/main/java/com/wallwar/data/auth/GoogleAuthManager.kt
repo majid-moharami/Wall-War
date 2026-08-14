@@ -8,10 +8,8 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
-import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import javax.inject.Inject
@@ -26,6 +24,8 @@ sealed class GoogleAuthResult {
 @Singleton
 class GoogleAuthManager @Inject constructor() {
 
+    private val tag = "GoogleAuthManager"
+
     private fun Context.findActivity(): Activity? {
         var ctx = this
         while (ctx is ContextWrapper) {
@@ -38,80 +38,64 @@ class GoogleAuthManager @Inject constructor() {
     suspend fun getGoogleIdToken(callingContext: Context, customClientId: String? = null): GoogleAuthResult {
         val clientId = customClientId?.ifBlank { null } ?: AuthConstants.GOOGLE_WEB_CLIENT_ID
 
-        if (clientId.isBlank() || clientId == "YOUR_WEB_CLIENT_ID_HERE") {
-            Log.w("GoogleAuthManager", "Google Web Client ID is placeholder or blank.")
-            return GoogleAuthResult.Error(
-                "Google Web Client ID is not configured yet. Please set GOOGLE_WEB_CLIENT_ID in AuthConstants.kt."
-            )
+        if (clientId.isBlank()) {
+            return GoogleAuthResult.Error("Google Web Client ID is not configured.")
         }
 
         val activityContext = callingContext.findActivity() ?: callingContext
-        val nonce = "wallwar_login_${System.currentTimeMillis()}"
 
-        val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(clientId)
-            .setNonce(nonce)
-            .build()
+        val credentialManager = try {
+            CredentialManager.create(activityContext)
+        } catch (e: Exception) {
+            Log.e(tag, "Failed to initialize CredentialManager: ${e.message}", e)
+            return GoogleAuthResult.Error("Failed to initialize Google Sign-In: ${e.message}")
+        }
 
         val googleIdOption = GetGoogleIdOption.Builder()
             .setFilterByAuthorizedAccounts(false)
             .setServerClientId(clientId)
             .setAutoSelectEnabled(false)
-            .setNonce(nonce)
             .build()
 
-        val credentialManager = CredentialManager.create(activityContext)
+        val request = GetCredentialRequest.Builder()
+            .addCredentialOption(googleIdOption)
+            .build()
 
-        // Try GetSignInWithGoogleOption first, then fallback to GetGoogleIdOption or combined request
-        suspend fun executeRequest(requestOptions: GetCredentialRequest): GoogleAuthResult {
-            val result = credentialManager.getCredential(context = activityContext, request = requestOptions)
+        return try {
+            val result = credentialManager.getCredential(context = activityContext, request = request)
             val credential = result.credential
 
             if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
                 val displayName = googleIdTokenCredential.displayName
+                    ?: googleIdTokenCredential.givenName
                     ?: googleIdTokenCredential.id.substringBefore("@")
                 val email = googleIdTokenCredential.id
 
-                return GoogleAuthResult.Success(idToken = idToken, displayName = displayName, email = email)
+                if (idToken.isNotBlank()) {
+                    Log.i(tag, "Google ID Token retrieved successfully for: $email")
+                    GoogleAuthResult.Success(idToken = idToken, displayName = displayName, email = email)
+                } else {
+                    GoogleAuthResult.Error("Google returned an empty ID token.")
+                }
             } else {
-                return GoogleAuthResult.Error("Unsupported credential type returned from Credential Manager.")
+                GoogleAuthResult.Error("Unexpected credential type returned: ${credential.type}")
             }
-        }
-
-        return try {
-            val primaryRequest = GetCredentialRequest.Builder()
-                .addCredentialOption(signInWithGoogleOption)
-                .build()
-            executeRequest(primaryRequest)
         } catch (e: GetCredentialCancellationException) {
-            Log.i("GoogleAuthManager", "User cancelled Google Sign-In bottom sheet")
+            Log.i(tag, "User cancelled Google Sign-In")
             GoogleAuthResult.Cancelled
+        } catch (e: NoCredentialException) {
+            Log.w(tag, "NoCredentialException: ${e.message}")
+            GoogleAuthResult.Error("No Google account found on device, or SHA-1 is not configured in Google Cloud Console.")
+        } catch (e: GoogleIdTokenParsingException) {
+            Log.e(tag, "Failed to parse Google ID Token: ${e.message}", e)
+            GoogleAuthResult.Error("Failed to parse Google ID token: ${e.message}")
         } catch (e: Exception) {
-            Log.w("GoogleAuthManager", "Primary GetSignInWithGoogleOption failed [${e.javaClass.simpleName}]: ${e.message}. Trying GetGoogleIdOption fallback...")
-            try {
-                val fallbackRequest = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
-                    .build()
-                executeRequest(fallbackRequest)
-            } catch (e2: GetCredentialCancellationException) {
-                Log.i("GoogleAuthManager", "User cancelled Google Sign-In bottom sheet")
-                GoogleAuthResult.Cancelled
-            } catch (e2: NoCredentialException) {
-                Log.w("GoogleAuthManager", "No Google account credentials found: ${e2.message}")
-                GoogleAuthResult.Error(
-                    "No Google account found on device, or app SHA-1 fingerprint is not configured in Google Cloud Console."
-                )
-            } catch (e2: GetCredentialException) {
-                Log.e("GoogleAuthManager", "Credential Manager exception [${e2.type}]: ${e2.message}", e2)
-                GoogleAuthResult.Error("Google Sign-In failed: ${e2.message}")
-            } catch (e2: GoogleIdTokenParsingException) {
-                Log.e("GoogleAuthManager", "Invalid Google ID Token: ${e2.message}", e2)
-                GoogleAuthResult.Error("Failed to parse Google ID token.")
-            } catch (e2: Exception) {
-                Log.e("GoogleAuthManager", "Authentication error: ${e2.message}", e2)
-                GoogleAuthResult.Error("Google Sign-In failed: ${e2.localizedMessage ?: e2.message}")
-            }
+            Log.e(tag, "Google Sign-In failed [${e.javaClass.simpleName}]: ${e.message}", e)
+            GoogleAuthResult.Error(e.localizedMessage ?: e.message ?: "Authentication failed")
         }
     }
 }
+
+
