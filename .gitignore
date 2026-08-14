@@ -22,3 +22,8 @@ debug.keystore
 *.iws
 *.iml
 *.ipr
+# Keystore & Signing credentials
+keystore.properties
+key.properties
+wall_war_key
+keystore
