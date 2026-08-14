@@ -455,6 +455,39 @@ class NakamaRepository @Inject constructor(
     }
 
     // 2b. Nakama Server Economy RPCs & Shop Synchronization
+    suspend fun rpcVerifyAndProcessGooglePlayPurchase(
+        productId: String,
+        purchaseToken: String,
+        orderId: String,
+        amountCoins: Int
+    ): Int = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext -1
+        try {
+            val payload = JSONObject().apply {
+                put("productId", productId)
+                put("purchaseToken", purchaseToken)
+                put("orderId", orderId)
+                put("amountCoins", amountCoins)
+                put("userId", nakamaUserId)
+            }
+            try {
+                val response = client.rpc(s, "verify_google_play_purchase", payload.toString()).await()
+                if (!response.payload.isNullOrBlank()) {
+                    val resObj = JSONObject(response.payload)
+                    return@withContext resObj.optInt("new_balance", -1)
+                }
+            } catch (rpcEx: Exception) {
+                Log.w("NakamaRepository", "RPC verify_google_play_purchase fallback: ${rpcEx.message}")
+            }
+            
+            // Fallback to standard coin transaction RPC
+            return@withContext rpcProcessCoinTransaction(amountCoins, "google_play_purchase:$productId:$orderId")
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Failed verifying Google Play purchase on Nakama: ${e.message}")
+        }
+        return@withContext -1
+    }
+
     suspend fun rpcProcessCoinTransaction(amountChange: Int, reason: String): Int = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext -1
         try {

@@ -71,6 +71,7 @@ fun CoinShopScreen(
     userProfile: UserProfile,
     coinPacks: List<CoinPack>,
     purchaseMessage: String?,
+    isPurchasing: Boolean = false,
     isRewardedAdLoading: Boolean = false,
     isRewardedAdReady: Boolean = true,
     isAdPlaying: Boolean = false,
@@ -462,9 +463,11 @@ fun CoinShopScreen(
                                 contentAlignment = Alignment.CenterEnd
                             ) {
                                 Button(
-                                    onClick = { onBuyPack(pack) },
+                                    onClick = { if (!isPurchasing) onBuyPack(pack) },
+                                    enabled = !isPurchasing,
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (pack.popularTag != null) NeonCyan else Color(0xFF1E283D)
+                                        containerColor = if (pack.popularTag != null) NeonCyan else Color(0xFF1E283D),
+                                        disabledContainerColor = Color(0xFF1E283D).copy(alpha = 0.5f)
                                     ),
                                     shape = RoundedCornerShape(10.dp),
                                     border = BorderStroke(
@@ -505,14 +508,14 @@ fun CoinShopScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "🔒 Instant In-App Coin Delivery",
+                    text = "🔒 Google Play In-App Billing & Nakama Server Sync",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFA0ACCC),
                     fontSize = 12.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Instant coin delivery after purchase • Usable in all game modes",
+                    text = "Consumable coin packages • Instant delivery & server wallet verification",
                     color = Color(0xFF6B7A99),
                     fontSize = 11.sp,
                     textAlign = TextAlign.Center

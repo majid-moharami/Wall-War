@@ -416,6 +416,32 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    fun processGooglePlayCoinPurchase(
+        productId: String,
+        amount: Int,
+        purchaseToken: String,
+        orderId: String
+    ) {
+        val current = _userProfile.value
+        val updated = current.copy(coins = current.coins + amount)
+        saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            val serverBalance = nakamaRepository.rpcVerifyAndProcessGooglePlayPurchase(
+                productId = productId,
+                purchaseToken = purchaseToken,
+                orderId = orderId,
+                amountCoins = amount
+            )
+            if (serverBalance >= 0) {
+                val latest = _userProfile.value
+                if (latest.coins != serverBalance) {
+                    saveProfile(latest.copy(coins = serverBalance))
+                }
+            }
+        }
+    }
+
     fun deductCoins(amount: Int): Boolean {
         val current = _userProfile.value
         if (current.coins < amount) return false

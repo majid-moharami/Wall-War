@@ -316,6 +316,7 @@ fun WallWarNavGraph(
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val coinPacks by viewModel.coinPacks.collectAsStateWithLifecycle()
             val purchaseMessage by viewModel.purchaseMessage.collectAsStateWithLifecycle()
+            val isPurchasing by viewModel.isPurchasing.collectAsStateWithLifecycle()
             val isRewardedAdLoading by viewModel.isRewardedAdLoading.collectAsStateWithLifecycle()
             val isRewardedAdReady by viewModel.isRewardedAdReady.collectAsStateWithLifecycle()
             val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
@@ -326,11 +327,12 @@ fun WallWarNavGraph(
                 userProfile = userProfile,
                 coinPacks = coinPacks,
                 purchaseMessage = purchaseMessage,
+                isPurchasing = isPurchasing,
                 isRewardedAdLoading = isRewardedAdLoading,
                 isRewardedAdReady = isRewardedAdReady,
                 isAdPlaying = isAdPlaying,
                 onWatchRewardedAd = { viewModel.watchRewardedAdForCoins(activity) },
-                onBuyPack = viewModel::buyCoinPack,
+                onBuyPack = { pack -> viewModel.buyCoinPack(activity, pack) },
                 onClearMessage = viewModel::clearPurchaseMessage,
                 onBack = {
                     if (!navController.popBackStack()) {
