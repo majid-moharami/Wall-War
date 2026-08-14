@@ -54,13 +54,23 @@ class AdMobManager @Inject constructor(
     val isAdShowing: StateFlow<Boolean> = _isAdShowing.asStateFlow()
 
     init {
-        loadRewardedAd(context)
-        loadInterstitialAd(context)
+        // Interstitial ads can be loaded for match endings; rewarded ads are loaded on-demand when user clicks
     }
 
-    fun loadRewardedAd(context: Context) {
-        if (_isRewardedAdLoading.value || rewardedAd != null) {
-            Log.d("AdMobManager", "Skipping loadRewardedAd - loading: ${_isRewardedAdLoading.value}, adExists: ${rewardedAd != null}")
+    fun loadRewardedAd(
+        context: Context,
+        onLoaded: ((RewardedAd) -> Unit)? = null,
+        onFailed: ((LoadAdError) -> Unit)? = null
+    ) {
+        val existingAd = rewardedAd
+        if (existingAd != null) {
+            Log.d("AdMobManager", "Rewarded ad is already loaded in memory.")
+            onLoaded?.invoke(existingAd)
+            return
+        }
+
+        if (_isRewardedAdLoading.value) {
+            Log.d("AdMobManager", "Rewarded ad is currently loading...")
             return
         }
         _isRewardedAdLoading.value = true
@@ -77,6 +87,7 @@ class AdMobManager @Inject constructor(
                     rewardedRetryAttempt.set(0)
                     _isRewardedAdReady.value = true
                     _isRewardedAdLoading.value = false
+                    onLoaded?.invoke(ad)
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
@@ -84,15 +95,54 @@ class AdMobManager @Inject constructor(
                     rewardedAd = null
                     _isRewardedAdReady.value = false
                     _isRewardedAdLoading.value = false
+                    onFailed?.invoke(loadAdError)
+                }
+            }
+        )
+    }
 
-                    // Exponential Backoff Retry Policy
-                    val attempt = rewardedRetryAttempt.getAndIncrement()
-                    val delaySeconds = (2.0.pow(attempt.toDouble()).toLong() * 5L).coerceIn(5L, 30L)
-                    Log.d("AdMobManager", "Scheduling Rewarded Ad retry attempt #$attempt in ${delaySeconds}s...")
-                    scope.launch {
-                        delay(delaySeconds * 1000L)
-                        loadRewardedAd(context)
-                    }
+    fun loadAndShowRewardedAd(
+        activity: Activity,
+        onRewardEarned: () -> Unit,
+        onAdDismissed: () -> Unit,
+        onFailed: (String) -> Unit = {}
+    ) {
+        if (_isAdShowing.value) {
+            Log.w("AdMobManager", "Rewarded ad is already showing.")
+            return
+        }
+
+        val existingAd = rewardedAd
+        if (existingAd != null) {
+            Log.d("AdMobManager", "Rewarded Ad already in memory, presenting directly.")
+            showRewardedAd(activity, onRewardEarned, onAdDismissed, onFailed)
+            return
+        }
+
+        Log.d("AdMobManager", "Rewarded Ad not loaded yet. Requesting load from AdMob first before displaying...")
+        _isRewardedAdLoading.value = true
+        val adRequest = AdRequest.Builder().build()
+        RewardedAd.load(
+            activity,
+            AdMobConstants.REWARDED_AD_UNIT_ID,
+            adRequest,
+            object : RewardedAdLoadCallback() {
+                override fun onAdLoaded(ad: RewardedAd) {
+                    Log.d("AdMobManager", "Rewarded Ad loaded on demand. Displaying now...")
+                    rewardedAd = ad
+                    rewardedRetryAttempt.set(0)
+                    _isRewardedAdReady.value = true
+                    _isRewardedAdLoading.value = false
+                    showRewardedAd(activity, onRewardEarned, onAdDismissed, onFailed)
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e("AdMobManager", "On-demand Rewarded Ad failed to load (${loadAdError.code}): ${loadAdError.message}")
+                    rewardedAd = null
+                    _isRewardedAdReady.value = false
+                    _isRewardedAdLoading.value = false
+                    val errorMsg = "Unable to load ad: ${loadAdError.message} (Code ${loadAdError.code})"
+                    onFailed(errorMsg)
                 }
             }
         )
@@ -101,7 +151,8 @@ class AdMobManager @Inject constructor(
     fun showRewardedAd(
         activity: Activity,
         onRewardEarned: () -> Unit,
-        onAdDismissed: () -> Unit
+        onAdDismissed: () -> Unit,
+        onFailed: ((String) -> Unit)? = null
     ) {
         val ad = rewardedAd
         if (ad != null && !_isAdShowing.value) {
@@ -110,7 +161,7 @@ class AdMobManager @Inject constructor(
 
             ad.fullScreenContentCallback = object : FullScreenContentCallback() {
                 override fun onAdDismissedFullScreenContent() {
-                    Log.d("AdMobManager", "Rewarded Ad Dismissed. Resetting and auto-reloading next ad...")
+                    Log.d("AdMobManager", "Rewarded Ad Dismissed. Ad lifecycle completed.")
                     rewardedAd = null
                     _isRewardedAdReady.value = false
                     _isAdShowing.value = false
@@ -119,7 +170,6 @@ class AdMobManager @Inject constructor(
                         onRewardEarned()
                     }
                     onAdDismissed()
-                    loadRewardedAd(activity.applicationContext)
                 }
 
                 override fun onAdFailedToShowFullScreenContent(adError: AdError) {
@@ -128,12 +178,13 @@ class AdMobManager @Inject constructor(
                     _isRewardedAdReady.value = false
                     _isAdShowing.value = false
                     rewardedRetryAttempt.set(0)
+                    onFailed?.invoke("Failed to show ad: ${adError.message}")
                     onAdDismissed()
-                    loadRewardedAd(activity.applicationContext)
                 }
 
                 override fun onAdShowedFullScreenContent() {
                     Log.d("AdMobManager", "Rewarded Ad Showing.")
+                    _isAdShowing.value = true
                 }
             }
 
@@ -141,11 +192,8 @@ class AdMobManager @Inject constructor(
                 Log.d("AdMobManager", "User Earned Reward: ${rewardItem.amount} ${rewardItem.type}")
                 rewardGranted = true
             }
-        } else {
-            Log.w("AdMobManager", "Rewarded Ad is not ready or currently showing. Invoking fallback reward flow.")
-            onRewardEarned()
-            onAdDismissed()
-            loadRewardedAd(activity.applicationContext)
+        } else if (ad == null) {
+            loadAndShowRewardedAd(activity, onRewardEarned, onAdDismissed, onFailed ?: {})
         }
     }
 
@@ -184,6 +232,45 @@ class AdMobManager @Inject constructor(
                         delay(delaySeconds * 1000L)
                         loadInterstitialAd(context)
                     }
+                }
+            }
+        )
+    }
+
+    fun loadAndShowInterstitialAd(
+        activity: Activity,
+        onAdDismissed: () -> Unit,
+        onFailed: (String) -> Unit = {}
+    ) {
+        val existingAd = interstitialAd
+        if (existingAd != null && !_isAdShowing.value) {
+            showInterstitialAd(activity, onAdDismissed)
+            return
+        }
+
+        _isInterstitialLoading.value = true
+        val adRequest = AdRequest.Builder().build()
+        InterstitialAd.load(
+            activity,
+            AdMobConstants.INTERSTITIAL_AD_UNIT_ID,
+            adRequest,
+            object : InterstitialAdLoadCallback() {
+                override fun onAdLoaded(ad: InterstitialAd) {
+                    Log.d("AdMobManager", "On-demand Interstitial Ad Loaded successfully.")
+                    interstitialAd = ad
+                    interstitialRetryAttempt.set(0)
+                    _isInterstitialAdReady.value = true
+                    _isInterstitialLoading.value = false
+                    showInterstitialAd(activity, onAdDismissed)
+                }
+
+                override fun onAdFailedToLoad(loadAdError: LoadAdError) {
+                    Log.e("AdMobManager", "On-demand Interstitial Ad Failed to Load (${loadAdError.code}): ${loadAdError.message}")
+                    interstitialAd = null
+                    _isInterstitialAdReady.value = false
+                    _isInterstitialLoading.value = false
+                    onFailed("Interstitial failed to load: ${loadAdError.message}")
+                    onAdDismissed()
                 }
             }
         )

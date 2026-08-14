@@ -66,6 +66,7 @@ fun WallWarNavGraph(
         }
 
         composable<HomeRoute> {
+            val activity = LocalActivity.current
             val viewModel: HomeViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
@@ -74,6 +75,8 @@ fun WallWarNavGraph(
             val bonusMessage by viewModel.bonusMessage.collectAsStateWithLifecycle()
             val abandonedMatchNotice by viewModel.abandonedMatchNotice.collectAsStateWithLifecycle()
             val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
+            val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
+            val isRewardedAdLoading by viewModel.isRewardedAdLoading.collectAsStateWithLifecycle()
 
             HomeScreen(
                 userProfile = userProfile,
@@ -85,6 +88,8 @@ fun WallWarNavGraph(
                 arenaErrorMessage = arenaErrorMessage,
                 bonusMessage = bonusMessage,
                 abandonedMatchNotice = abandonedMatchNotice,
+                isAdPlaying = isAdPlaying,
+                isRewardedAdLoading = isRewardedAdLoading,
                 onJoinOnlineArenaMatch = { arena ->
                     viewModel.joinOnlineArenaMatch(arena) { mode, opp, diff, ar ->
                         navController.navigate(
@@ -98,15 +103,28 @@ fun WallWarNavGraph(
                     }
                 },
                 onJoinOfflineMatch = { opponentType, difficulty, useAd ->
-                    viewModel.joinOfflineMatch(opponentType, difficulty, useAd) { mode, opp, diff, ar ->
-                        navController.navigate(
-                            GameBoardRoute(
-                                mode = mode.name,
-                                opponent = opp.name,
-                                difficulty = diff.name,
-                                arenaId = ar.id
+                    if (useAd) {
+                        viewModel.joinOfflineMatchWithAd(activity, opponentType, difficulty) { mode, opp, diff, ar ->
+                            navController.navigate(
+                                GameBoardRoute(
+                                    mode = mode.name,
+                                    opponent = opp.name,
+                                    difficulty = diff.name,
+                                    arenaId = ar.id
+                                )
                             )
-                        )
+                        }
+                    } else {
+                        viewModel.joinOfflineMatch(opponentType, difficulty, false) { mode, opp, diff, ar ->
+                            navController.navigate(
+                                GameBoardRoute(
+                                    mode = mode.name,
+                                    opponent = opp.name,
+                                    difficulty = diff.name,
+                                    arenaId = ar.id
+                                )
+                            )
+                        }
                     }
                 },
                 onClaimDailyBonus = viewModel::claimDailyBonus,

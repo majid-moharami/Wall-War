@@ -55,6 +55,9 @@ class AdManager @Inject constructor(
     private val _adCountdown = MutableStateFlow(5)
     val adCountdown: StateFlow<Int> = _adCountdown.asStateFlow()
 
+    private val _rewardDescription = MutableStateFlow("Reward: +50 Coins 🪙")
+    val rewardDescription: StateFlow<String> = _rewardDescription.asStateFlow()
+
     private val _completedMatchCount = MutableStateFlow(0)
     val completedMatchCount: StateFlow<Int> = _completedMatchCount.asStateFlow()
 
@@ -62,16 +65,7 @@ class AdManager @Inject constructor(
     val rewardToast: StateFlow<String?> = _rewardToast.asStateFlow()
 
     init {
-        preloadAds()
-    }
-
-    fun preloadAds() {
-        adMobManager.loadRewardedAd(context)
-        adMobManager.loadInterstitialAd(context)
-    }
-
-    fun preloadRewardedAd() {
-        adMobManager.loadRewardedAd(context)
+        // Interstitials will be loaded on demand or when a game is in progress; rewarded ads only on user button click
     }
 
     fun preloadInterstitialAd() {
@@ -92,15 +86,18 @@ class AdManager @Inject constructor(
         activity: Activity? = null,
         rewardCoins: Int = 50,
         onSuccess: (coins: Int) -> Unit = {},
-        onClosed: () -> Unit = {}
+        onClosed: () -> Unit = {},
+        onError: ((String) -> Unit)? = null
     ) {
-        if (_isAdPlaying.value) {
-            Log.w("AdManager", "Ad is already playing, ignoring double click.")
+        if (_isAdPlaying.value || isRewardedAdLoading.value) {
+            Log.w("AdManager", "Ad is already loading or playing, ignoring click.")
             return
         }
 
-        if (activity != null && adMobManager.isRewardedAdReady.value) {
-            adMobManager.showRewardedAd(
+        _rewardDescription.value = "Reward: +$rewardCoins Coins 🪙"
+
+        if (activity != null) {
+            adMobManager.loadAndShowRewardedAd(
                 activity = activity,
                 onRewardEarned = {
                     scope.launch {
@@ -113,18 +110,20 @@ class AdManager @Inject constructor(
                 },
                 onAdDismissed = {
                     onClosed()
+                },
+                onFailed = { errorMsg ->
+                    scope.launch {
+                        _rewardToast.value = errorMsg
+                        onError?.invoke(errorMsg)
+                        onClosed()
+                    }
                 }
             )
             return
         }
 
-        // Fallback simulated ad overlay if activity is null or AdMob SDK is buffering
+        // Fallback simulated ad overlay if activity is null
         scope.launch {
-            if (!isRewardedAdReady.value) {
-                adMobManager.loadRewardedAd(context)
-                delay(1000)
-            }
-
             _isAdPlaying.value = true
             _currentAdType.value = AdType.REWARDED
             _activeNetwork.value = AdNetwork.ADMOB
@@ -146,8 +145,65 @@ class AdManager @Inject constructor(
             _rewardToast.value = successMsg
             onSuccess(rewardCoins)
             onClosed()
+        }
+    }
 
-            adMobManager.loadRewardedAd(context)
+    fun watchRewardedAdForFreeEntry(
+        activity: Activity? = null,
+        onSuccess: () -> Unit = {},
+        onClosed: () -> Unit = {},
+        onError: ((String) -> Unit)? = null
+    ) {
+        if (_isAdPlaying.value || isRewardedAdLoading.value) {
+            Log.w("AdManager", "Ad is already loading or playing, ignoring click.")
+            return
+        }
+
+        _rewardDescription.value = "Reward: Free Match Entry 🎮"
+
+        if (activity != null) {
+            adMobManager.loadAndShowRewardedAd(
+                activity = activity,
+                onRewardEarned = {
+                    scope.launch {
+                        val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
+                        _rewardToast.value = successMsg
+                        onSuccess()
+                    }
+                },
+                onAdDismissed = {
+                    onClosed()
+                },
+                onFailed = { errorMsg ->
+                    scope.launch {
+                        _rewardToast.value = errorMsg
+                        onError?.invoke(errorMsg)
+                        onClosed()
+                    }
+                }
+            )
+            return
+        }
+
+        // Fallback simulated ad overlay if activity is null
+        scope.launch {
+            _isAdPlaying.value = true
+            _currentAdType.value = AdType.REWARDED
+            _activeNetwork.value = AdNetwork.ADMOB
+            _adCountdown.value = 5
+
+            for (i in 5 downTo 1) {
+                _adCountdown.value = i
+                delay(1000)
+            }
+
+            _isAdPlaying.value = false
+            _currentAdType.value = null
+
+            val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
+            _rewardToast.value = successMsg
+            onSuccess()
+            onClosed()
         }
     }
 
@@ -166,20 +222,18 @@ class AdManager @Inject constructor(
             return
         }
 
-        if (activity != null && adMobManager.isInterstitialReady.value) {
-            adMobManager.showInterstitialAd(
+        if (activity != null) {
+            adMobManager.loadAndShowInterstitialAd(
                 activity = activity,
-                onAdDismissed = onAdClosed
+                onAdDismissed = onAdClosed,
+                onFailed = {
+                    onAdClosed()
+                }
             )
             return
         }
 
         scope.launch {
-            if (!isInterstitialReady.value) {
-                onAdClosed()
-                return@launch
-            }
-
             _isAdPlaying.value = true
             _currentAdType.value = AdType.INTERSTITIAL
             _activeNetwork.value = AdNetwork.ADMOB

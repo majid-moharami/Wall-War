@@ -1,5 +1,6 @@
 package com.wallwar.ui.screens.home
 
+import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wallwar.data.Arena
@@ -7,6 +8,7 @@ import com.wallwar.data.ArenaConfig
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.GameRepository
 import com.wallwar.data.UserProfile
+import com.wallwar.data.ad.AdManager
 import com.wallwar.model.AiDifficulty
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
@@ -24,13 +26,18 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     gameRepository: GameRepository,
     private val authRepository: AuthRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val adManager: AdManager
 ) : ViewModel() {
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
     val abandonedMatchNotice: StateFlow<String?> = authRepository.abandonedMatchNotice
+
+    val isAdPlaying: StateFlow<Boolean> = adManager.isAdPlaying
+    val isRewardedAdReady: StateFlow<Boolean> = adManager.isRewardedAdReady
+    val isRewardedAdLoading: StateFlow<Boolean> = adManager.isRewardedAdLoading
 
     fun clearAbandonedMatchNotice() {
         authRepository.clearAbandonedMatchNotice()
@@ -77,7 +84,6 @@ class HomeViewModel @Inject constructor(
         onSuccess: (GameMode, OpponentType, AiDifficulty, Arena) -> Unit
     ) {
         if (useAdForFreeEntry) {
-            // Rewarded Ad grants free entry (bypasses 50 coins entry fee) without adding +25 coins
             _arenaErrorMessage.value = null
             onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
         } else {
@@ -95,6 +101,24 @@ class HomeViewModel @Inject constructor(
                 _arenaErrorMessage.value = "Failed to deduct coins. Please try again."
             }
         }
+    }
+
+    fun joinOfflineMatchWithAd(
+        activity: Activity?,
+        opponentType: OpponentType,
+        difficulty: AiDifficulty,
+        onSuccess: (GameMode, OpponentType, AiDifficulty, Arena) -> Unit
+    ) {
+        _arenaErrorMessage.value = null
+        adManager.watchRewardedAdForFreeEntry(
+            activity = activity,
+            onSuccess = {
+                onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
+            },
+            onError = { error ->
+                _arenaErrorMessage.value = error
+            }
+        )
     }
 
     fun claimDailyBonus() {

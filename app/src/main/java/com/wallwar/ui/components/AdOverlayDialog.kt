@@ -60,7 +60,8 @@ fun AdOverlayDialog(
     isAdPlaying: Boolean,
     network: AdNetwork,
     adType: AdType?,
-    countdown: Int
+    countdown: Int,
+    rewardDescription: String = "Reward: +50 Coins 🪙"
 ) {
     if (!isAdPlaying) return
 
@@ -205,7 +206,7 @@ fun AdOverlayDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Reward: +50 Coins",
+                                text = rewardDescription,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Black,
                                 color = NeonAmber

@@ -49,6 +49,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -105,6 +106,8 @@ fun HomeScreen(
     arenaErrorMessage: String? = null,
     bonusMessage: String? = null,
     abandonedMatchNotice: String? = null,
+    isAdPlaying: Boolean = false,
+    isRewardedAdLoading: Boolean = false,
     onJoinOnlineArenaMatch: (Arena) -> Unit = {},
     onJoinOfflineMatch: (OpponentType, AiDifficulty, Boolean) -> Unit = { _, _, _ -> },
     onClaimDailyBonus: () -> Unit = {},
@@ -467,6 +470,8 @@ fun HomeScreen(
         OfflinePracticeSection(
             userCoins = userProfile.coins,
             offlineArena = offlineArena,
+            isAdPlaying = isAdPlaying,
+            isRewardedAdLoading = isRewardedAdLoading,
             onJoinOfflineMatch = onJoinOfflineMatch,
             onOpenShop = { onNavigate(AppScreen.COIN_SHOP) }
         )
@@ -1111,6 +1116,8 @@ fun OnlineArenaCard(
 fun OfflinePracticeSection(
     userCoins: Int,
     offlineArena: Arena,
+    isAdPlaying: Boolean = false,
+    isRewardedAdLoading: Boolean = false,
     onJoinOfflineMatch: (OpponentType, AiDifficulty, Boolean) -> Unit,
     onOpenShop: () -> Unit
 ) {
@@ -1284,21 +1291,49 @@ fun OfflinePracticeSection(
                 }
 
                 // Button 2: Watch Rewarded Ad (Free Entry)
+                val isAdBusy = isAdPlaying || isRewardedAdLoading
                 Button(
                     onClick = { onJoinOfflineMatch(selectedOpponent, selectedDifficulty, true) },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
+                    enabled = !isAdBusy,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonAmber,
+                        disabledContainerColor = Color(0xFF333A4D),
+                        disabledContentColor = Color(0xFF8893A8)
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .weight(1.2f)
                         .height(44.dp)
                         .testTag("btn_offline_ad_free")
                 ) {
-                    Text(
-                        text = "📺 Watch Ad (Free Entry)",
-                        fontWeight = FontWeight.Black,
-                        color = Color.Black,
-                        fontSize = 11.sp
-                    )
+                    if (isRewardedAdLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Loading Ad...",
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 11.sp
+                        )
+                    } else if (isAdPlaying) {
+                        Text(
+                            text = "⏳ Showing Ad...",
+                            fontWeight = FontWeight.Black,
+                            color = Color.Black,
+                            fontSize = 11.sp
+                        )
+                    } else {
+                        Text(
+                            text = "📺 Watch Ad (Free Entry)",
+                            fontWeight = FontWeight.Black,
+                            color = Color.Black,
+                            fontSize = 11.sp
+                        )
+                    }
                 }
             }
         }

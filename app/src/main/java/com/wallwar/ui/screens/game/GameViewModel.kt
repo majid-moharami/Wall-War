@@ -134,6 +134,9 @@ class GameViewModel @Inject constructor(
     private var localDisconnectJob: kotlinx.coroutines.Job? = null
 
     init {
+        // Preload interstitial ad in the background while players are playing the game
+        adManager.preloadInterstitialAd()
+
         val initialState = _gameState.value
         updateHighlightsForState(initialState)
         matchStartTime = System.currentTimeMillis()
@@ -564,6 +567,9 @@ class GameViewModel @Inject constructor(
     }
 
     fun restartGame() {
+        // Preload interstitial ad in the background for the next match ending
+        adManager.preloadInterstitialAd()
+
         if (opponentType == OpponentType.ONLINE) {
             startOnlineMatchmaking()
             return

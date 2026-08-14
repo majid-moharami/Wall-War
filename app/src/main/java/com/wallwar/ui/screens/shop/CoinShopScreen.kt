@@ -300,7 +300,7 @@ fun CoinShopScreen(
 
                 Button(
                     onClick = onWatchRewardedAd,
-                    enabled = isRewardedAdReady && !isRewardedAdLoading && !isAdPlaying,
+                    enabled = !isRewardedAdLoading && !isAdPlaying,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = NeonAmber,
                         contentColor = Color.Black,
@@ -310,7 +310,7 @@ fun CoinShopScreen(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.testTag("watch_rewarded_ad_button")
                 ) {
-                    if (isRewardedAdLoading || !isRewardedAdReady) {
+                    if (isRewardedAdLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(18.dp),
                             color = Color.White,
@@ -319,6 +319,12 @@ fun CoinShopScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Loading Ad...",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    } else if (isAdPlaying) {
+                        Text(
+                            text = "⏳ Showing Ad...",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )

@@ -63,6 +63,7 @@ class MainViewModel @Inject constructor(
     val activeNetwork = adManager.activeNetwork
     val currentAdType = adManager.currentAdType
     val adCountdown = adManager.adCountdown
+    val rewardDescription = adManager.rewardDescription
 }
 
 sealed class BottomTab(
@@ -85,6 +86,7 @@ fun MainContainerScreen(
     val activeNetwork by viewModel.activeNetwork.collectAsStateWithLifecycle()
     val currentAdType by viewModel.currentAdType.collectAsStateWithLifecycle()
     val adCountdown by viewModel.adCountdown.collectAsStateWithLifecycle()
+    val rewardDescription by viewModel.rewardDescription.collectAsStateWithLifecycle()
 
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -180,7 +182,8 @@ fun MainContainerScreen(
             isAdPlaying = isAdPlaying,
             network = activeNetwork,
             adType = currentAdType,
-            countdown = adCountdown
+            countdown = adCountdown,
+            rewardDescription = rewardDescription
         )
     }
 }
