@@ -12,9 +12,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ─────────────────────────────────────────────
+      # Checkout
+      # ─────────────────────────────────────────────
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      # ─────────────────────────────────────────────
+      # Java
+      # ─────────────────────────────────────────────
       - name: Set up Java JDK 17
         uses: actions/setup-java@v4
         with:
@@ -22,51 +28,188 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      # ─────────────────────────────────────────────
+      # Gradle Wrapper
+      # ─────────────────────────────────────────────
       - name: Ensure Gradle Wrapper Exists
         run: |
           if [ ! -f "./gradlew" ]; then
             echo "Generating Gradle wrapper..."
             gradle wrapper
           fi
+
           chmod +x gradlew
 
+      # ─────────────────────────────────────────────
+      # Build Debug APK
+      # ─────────────────────────────────────────────
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        id: build
+        continue-on-error: true
+        run: |
+          set -o pipefail
 
+          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+
+          BUILD_EXIT_CODE=${PIPESTATUS[0]}
+
+          echo "exit_code=$BUILD_EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          exit $BUILD_EXIT_CODE
+
+      # ─────────────────────────────────────────────
+      # Extract Build Error
+      # ─────────────────────────────────────────────
+      - name: Extract Build Error
+        if: steps.build.outcome == 'failure'
+        id: error
+        run: |
+          if [ -f build.log ]; then
+
+            # Try to find the most useful Gradle error lines.
+            ERROR_TEXT=$(grep -E \
+              "FAILURE:|What went wrong:|Execution failed|Caused by:|error:|e: |Could not|Unresolved reference|Exception" \
+              build.log \
+              | tail -n 25)
+
+            if [ -z "$ERROR_TEXT" ]; then
+              ERROR_TEXT=$(tail -n 40 build.log)
+            fi
+
+          else
+            ERROR_TEXT="Build failed, but no build log was generated."
+          fi
+
+          # Limit message size so Telegram doesn't reject it.
+          ERROR_TEXT=$(echo "$ERROR_TEXT" | tail -c 3500)
+
+          {
+            echo 'error<<EOF'
+            echo "$ERROR_TEXT"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # ─────────────────────────────────────────────
+      # Find APK
+      # ─────────────────────────────────────────────
       - name: Locate Built APK
         id: find_apk
+        if: steps.build.outcome == 'success'
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+
           if [ -z "$APK_PATH" ]; then
             echo "::error::No APK file found in app/build/outputs/apk/debug/"
             exit 1
           fi
-          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
           echo "Found APK: $APK_PATH"
 
-      - name: Send APK Document to Telegram
-        if: success()
+      # ─────────────────────────────────────────────
+      # Send Successful Build to Telegram
+      # ─────────────────────────────────────────────
+      - name: Send Successful Build to Telegram
+        if: steps.build.outcome == 'success' && steps.find_apk.outcome == 'success'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "::error::Missing GitHub Secrets 'TELEGRAM_BOT_TOKEN' or 'TELEGRAM_CHAT_ID'."
-            echo "Please add TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID under Repository Settings -> Secrets and variables -> Actions."
+            echo "::error::Missing Telegram secrets."
             exit 1
           fi
 
           APK_FILE="${{ steps.find_apk.outputs.apk_path }}"
-          COMMIT_MSG=$(git log -1 --pretty=%B | head -n 1)
+
           REPO_NAME="${{ github.repository }}"
           BRANCH_NAME="${{ github.ref_name }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
+          RUN_NUMBER="${{ github.run_number }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
-          CAPTION="🎮 *Wall War - Latest APK Build*%0A%0A📦 *Repository:* \`${REPO_NAME}\`%0A🌿 *Branch:* \`${BRANCH_NAME}\`%0A🔖 *Commit:* \`${SHORT_SHA}\`%0A📝 *Message:* ${COMMIT_MSG}"
+          COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          echo "Uploading $APK_FILE to Telegram..."
-          curl -s -F chat_id="${TELEGRAM_CHAT_ID}" \
-               -F document=@"${APK_FILE}" \
-               -F caption="${CAPTION}" \
-               -F parse_mode="Markdown" \
-               "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+          CAPTION="🎮 <b>Wall War — New Build</b>
+
+          🟢 <b>BUILD SUCCESS</b>
+
+          📦 <b>APK:</b> <code>Debug</code>
+          🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
+          🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
+          📝 <b>Message:</b> ${COMMIT_MSG}
+
+          🔢 <b>Build:</b> #${RUN_NUMBER}
+
+          ─────────────────
+          📲 <b>APK is ready!</b>
+          🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+
+          echo "Uploading Debug APK to Telegram..."
+
+          curl --fail-with-body -s \
+            -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F document=@"${APK_FILE}" \
+            -F caption="${CAPTION}" \
+            -F parse_mode="HTML" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+
+      # ─────────────────────────────────────────────
+      # Send Build Failure to Telegram
+      # ─────────────────────────────────────────────
+      - name: Send Build Failure to Telegram
+        if: steps.build.outcome == 'failure'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          BUILD_ERROR: ${{ steps.error.outputs.error }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error::Missing Telegram secrets."
+            exit 1
+          fi
+
+          REPO_NAME="${{ github.repository }}"
+          BRANCH_NAME="${{ github.ref_name }}"
+          SHORT_SHA="${GITHUB_SHA:0:7}"
+          RUN_NUMBER="${{ github.run_number }}"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          COMMIT_MSG=$(git log -1 --pretty=%s)
+
+          MESSAGE="🚨 <b>Wall War — Build Failed</b>
+
+          🔴 <b>BUILD FAILED</b>
+
+          📦 <b>Repository:</b> <code>${REPO_NAME}</code>
+          🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
+          🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
+          📝 <b>Message:</b> ${COMMIT_MSG}
+
+          🔢 <b>Build:</b> #${RUN_NUMBER}
+
+          ─────────────────
+          ❌ <b>Error:</b>
+
+          <pre>${BUILD_ERROR}</pre>
+
+          🔗 <a href=\"${RUN_URL}\">View Full GitHub Actions Log</a>"
+
+          echo "Sending build failure notification to Telegram..."
+
+          curl --fail-with-body -s \
+            -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_CHAT_ID}" \
+            --data-urlencode text="${MESSAGE}" \
+            -d parse_mode="HTML"
+
+      # ─────────────────────────────────────────────
+      # Fail Workflow if Build Failed
+      # ─────────────────────────────────────────────
+      - name: Fail Workflow if Build Failed
+        if: steps.build.outcome == 'failure'
+        run: |
+          echo "❌ Gradle build failed."
+          exit 1
