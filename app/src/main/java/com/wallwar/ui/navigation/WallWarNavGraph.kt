@@ -77,6 +77,10 @@ fun WallWarNavGraph(
             val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
             val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
             val isRewardedAdLoading by viewModel.isRewardedAdLoading.collectAsStateWithLifecycle()
+            val dailyStreakState by viewModel.dailyStreakState.collectAsStateWithLifecycle()
+            val dailyMissions by viewModel.dailyMissions.collectAsStateWithLifecycle()
+            val spinnerState by viewModel.spinnerState.collectAsStateWithLifecycle()
+            val selectedGameMode by viewModel.selectedGameMode.collectAsStateWithLifecycle()
 
             HomeScreen(
                 userProfile = userProfile,
@@ -90,6 +94,11 @@ fun WallWarNavGraph(
                 abandonedMatchNotice = abandonedMatchNotice,
                 isAdPlaying = isAdPlaying,
                 isRewardedAdLoading = isRewardedAdLoading,
+                dailyStreakState = dailyStreakState,
+                dailyMissions = dailyMissions,
+                spinnerState = spinnerState,
+                selectedGameMode = selectedGameMode,
+                onSelectGameMode = viewModel::selectGameMode,
                 onJoinOnlineArenaMatch = { arena ->
                     viewModel.joinOnlineArenaMatch(arena) { mode, opp, diff, ar ->
                         navController.navigate(
@@ -128,6 +137,8 @@ fun WallWarNavGraph(
                     }
                 },
                 onClaimDailyBonus = viewModel::claimDailyBonus,
+                onClaimMissionReward = viewModel::claimMissionReward,
+                onSpinWheel = viewModel::spinWheel,
                 onClearArenaError = viewModel::clearArenaErrorMessage,
                 onClearBonusMessage = viewModel::clearBonusMessage,
                 onClearAbandonedMatchNotice = viewModel::clearAbandonedMatchNotice,
@@ -208,6 +219,7 @@ fun WallWarNavGraph(
             val isLocalDisconnected by viewModel.isLocalDisconnected.collectAsStateWithLifecycle()
             val localDisconnectSeconds by viewModel.localDisconnectSeconds.collectAsStateWithLifecycle()
             val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
+            val matchResultDelta by viewModel.matchResultDelta.collectAsStateWithLifecycle()
 
             val activity = LocalActivity.current
 
@@ -230,6 +242,7 @@ fun WallWarNavGraph(
                 localDisconnectSeconds = localDisconnectSeconds,
                 arenaTitle = viewModel.selectedArena.title,
                 onlineErrorMessage = onlineErrorMessage,
+                matchResultDelta = matchResultDelta,
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
                 onForfeitAndQuitLocalMatch = viewModel::forfeitAndQuitLocalMatch,

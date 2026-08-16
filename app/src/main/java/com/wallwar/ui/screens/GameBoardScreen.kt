@@ -111,6 +111,7 @@ fun GameBoardScreen(
     localDisconnectSeconds: Int = 15,
     arenaTitle: String = "Pro Arena",
     onlineErrorMessage: String? = null,
+    matchResultDelta: com.wallwar.data.MatchResultDelta? = null,
     onRetryOnlineConnection: () -> Unit = {},
     onCancelOnlineMatchmaking: () -> Unit = {},
     onForfeitAndQuitLocalMatch: () -> Unit = {},
@@ -980,10 +981,122 @@ fun GameBoardScreen(
             },
             text = {
                 Column {
-                    Text(if (isWinner) "Masterful strategy! You breached the board defense." else "Your opponent outmaneuvered you this time.")
+                    Text(
+                        text = if (isWinner) "Masterful strategy! You breached the enemy defense." else "Your opponent outmaneuvered you this time.",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("Total Moves: ${gameState.moveHistory.size}", fontWeight = FontWeight.SemiBold, color = NeonCyan)
-                    Text("Walls Placed: ${gameState.walls.size}", fontWeight = FontWeight.SemiBold, color = NeonMagenta)
+
+                    if (matchResultDelta != null) {
+                        val delta = matchResultDelta
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = NeonDarkSurface),
+                            border = BorderStroke(1.dp, if (delta.didWin) NeonCyan.copy(alpha = 0.5f) else NeonMagenta.copy(alpha = 0.5f)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Trophies",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFFA0ACCC)
+                                    )
+                                    Text(
+                                        text = if (delta.trophyDelta >= 0) "+${delta.trophyDelta} 🏆" else "${delta.trophyDelta} 🏆",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (delta.trophyDelta >= 0) com.wallwar.ui.theme.NeonEmerald else NeonMagenta,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "XP Gained",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFFA0ACCC)
+                                    )
+                                    Text(
+                                        text = "+${delta.xpGained} XP",
+                                        fontWeight = FontWeight.Bold,
+                                        color = NeonCyan,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Coins Rewarded",
+                                        fontSize = 13.sp,
+                                        color = Color(0xFFA0ACCC)
+                                    )
+                                    Text(
+                                        text = "+${delta.totalCoinsGained} 🪙",
+                                        fontWeight = FontWeight.Bold,
+                                        color = com.wallwar.ui.theme.NeonAmber,
+                                        fontSize = 13.sp
+                                    )
+                                }
+
+                                if (delta.currentWinStreak >= 2) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(com.wallwar.ui.theme.NeonAmber.copy(alpha = 0.15f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "🔥 ${delta.currentWinStreak}-WIN STREAK (+${delta.streakBonusCoins} Bonus Coins!)",
+                                            color = com.wallwar.ui.theme.NeonAmber,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+
+                                if (delta.leveledUp) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(NeonCyan.copy(alpha = 0.2f))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "⭐ LEVEL UP! REACHED LEVEL ${delta.newLevel} ⭐",
+                                            color = NeonCyan,
+                                            fontWeight = FontWeight.Black,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Total Moves: ${gameState.moveHistory.size}", fontSize = 12.sp, color = NeonCyan)
+                        Text("Walls Placed: ${gameState.walls.size}", fontSize = 12.sp, color = NeonMagenta)
+                    }
                 }
             },
             confirmButton = {

@@ -13,5 +13,7 @@ data class UserProfile(
     val totalMatches: Int = 0,
     val wallsPlaced: Int = 0,
     val coins: Int = 150,
+    val currentWinStreak: Int = 0,
+    val longestWinStreak: Int = 0,
     val nakamaUserId: String? = null
 )

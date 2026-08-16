@@ -40,6 +40,20 @@ sealed class SignInResult {
     data class Error(val message: String) : SignInResult()
 }
 
+data class MatchResultDelta(
+    val didWin: Boolean,
+    val trophyDelta: Int,
+    val xpGained: Int,
+    val prizeCoins: Int,
+    val streakBonusCoins: Int,
+    val totalCoinsGained: Int,
+    val oldLevel: Int,
+    val newLevel: Int,
+    val leveledUp: Boolean,
+    val currentWinStreak: Int,
+    val longestWinStreak: Int
+)
+
 @Singleton
 class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -210,6 +224,8 @@ class AuthRepository @Inject constructor(
             val level = stats.optInt("level", current.level)
             val xp = stats.optInt("xp", current.xp)
             val rankTitle = stats.optString("rankTitle", current.rankTitle)
+            val currentWinStreak = stats.optInt("currentWinStreak", current.currentWinStreak)
+            val longestWinStreak = stats.optInt("longestWinStreak", current.longestWinStreak)
             val avatarUrl = stats.optString("avatarUrl", current.photoUrl ?: "")
 
             val updated = current.copy(
@@ -221,6 +237,8 @@ class AuthRepository @Inject constructor(
                 level = level,
                 xp = xp,
                 rankTitle = rankTitle,
+                currentWinStreak = currentWinStreak,
+                longestWinStreak = longestWinStreak,
                 photoUrl = if (avatarUrl.isBlank()) null else avatarUrl,
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
@@ -270,6 +288,8 @@ class AuthRepository @Inject constructor(
         val totalMatches = prefs.getInt("total_matches", 0)
         val wallsPlaced = prefs.getInt("walls_placed", 0)
         val coins = prefs.getInt("coins", 150)
+        val currentWinStreak = prefs.getInt("current_win_streak", 0)
+        val longestWinStreak = prefs.getInt("longest_win_streak", 0)
 
         return UserProfile(
             isLoggedIn = isLoggedIn,
@@ -283,7 +303,9 @@ class AuthRepository @Inject constructor(
             wins = wins,
             totalMatches = totalMatches,
             wallsPlaced = wallsPlaced,
-            coins = coins
+            coins = coins,
+            currentWinStreak = currentWinStreak,
+            longestWinStreak = longestWinStreak
         )
     }
 
@@ -305,6 +327,8 @@ class AuthRepository @Inject constructor(
             .putInt("total_matches", profile.totalMatches)
             .putInt("walls_placed", profile.wallsPlaced)
             .putInt("coins", profile.coins)
+            .putInt("current_win_streak", profile.currentWinStreak)
+            .putInt("longest_win_streak", profile.longestWinStreak)
             .apply()
         _userProfile.value = profile
 
@@ -454,18 +478,27 @@ class AuthRepository @Inject constructor(
         return true
     }
 
-    fun recordArenaMatchResult(didWin: Boolean, wallsPlaced: Int, winningPrize: Int) {
+    fun recordArenaMatchResult(didWin: Boolean, wallsPlaced: Int, winningPrize: Int): MatchResultDelta {
         val current = _userProfile.value
         val newWins = if (didWin) current.wins + 1 else current.wins
         val newMatches = current.totalMatches + 1
         val newWalls = current.wallsPlaced + wallsPlaced
-        val newXp = current.xp + if (didWin) 150 else 50
-        val newTrophies = (current.trophies + if (didWin) 25 else -10).coerceAtLeast(0)
+        val xpGain = if (didWin) 150 else 50
+        val newXp = current.xp + xpGain
+        val trophyDelta = if (didWin) 25 else if (current.trophies >= 10) -10 else -current.trophies
+        val newTrophies = (current.trophies + trophyDelta).coerceAtLeast(0)
+
+        val newStreak = if (didWin) current.currentWinStreak + 1 else 0
+        val newLongestStreak = maxOf(current.longestWinStreak, newStreak)
+        val streakBonus = if (didWin && newStreak >= 2) (newStreak * 10).coerceAtMost(100) else 0
         
-        // Payout winning prize if player won. Entry fee was already deducted when joining.
+        // Payout winning prize if player won + streak bonus. Entry fee was already deducted when joining.
         val prizeAmount = if (didWin) winningPrize else 0
-        val newCoins = current.coins + prizeAmount
+        val totalCoinsAdded = prizeAmount + streakBonus
+        val newCoins = current.coins + totalCoinsAdded
+        val oldLevel = current.level
         val newLevel = (newXp / 500) + 1
+        val leveledUp = newLevel > oldLevel
 
         val newRank = when {
             newTrophies >= 1000 -> "Apex Cybermaster"
@@ -482,13 +515,15 @@ class AuthRepository @Inject constructor(
             trophies = newTrophies,
             level = newLevel,
             rankTitle = newRank,
-            coins = newCoins
+            coins = newCoins,
+            currentWinStreak = newStreak,
+            longestWinStreak = newLongestStreak
         )
         saveProfile(updated)
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            if (prizeAmount > 0) {
-                nakamaRepository.rpcProcessCoinTransaction(prizeAmount, "arena_win_payout")
+            if (totalCoinsAdded > 0) {
+                nakamaRepository.rpcProcessCoinTransaction(totalCoinsAdded, "arena_win_payout")
             }
             nakamaRepository.recordMatchHistoryToNakama(
                 MatchRecord(
@@ -501,17 +536,42 @@ class AuthRepository @Inject constructor(
                 )
             )
         }
+
+        return MatchResultDelta(
+            didWin = didWin,
+            trophyDelta = trophyDelta,
+            xpGained = xpGain,
+            prizeCoins = prizeAmount,
+            streakBonusCoins = streakBonus,
+            totalCoinsGained = totalCoinsAdded,
+            oldLevel = oldLevel,
+            newLevel = newLevel,
+            leveledUp = leveledUp,
+            currentWinStreak = newStreak,
+            longestWinStreak = newLongestStreak
+        )
     }
 
-    fun recordMatchResult(didWin: Boolean, wallsPlaced: Int) {
+    fun recordMatchResult(didWin: Boolean, wallsPlaced: Int): MatchResultDelta {
         val current = _userProfile.value
         val newWins = if (didWin) current.wins + 1 else current.wins
         val newMatches = current.totalMatches + 1
         val newWalls = current.wallsPlaced + wallsPlaced
-        val newXp = current.xp + if (didWin) 150 else 50
-        val newTrophies = (current.trophies + if (didWin) 25 else -10).coerceAtLeast(0)
-        val newCoins = current.coins + if (didWin) 75 else 20
+        val xpGain = if (didWin) 150 else 50
+        val newXp = current.xp + xpGain
+        val trophyDelta = if (didWin) 25 else if (current.trophies >= 10) -10 else -current.trophies
+        val newTrophies = (current.trophies + trophyDelta).coerceAtLeast(0)
+
+        val newStreak = if (didWin) current.currentWinStreak + 1 else 0
+        val newLongestStreak = maxOf(current.longestWinStreak, newStreak)
+        val streakBonus = if (didWin && newStreak >= 2) (newStreak * 10).coerceAtMost(100) else 0
+
+        val baseCoins = if (didWin) 75 else 20
+        val totalCoinsAdded = baseCoins + streakBonus
+        val newCoins = current.coins + totalCoinsAdded
+        val oldLevel = current.level
         val newLevel = (newXp / 500) + 1
+        val leveledUp = newLevel > oldLevel
 
         val newRank = when {
             newTrophies >= 1000 -> "Apex Cybermaster"
@@ -528,11 +588,16 @@ class AuthRepository @Inject constructor(
             trophies = newTrophies,
             level = newLevel,
             rankTitle = newRank,
-            coins = newCoins
+            coins = newCoins,
+            currentWinStreak = newStreak,
+            longestWinStreak = newLongestStreak
         )
         saveProfile(updated)
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            if (totalCoinsAdded > 0) {
+                nakamaRepository.rpcProcessCoinTransaction(totalCoinsAdded, "match_reward")
+            }
             nakamaRepository.recordMatchHistoryToNakama(
                 MatchRecord(
                     modeName = "Tactical Match",
@@ -544,5 +609,19 @@ class AuthRepository @Inject constructor(
                 )
             )
         }
+
+        return MatchResultDelta(
+            didWin = didWin,
+            trophyDelta = trophyDelta,
+            xpGained = xpGain,
+            prizeCoins = baseCoins,
+            streakBonusCoins = streakBonus,
+            totalCoinsGained = totalCoinsAdded,
+            oldLevel = oldLevel,
+            newLevel = newLevel,
+            leveledUp = leveledUp,
+            currentWinStreak = newStreak,
+            longestWinStreak = newLongestStreak
+        )
     }
 }

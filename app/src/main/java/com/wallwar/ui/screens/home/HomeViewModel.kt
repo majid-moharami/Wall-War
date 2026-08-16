@@ -6,7 +6,15 @@ import androidx.lifecycle.viewModelScope
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
 import com.wallwar.data.AuthRepository
+import com.wallwar.data.DailyMission
+import com.wallwar.data.DailyMissionManager
+import com.wallwar.data.DailySpinnerManager
+import com.wallwar.data.DailyStreakManager
+import com.wallwar.data.DailyStreakState
 import com.wallwar.data.GameRepository
+import com.wallwar.data.SpinOutcome
+import com.wallwar.data.SpinRewardType
+import com.wallwar.data.SpinnerState
 import com.wallwar.data.UserProfile
 import com.wallwar.data.ad.AdManager
 import com.wallwar.model.AiDifficulty
@@ -27,7 +35,10 @@ class HomeViewModel @Inject constructor(
     gameRepository: GameRepository,
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
-    private val adManager: AdManager
+    private val adManager: AdManager,
+    private val dailyStreakManager: DailyStreakManager,
+    private val dailyMissionManager: DailyMissionManager,
+    private val dailySpinnerManager: DailySpinnerManager
 ) : ViewModel() {
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
@@ -38,6 +49,23 @@ class HomeViewModel @Inject constructor(
     val isAdPlaying: StateFlow<Boolean> = adManager.isAdPlaying
     val isRewardedAdReady: StateFlow<Boolean> = adManager.isRewardedAdReady
     val isRewardedAdLoading: StateFlow<Boolean> = adManager.isRewardedAdLoading
+
+    // Daily Retention Systems
+    val dailyStreakState: StateFlow<DailyStreakState> = dailyStreakManager.streakState
+    val dailyMissions: StateFlow<List<DailyMission>> = dailyMissionManager.missions
+    val dailySpinnerState: StateFlow<SpinnerState> = dailySpinnerManager.spinnerState
+    val spinnerState: StateFlow<SpinnerState> = dailySpinnerState
+
+    private val _selectedGameMode = MutableStateFlow(GameMode.DUEL)
+    val selectedGameMode: StateFlow<GameMode> = _selectedGameMode.asStateFlow()
+
+    fun setSelectedGameMode(mode: GameMode) {
+        _selectedGameMode.value = mode
+    }
+
+    fun selectGameMode(mode: GameMode) {
+        setSelectedGameMode(mode)
+    }
 
     fun clearAbandonedMatchNotice() {
         authRepository.clearAbandonedMatchNotice()
@@ -71,7 +99,7 @@ class HomeViewModel @Inject constructor(
         val success = authRepository.deductCoins(arena.entryFee)
         if (success) {
             _arenaErrorMessage.value = null
-            onSuccess(GameMode.DUEL, OpponentType.ONLINE, AiDifficulty.NORMAL, arena)
+            onSuccess(_selectedGameMode.value, OpponentType.ONLINE, AiDifficulty.NORMAL, arena)
         } else {
             _arenaErrorMessage.value = "Failed to deduct coins. Please try again."
         }
@@ -85,9 +113,9 @@ class HomeViewModel @Inject constructor(
     ) {
         if (useAdForFreeEntry) {
             _arenaErrorMessage.value = null
-            onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
+            onSuccess(_selectedGameMode.value, opponentType, difficulty, offlineArena)
         } else {
-            val entryFee = offlineArena.entryFee // 50 coins
+            val entryFee = offlineArena.entryFee
             val currentCoins = userProfile.value.coins
             if (currentCoins < entryFee) {
                 _arenaErrorMessage.value = "Not enough coins! Offline entry fee is $entryFee Coins or watch a Rewarded Ad for free entry."
@@ -96,7 +124,7 @@ class HomeViewModel @Inject constructor(
             val success = authRepository.deductCoins(entryFee)
             if (success) {
                 _arenaErrorMessage.value = null
-                onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
+                onSuccess(_selectedGameMode.value, opponentType, difficulty, offlineArena)
             } else {
                 _arenaErrorMessage.value = "Failed to deduct coins. Please try again."
             }
@@ -113,7 +141,7 @@ class HomeViewModel @Inject constructor(
         adManager.watchRewardedAdForFreeEntry(
             activity = activity,
             onSuccess = {
-                onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
+                onSuccess(_selectedGameMode.value, opponentType, difficulty, offlineArena)
             },
             onError = { error ->
                 _arenaErrorMessage.value = error
@@ -122,8 +150,40 @@ class HomeViewModel @Inject constructor(
     }
 
     fun claimDailyBonus() {
-        authRepository.addCoins(25)
-        _bonusMessage.value = "Claimed +25 Bonus Coins! 🪙"
+        val result = dailyStreakManager.claimDailyBonus()
+        if (result.coinsAwarded > 0) {
+            authRepository.addCoins(result.coinsAwarded)
+            val resetNote = if (result.wasReset) " (Streak Reset)" else ""
+            _bonusMessage.value = "Day ${result.newStreakDay} Streak Claimed! +${result.coinsAwarded} Coins awarded! 🪙$resetNote"
+        } else {
+            _bonusMessage.value = "You have already claimed today's daily bonus! Come back tomorrow."
+        }
+    }
+
+    fun claimMissionReward(missionId: String) {
+        val reward = dailyMissionManager.claimMissionReward(missionId)
+        if (reward != null) {
+            val (coins, xp) = reward
+            authRepository.addCoins(coins)
+            _bonusMessage.value = "Mission Complete! +$coins Coins & +$xp XP received! 🎯"
+        }
+    }
+
+    fun spinWheel(isFree: Boolean): SpinOutcome {
+        if (!isFree) {
+            authRepository.deductCoins(DailySpinnerManager.SPIN_FEE_COINS)
+        }
+        val outcome = dailySpinnerManager.performSpin(isFree)
+        when (val r = outcome.winningSegment.reward) {
+            is SpinRewardType.Coins -> {
+                authRepository.addCoins(r.amount)
+            }
+            is SpinRewardType.Cosmetic -> {
+                // Special rare skin fallback/reward coins added & synced to user profile
+                authRepository.addCoins(r.fallbackCoins)
+            }
+        }
+        return outcome
     }
 
     fun clearArenaErrorMessage() {
@@ -134,3 +194,4 @@ class HomeViewModel @Inject constructor(
         _bonusMessage.value = null
     }
 }
+

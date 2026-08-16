@@ -8,8 +8,10 @@ import com.wallwar.audio.SoundManager
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
 import com.wallwar.data.AuthRepository
+import com.wallwar.data.DailyMissionManager
 import com.wallwar.data.GameRepository
 import com.wallwar.data.MatchRecord
+import com.wallwar.data.MatchResultDelta
 import com.wallwar.data.SettingsRepository
 import com.wallwar.data.ad.AdManager
 import com.wallwar.data.nakama.NakamaRepository
@@ -42,7 +44,8 @@ class GameViewModel @Inject constructor(
     private val nakamaRepository: NakamaRepository,
     val soundManager: SoundManager,
     private val settingsRepository: SettingsRepository,
-    val adManager: AdManager
+    val adManager: AdManager,
+    private val dailyMissionManager: DailyMissionManager
 ) : ViewModel() {
 
     val gameMode: GameMode = try {
@@ -127,6 +130,9 @@ class GameViewModel @Inject constructor(
 
     private val _localDisconnectSeconds = MutableStateFlow(15)
     val localDisconnectSeconds: StateFlow<Int> = _localDisconnectSeconds.asStateFlow()
+
+    private val _matchResultDelta = MutableStateFlow<MatchResultDelta?>(null)
+    val matchResultDelta: StateFlow<MatchResultDelta?> = _matchResultDelta.asStateFlow()
 
     private var matchStartTime: Long = System.currentTimeMillis()
     private var timerJob: kotlinx.coroutines.Job? = null
@@ -569,6 +575,7 @@ class GameViewModel @Inject constructor(
     fun restartGame() {
         // Preload interstitial ad in the background for the next match ending
         adManager.preloadInterstitialAd()
+        _matchResultDelta.value = null
 
         if (opponentType == OpponentType.ONLINE) {
             startOnlineMatchmaking()
@@ -597,13 +604,27 @@ class GameViewModel @Inject constructor(
         val winnerIndex = finalState.winner ?: return
         val didWin = winnerIndex == _myPlayerIndex.value
         val wallsPlacedCount = finalState.moveHistory.count { it is Move.WallPlacement && (it.wall.playerOwner == _myPlayerIndex.value) }
+        val durationSeconds = (System.currentTimeMillis() - matchStartTime) / 1000
+        val totalMoves = finalState.moveHistory.size
+        val currentStreak = authRepository.userProfile.value.currentWinStreak
 
         // Track completed matches in AdManager for Interstitial rule (every 2 matches)
         adManager.recordMatchCompleted()
 
+        // Track Daily Missions
+        dailyMissionManager.recordMatchPlayed(
+            didWin = didWin,
+            opponentType = opponentType,
+            aiDifficulty = aiDifficulty,
+            wallsPlaced = wallsPlacedCount,
+            totalMoves = totalMoves,
+            durationSeconds = durationSeconds,
+            arenaId = selectedArena.id,
+            currentWinStreak = if (didWin) currentStreak + 1 else 0
+        )
+
         if (opponentType == OpponentType.ONLINE) {
             val opponentName = _onlineOpponentName.value
-            val durationSeconds = (System.currentTimeMillis() - matchStartTime) / 1000
 
             viewModelScope.launch {
                 val record = MatchRecord(
@@ -617,12 +638,14 @@ class GameViewModel @Inject constructor(
                 gameRepository.recordMatch(record)
                 
                 // Update local profile with arena payouts and sync to Nakama
-                authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+                val delta = authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+                _matchResultDelta.value = delta
                 authRepository.clearActiveOnlineMatch()
             }
         } else if (opponentType == OpponentType.AI || opponentType == OpponentType.LOCAL_PASS_PLAY) {
             // Also record AI / Local Arena matches with arena payouts
-            authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+            val delta = authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+            _matchResultDelta.value = delta
         }
     }
 

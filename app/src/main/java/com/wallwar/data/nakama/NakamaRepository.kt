@@ -239,7 +239,7 @@ class NakamaRepository @Inject constructor(
             onSessionAuthenticated()
             true
         } catch (e: Exception) {
-            Log.e("NakamaRepository", "Device auth failed: ${e.message}", e)
+            Log.w("NakamaRepository", "Device auth not available: ${e.message}")
             false
         }
     }
@@ -341,6 +341,8 @@ class NakamaRepository @Inject constructor(
                 put("rankTitle", profile.rankTitle)
                 put("totalMatches", profile.totalMatches)
                 put("wallsPlaced", profile.wallsPlaced)
+                put("currentWinStreak", profile.currentWinStreak)
+                put("longestWinStreak", profile.longestWinStreak)
             }
 
             val writeObj = StorageObjectWrite("user_data", "stats", statsObj.toString(), PermissionRead.PUBLIC_READ, PermissionWrite.OWNER_WRITE)
@@ -557,6 +559,99 @@ class NakamaRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.w("NakamaRepository", "Error fetching shop packages from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
+    // 2c. Daily Streak, Daily Missions, & Daily Spinner Nakama Cloud Sync
+    suspend fun syncDailyStreakToNakama(currentDay: Int, longestStreak: Int, lastClaimDate: String) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val json = JSONObject().apply {
+                put("currentDay", currentDay)
+                put("longestStreak", longestStreak)
+                put("lastClaimDate", lastClaimDate)
+            }
+            val writeObj = StorageObjectWrite("user_data", "daily_streak", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error syncing daily streak to Nakama: ${e.message}")
+        }
+    }
+
+    suspend fun fetchDailyStreakFromNakama(): JSONObject? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("daily_streak")
+            objectId.setUserId(nakamaUserId)
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                return@withContext JSONObject(result.getObjects(0).value)
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error reading daily streak from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
+    suspend fun syncDailyMissionsToNakama(date: String, missionsArray: JSONArray) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val json = JSONObject().apply {
+                put("date", date)
+                put("missions", missionsArray)
+            }
+            val writeObj = StorageObjectWrite("user_data", "daily_missions", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error syncing daily missions to Nakama: ${e.message}")
+        }
+    }
+
+    suspend fun fetchDailyMissionsFromNakama(): JSONObject? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("daily_missions")
+            objectId.setUserId(nakamaUserId)
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                return@withContext JSONObject(result.getObjects(0).value)
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error reading daily missions from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
+    suspend fun syncDailySpinnerToNakama(lastSpinDate: String, totalSpins: Int, lastWonItem: String) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val json = JSONObject().apply {
+                put("lastSpinDate", lastSpinDate)
+                put("totalSpins", totalSpins)
+                put("lastWonItem", lastWonItem)
+            }
+            val writeObj = StorageObjectWrite("user_data", "daily_spinner", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error syncing daily spinner to Nakama: ${e.message}")
+        }
+    }
+
+    suspend fun fetchDailySpinnerFromNakama(): JSONObject? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("daily_spinner")
+            objectId.setUserId(nakamaUserId)
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                return@withContext JSONObject(result.getObjects(0).value)
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error reading daily spinner from Nakama: ${e.message}")
         }
         return@withContext null
     }

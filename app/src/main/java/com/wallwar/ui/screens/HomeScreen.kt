@@ -70,6 +70,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -79,12 +80,17 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
+import com.wallwar.data.DailyMission
+import com.wallwar.data.DailyStreakState
+import com.wallwar.data.SpinOutcome
+import com.wallwar.data.SpinnerState
 import com.wallwar.data.UserProfile
 import com.wallwar.model.AiDifficulty
 import com.wallwar.model.BoardTheme
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
 import com.wallwar.ui.AppScreen
+import com.wallwar.ui.components.LuckySpinnerDialog
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
@@ -108,9 +114,16 @@ fun HomeScreen(
     abandonedMatchNotice: String? = null,
     isAdPlaying: Boolean = false,
     isRewardedAdLoading: Boolean = false,
+    dailyStreakState: DailyStreakState = DailyStreakState(),
+    dailyMissions: List<DailyMission> = emptyList(),
+    spinnerState: SpinnerState = SpinnerState(),
+    selectedGameMode: GameMode = GameMode.DUEL,
+    onSelectGameMode: (GameMode) -> Unit = {},
     onJoinOnlineArenaMatch: (Arena) -> Unit = {},
     onJoinOfflineMatch: (OpponentType, AiDifficulty, Boolean) -> Unit = { _, _, _ -> },
     onClaimDailyBonus: () -> Unit = {},
+    onClaimMissionReward: (String) -> Unit = {},
+    onSpinWheel: (Boolean) -> SpinOutcome = { error("No spin handler") },
     onClearArenaError: () -> Unit = {},
     onClearBonusMessage: () -> Unit = {},
     onClearAbandonedMatchNotice: () -> Unit = {},
@@ -119,6 +132,17 @@ fun HomeScreen(
 ) {
     val actualWins = totalWins.coerceAtLeast(userProfile.wins)
     val actualMatches = totalMatches.coerceAtLeast(userProfile.totalMatches)
+
+    var showSpinnerDialog by remember { mutableStateOf(false) }
+
+    if (showSpinnerDialog) {
+        LuckySpinnerDialog(
+            userCoins = userProfile.coins,
+            spinnerState = spinnerState,
+            onSpin = onSpinWheel,
+            onDismiss = { showSpinnerDialog = false }
+        )
+    }
 
     // Alert dialog for abandoned match notice
     if (abandonedMatchNotice != null) {
@@ -390,6 +414,21 @@ fun HomeScreen(
                                 color = NeonAmber
                             )
                         }
+                        if (userProfile.currentWinStreak > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(NeonMagenta.copy(alpha = 0.15f))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "🔥 Streak: ${userProfile.currentWinStreak}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NeonMagenta
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -453,9 +492,17 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
-        // 🌐 1. ONLINE MULTI-PLAYER ARENAS (5 TABLES)
+        // 🎮 GAME MODE SELECTOR
+        GameModeSelectorSection(
+            selectedMode = selectedGameMode,
+            onSelectMode = onSelectGameMode
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // 🌐 1. ONLINE MULTI-PLAYER ARENAS (TABLES LIST)
         OnlineArenasSection(
             userCoins = userProfile.coins,
             arenas = onlineArenas,
@@ -464,9 +511,9 @@ fun HomeScreen(
             onClaimDailyBonus = onClaimDailyBonus
         )
 
-        Spacer(modifier = Modifier.height(28.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
-        // ⚔️ 2. OFFLINE PRACTICE & AI BATTLES (SEPARATE SECTION)
+        // ⚔️ 2. OFFLINE PRACTICE & AI BATTLES
         OfflinePracticeSection(
             userCoins = userProfile.coins,
             offlineArena = offlineArena,
@@ -474,6 +521,18 @@ fun HomeScreen(
             isRewardedAdLoading = isRewardedAdLoading,
             onJoinOfflineMatch = onJoinOfflineMatch,
             onOpenShop = { onNavigate(AppScreen.COIN_SHOP) }
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // 🎁 DAILY RETENTION HUB (Streak + Lucky Spinner + Daily Missions)
+        DailyRetentionHubSection(
+            dailyStreakState = dailyStreakState,
+            spinnerState = spinnerState,
+            dailyMissions = dailyMissions,
+            onClaimDailyStreak = onClaimDailyBonus,
+            onOpenSpinner = { showSpinnerDialog = true },
+            onClaimMissionReward = onClaimMissionReward
         )
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -642,14 +701,14 @@ fun OnlineArenasSection(
         ) {
             Column {
                 Text(
-                    text = "🌐 ONLINE MULTI-PLAYER TABLES",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "MULTIPLAYER TABLES",
+                    style = MaterialTheme.typography.titleMedium,
                     color = NeonCyan,
                     fontWeight = FontWeight.Black,
-                    letterSpacing = 1.2.sp
+                    letterSpacing = 1.sp
                 )
                 Text(
-                    text = "7 Ranked Table Tiers & Scaling Board Themes",
+                    text = "Select your stake level",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFA0ACCC)
                 )
@@ -1074,12 +1133,15 @@ fun OnlineArenaCard(
                         .height(44.dp)
                         .testTag("join_online_arena_${arena.id}")
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
                         Text(
-                            text = "JOIN MATCHMAKER (🪙 ${arena.entryFee})",
+                            text = "Play (🪙 ${arena.entryFee})",
                             fontWeight = FontWeight.Black,
                             color = Color.Black,
-                            fontSize = 12.sp
+                            fontSize = 13.sp
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
@@ -1101,7 +1163,7 @@ fun OnlineArenaCard(
                         .height(44.dp)
                 ) {
                     Text(
-                        text = "🛒 Get Coins (Need 🪙 ${arena.entryFee})",
+                        text = "Need 🪙 ${arena.entryFee}",
                         fontWeight = FontWeight.Bold,
                         color = NeonAmber,
                         fontSize = 12.sp
@@ -1335,6 +1397,418 @@ fun OfflinePracticeSection(
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun GameModeSelectorSection(
+    selectedMode: GameMode,
+    onSelectMode: (GameMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "⚡ GAME MODE",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black,
+                color = NeonCyan,
+                letterSpacing = 1.2.sp
+            )
+            Text(
+                text = selectedMode.displayName,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            val modes = listOf(
+                Triple(GameMode.DUEL, "Classic Duel", "10 Walls"),
+                Triple(GameMode.QUICK_5V5, "Quick 5v5", "5 Walls"),
+                Triple(GameMode.SUDDEN_DEATH, "Sudden Death", "3 Walls")
+            )
+
+            modes.forEach { (mode, title, sub) ->
+                val isSelected = selectedMode == mode
+                Card(
+                    onClick = { onSelectMode(mode) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) NeonDarkSurface else NeonDarkCard
+                    ),
+                    border = BorderStroke(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) NeonCyan else NeonBorder
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("mode_${mode.name.lowercase()}")
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 10.dp, horizontal = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = title,
+                            fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (isSelected) NeonCyan else Color.White,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = sub,
+                            fontSize = 10.sp,
+                            color = if (isSelected) Color(0xFFA0ACCC) else Color(0xFF6B7280),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyRetentionHubSection(
+    dailyStreakState: DailyStreakState,
+    spinnerState: SpinnerState,
+    dailyMissions: List<DailyMission>,
+    onClaimDailyStreak: () -> Unit,
+    onOpenSpinner: () -> Unit,
+    onClaimMissionReward: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "🎁 DAILY REWARDS & MISSIONS",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black,
+                color = NeonAmber,
+                letterSpacing = 1.2.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Row 1: Daily Streak & Lucky Spinner side by side
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Daily Streak Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                border = BorderStroke(1.dp, if (dailyStreakState.canClaim) NeonAmber else NeonBorder),
+                modifier = Modifier
+                    .weight(1.1f)
+                    .height(130.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🔥 Day ${dailyStreakState.currentDay} Streak",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "+${dailyStreakState.todayReward}🪙",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            color = NeonAmber
+                        )
+                    }
+
+                    // 7-day mini progress dots
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        for (day in 1..7) {
+                            val isDone = day <= dailyStreakState.currentDay
+                            val isCurrent = day == (dailyStreakState.currentDay + 1).coerceAtMost(7)
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when {
+                                            isDone -> NeonEmerald
+                                            isCurrent && dailyStreakState.canClaim -> NeonAmber
+                                            else -> Color(0xFF2A3142)
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "$day",
+                                    fontSize = 8.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isDone || (isCurrent && dailyStreakState.canClaim)) Color.Black else Color.Gray
+                                )
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = onClaimDailyStreak,
+                        enabled = dailyStreakState.canClaim,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = NeonAmber,
+                            contentColor = Color.Black,
+                            disabledContainerColor = Color(0xFF262C3A),
+                            disabledContentColor = Color(0xFF6B7280)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(32.dp)
+                            .testTag("btn_claim_streak")
+                    ) {
+                        Text(
+                            text = if (dailyStreakState.canClaim) "Claim +${dailyStreakState.todayReward}🪙" else "Claimed ✓",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            // Lucky Spinner Trigger Card
+            Card(
+                onClick = onOpenSpinner,
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                border = BorderStroke(
+                    1.5.dp,
+                    if (spinnerState.hasFreeSpin) SolidColor(NeonMagenta) else Brush.horizontalGradient(listOf(NeonAmber, NeonCyan))
+                ),
+                modifier = Modifier
+                    .weight(0.9f)
+                    .height(130.dp)
+                    .testTag("btn_open_spinner")
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Brush.radialGradient(listOf(NeonAmber, NeonMagenta))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🎡", fontSize = 18.sp)
+                    }
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Lucky Wheel",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Win Prizes",
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 10.sp,
+                            color = NeonAmber
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (spinnerState.hasFreeSpin) NeonEmerald else Color(0xFF262C3A))
+                            .padding(vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (spinnerState.hasFreeSpin) "FREE" else "500 🪙",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 10.sp,
+                            color = if (spinnerState.hasFreeSpin) Color.Black else Color(0xFFA0ACCC)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Daily Missions Quests List
+        if (dailyMissions.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                border = BorderStroke(1.dp, NeonBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎯 Daily Quests",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "${dailyMissions.count { it.isClaimed }}/${dailyMissions.size} Done",
+                            fontSize = 11.sp,
+                            color = Color(0xFFA0ACCC)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    dailyMissions.forEachIndexed { index, mission ->
+                        if (index > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        DailyMissionItemRow(
+                            mission = mission,
+                            onClaim = { onClaimMissionReward(mission.id) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyMissionItemRow(
+    mission: DailyMission,
+    onClaim: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(NeonDarkSurface)
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text = mission.icon, fontSize = 18.sp)
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = mission.title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                color = Color.White
+            )
+            Text(
+                text = mission.description,
+                fontSize = 10.sp,
+                color = Color(0xFFA0ACCC)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Progress bar
+            val progressRatio = (mission.currentProgress.toFloat() / mission.target.toFloat()).coerceIn(0f, 1f)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0xFF2A3142))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(progressRatio)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(if (mission.isCompleted) NeonEmerald else NeonCyan)
+                    )
+                }
+                Text(
+                    text = "${mission.currentProgress}/${mission.target}",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFA0ACCC)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        if (mission.isClaimed) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF262C3A))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+            ) {
+                Text("Claimed", fontSize = 10.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Bold)
+            }
+        } else if (mission.isCompleted) {
+            Button(
+                onClick = onClaim,
+                colors = ButtonDefaults.buttonColors(containerColor = NeonEmerald, contentColor = Color.Black),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier.height(28.dp)
+            ) {
+                Text("Claim +${mission.coinReward}🪙", fontSize = 10.sp, fontWeight = FontWeight.Black)
+            }
+        } else {
+            Column(horizontalAlignment = Alignment.End) {
+                Text("+${mission.coinReward} 🪙", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = NeonAmber)
+                Text("+${mission.xpReward} XP", fontSize = 9.sp, color = NeonCyan)
             }
         }
     }

@@ -2,7 +2,9 @@ package com.wallwar.model
 
 enum class GameMode(val displayName: String, val cols: Int, val rows: Int, val defaultWalls: Int) {
     DUEL("Classic Duel", 9, 11, 10),
-    RACE("Wall Race", 9, 11, 15)
+    RACE("Wall Race", 9, 11, 15),
+    QUICK_5V5("Quick 5v5", 9, 9, 5),
+    SUDDEN_DEATH("Sudden Death", 9, 11, 3)
 }
 
 enum class AiDifficulty(val displayName: String, val budgetMs: Long) {
