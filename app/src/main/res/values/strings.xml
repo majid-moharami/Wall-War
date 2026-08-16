@@ -3,5 +3,4 @@
     <string name="app_tagline">Strategic Wall Placement &amp; Pawn Duels</string>
     <!-- Get your Web Client ID from https://console.cloud.google.com/apis/credentials -->
     <string name="default_web_client_id">969192049743-0tmm7r7hrt6216kk0m0pfi7a4fqfkron.apps.googleusercontent.com</string>
-    <string name="google_app_id" translatable="false">1:676583101880:android:com.wallwar.game</string>
 </resources>

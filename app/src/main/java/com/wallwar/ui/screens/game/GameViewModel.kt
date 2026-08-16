@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
@@ -45,7 +46,8 @@ class GameViewModel @Inject constructor(
     val soundManager: SoundManager,
     private val settingsRepository: SettingsRepository,
     val adManager: AdManager,
-    private val dailyMissionManager: DailyMissionManager
+    private val dailyMissionManager: DailyMissionManager,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     val gameMode: GameMode = try {
@@ -146,6 +148,12 @@ class GameViewModel @Inject constructor(
         val initialState = _gameState.value
         updateHighlightsForState(initialState)
         matchStartTime = System.currentTimeMillis()
+
+        analyticsManager.logMatchStart(
+            gameMode = gameMode.name,
+            difficulty = if (opponentType == OpponentType.AI) aiDifficulty.name else null,
+            isOnline = opponentType == OpponentType.ONLINE
+        )
 
         if (opponentType == OpponentType.ONLINE) {
             startOnlineMatchmaking()
@@ -421,6 +429,19 @@ class GameViewModel @Inject constructor(
         soundManager.playMoveSound(isMine = true, isWall = isWall)
         soundManager.vibrateShort()
 
+        if (isWall) {
+            val wallMove = move as Move.WallPlacement
+            analyticsManager.logWallPlaced(
+                orientation = if (wallMove.wall.isHorizontal) "horizontal" else "vertical",
+                isOnline = opponentType == OpponentType.ONLINE
+            )
+        } else if (move is Move.PawnStep) {
+            analyticsManager.logPawnMoved(
+                isJump = false,
+                isOnline = opponentType == OpponentType.ONLINE
+            )
+        }
+
         _gameState.value = nextState
         startTurnTimer()
 
@@ -610,6 +631,16 @@ class GameViewModel @Inject constructor(
 
         // Track completed matches in AdManager for Interstitial rule (every 2 matches)
         adManager.recordMatchCompleted()
+
+        // Log match analytics
+        analyticsManager.logMatchEnd(
+            gameMode = finalState.mode.name,
+            isWin = didWin,
+            winnerName = if (didWin) "LocalPlayer" else "Opponent",
+            durationSeconds = durationSeconds,
+            turnsCount = totalMoves,
+            wallsPlaced = wallsPlacedCount
+        )
 
         // Track Daily Missions
         dailyMissionManager.recordMatchPlayed(
