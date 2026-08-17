@@ -1,3 +1,4 @@
+```yaml
 name: Android CI - Build & Send APK to Telegram
 
 on:
@@ -15,13 +16,13 @@ jobs:
       # ─────────────────────────────────────────────
       # Checkout
       # ─────────────────────────────────────────────
-      - name: Checkout Code
+      - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
       # ─────────────────────────────────────────────
       # Java
       # ─────────────────────────────────────────────
-      - name: Set up Java JDK 17
+      - name: ☕ Set up Java JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -31,7 +32,7 @@ jobs:
       # ─────────────────────────────────────────────
       # Gradle Wrapper
       # ─────────────────────────────────────────────
-      - name: Ensure Gradle Wrapper Exists
+      - name: ⚙️ Ensure Gradle Wrapper Exists
         run: |
           if [ ! -f "./gradlew" ]; then
             echo "Generating Gradle wrapper..."
@@ -43,7 +44,7 @@ jobs:
       # ─────────────────────────────────────────────
       # Setup Keystore and Properties
       # ─────────────────────────────────────────────
-      - name: Setup Keystore and Properties
+      - name: 🔐 Setup Keystore and Properties
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PROPERTIES: ${{ secrets.KEYSTORE_PROPERTIES }}
@@ -51,6 +52,7 @@ jobs:
           if [ -n "$KEYSTORE_BASE64" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/release.keystore
           fi
+
           if [ -n "$KEYSTORE_PROPERTIES" ]; then
             echo "$KEYSTORE_PROPERTIES" > keystore.properties
           fi
@@ -58,7 +60,7 @@ jobs:
       # ─────────────────────────────────────────────
       # Build Debug & Release APKs
       # ─────────────────────────────────────────────
-      - name: Build APKs
+      - name: 🔨 Build APKs
         id: build
         continue-on-error: true
         run: |
@@ -75,13 +77,12 @@ jobs:
       # ─────────────────────────────────────────────
       # Extract Build Error
       # ─────────────────────────────────────────────
-      - name: Extract Build Error
+      - name: 🧩 Extract Build Error
         if: steps.build.outcome == 'failure'
         id: error
         run: |
           if [ -f build.log ]; then
 
-            # Try to find the most useful Gradle error lines.
             ERROR_TEXT=$(grep -E \
               "FAILURE:|What went wrong:|Execution failed|Caused by:|error:|e: |Could not|Unresolved reference|Exception" \
               build.log \
@@ -95,7 +96,6 @@ jobs:
             ERROR_TEXT="Build failed, but no build log was generated."
           fi
 
-          # Limit message size so Telegram doesn't reject it.
           ERROR_TEXT=$(echo "$ERROR_TEXT" | tail -c 3500)
 
           {
@@ -107,17 +107,19 @@ jobs:
       # ─────────────────────────────────────────────
       # Find APKs
       # ─────────────────────────────────────────────
-      - name: Locate Built APKs
+      - name: 🔎 Locate Built APKs
         id: find_apk
         if: steps.build.outcome == 'success'
         run: |
           DEBUG_APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+
           if [ -z "$DEBUG_APK_PATH" ]; then
             echo "::error::No APK file found in app/build/outputs/apk/debug/"
             exit 1
           fi
 
           RELEASE_APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+
           if [ -z "$RELEASE_APK_PATH" ]; then
             echo "::error::No APK file found in app/build/outputs/apk/release/"
             exit 1
@@ -132,7 +134,7 @@ jobs:
       # ─────────────────────────────────────────────
       # Send Successful Builds to Telegram
       # ─────────────────────────────────────────────
-      - name: Send Successful Builds to Telegram
+      - name: 📲 Send Successful Builds to Telegram
         if: steps.build.outcome == 'success' && steps.find_apk.outcome == 'success'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -154,30 +156,93 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          CAPTION_DEBUG="🎮 <b>Wall War — New Build</b>%0A%0A🟢 <b>BUILD SUCCESS</b>%0A%0A📦 <b>APK:</b> <code>Debug</code>%0A🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>%0A🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>%0A📝 <b>Message:</b> ${COMMIT_MSG}%0A%0A🔢 <b>Build:</b> #${RUN_NUMBER}%0A%0A─────────────────%0A📲 <b>Debug APK is ready!</b>%0A🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+          # Escape values for Telegram HTML.
+          escape_html() {
+            printf '%s' "$1" \
+              | sed \
+                  -e 's/&/\&amp;/g' \
+                  -e 's/</\&lt;/g' \
+                  -e 's/>/\&gt;/g'
+          }
 
-          CAPTION_RELEASE="🎮 <b>Wall War — New Build</b>%0A%0A🟢 <b>BUILD SUCCESS</b>%0A%0A📦 <b>APK:</b> <code>Release (Signed)</code>%0A🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>%0A🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>%0A📝 <b>Message:</b> ${COMMIT_MSG}%0A%0A🔢 <b>Build:</b> #${RUN_NUMBER}%0A%0A─────────────────%0A📲 <b>Release APK is ready!</b>%0A🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+          SAFE_REPO=$(escape_html "$REPO_NAME")
+          SAFE_BRANCH=$(escape_html "$BRANCH_NAME")
+          SAFE_COMMIT=$(escape_html "$SHORT_SHA")
+          SAFE_MESSAGE=$(escape_html "$COMMIT_MSG")
+
+          DEBUG_CAPTION="<b>🎮 WALL WAR</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          <b>🟢 BUILD SUCCESSFUL</b>
+          ━━━━━━━━━━━━━━━━━━━━
+
+          📦 <b>Build</b>
+          └ <code>Debug APK</code>
+
+          🌿 <b>Branch</b>
+          └ <code>${SAFE_BRANCH}</code>
+
+          🔖 <b>Commit</b>
+          └ <code>${SAFE_COMMIT}</code>
+
+          📝 <b>Changes</b>
+          └ ${SAFE_MESSAGE}
+
+          🔢 <b>Build #${RUN_NUMBER}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          📱 <b>Debug APK is ready!</b>
+
+          🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+
+          RELEASE_CAPTION="<b>🎮 WALL WAR</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          <b>🚀 RELEASE READY</b>
+          ━━━━━━━━━━━━━━━━━━━━
+
+          📦 <b>Build</b>
+          └ <code>Release APK • Signed</code>
+
+          🌿 <b>Branch</b>
+          └ <code>${SAFE_BRANCH}</code>
+
+          🔖 <b>Commit</b>
+          └ <code>${SAFE_COMMIT}</code>
+
+          📝 <b>Changes</b>
+          └ ${SAFE_MESSAGE}
+
+          🔢 <b>Build #${RUN_NUMBER}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          📱 <b>Release APK is ready!</b>
+          🔐 <i>Signed & production-ready</i>
+
+          🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
 
           echo "Uploading Debug APK to Telegram..."
+
           curl --fail-with-body -s \
             -F chat_id="${TELEGRAM_CHAT_ID}" \
             -F document=@"${DEBUG_APK_FILE}" \
-            -F caption="${CAPTION_DEBUG}" \
+            -F caption="${DEBUG_CAPTION}" \
             -F parse_mode="HTML" \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
 
           echo "Uploading Release APK to Telegram..."
+
           curl --fail-with-body -s \
             -F chat_id="${TELEGRAM_CHAT_ID}" \
             -F document=@"${RELEASE_APK_FILE}" \
-            -F caption="${CAPTION_RELEASE}" \
+            -F caption="${RELEASE_CAPTION}" \
             -F parse_mode="HTML" \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
 
       # ─────────────────────────────────────────────
       # Send Build Failure to Telegram
       # ─────────────────────────────────────────────
-      - name: Send Build Failure to Telegram
+      - name: 🚨 Send Build Failure to Telegram
         if: steps.build.outcome == 'failure'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -197,7 +262,51 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          MESSAGE="🚨 <b>Wall War — Build Failed</b>%0A%0A🔴 <b>BUILD FAILED</b>%0A%0A📦 <b>Repository:</b> <code>${REPO_NAME}</code>%0A🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>%0A🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>%0A📝 <b>Message:</b> ${COMMIT_MSG}%0A%0A🔢 <b>Build:</b> #${RUN_NUMBER}%0A%0A─────────────────%0A❌ <b>Error:</b>%0A%0A<pre>${BUILD_ERROR}</pre>%0A%0A🔗 <a href=\"${RUN_URL}\">View Full GitHub Actions Log</a>"
+          # Escape values for Telegram HTML.
+          escape_html() {
+            printf '%s' "$1" \
+              | sed \
+                  -e 's/&/\&amp;/g' \
+                  -e 's/</\&lt;/g' \
+                  -e 's/>/\&gt;/g'
+          }
+
+          SAFE_REPO=$(escape_html "$REPO_NAME")
+          SAFE_BRANCH=$(escape_html "$BRANCH_NAME")
+          SAFE_COMMIT=$(escape_html "$SHORT_SHA")
+          SAFE_MESSAGE=$(escape_html "$COMMIT_MSG")
+          SAFE_ERROR=$(escape_html "$BUILD_ERROR")
+
+          MESSAGE="<b>🎮 WALL WAR</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          <b>🔴 BUILD FAILED</b>
+          ━━━━━━━━━━━━━━━━━━━━
+
+          ⚠️ <b>Something went wrong.</b>
+          The Android build could not be completed.
+
+          📦 <b>Repository</b>
+          └ <code>${SAFE_REPO}</code>
+
+          🌿 <b>Branch</b>
+          └ <code>${SAFE_BRANCH}</code>
+
+          🔖 <b>Commit</b>
+          └ <code>${SAFE_COMMIT}</code>
+
+          📝 <b>Changes</b>
+          └ ${SAFE_MESSAGE}
+
+          🔢 <b>Build #${RUN_NUMBER}</b>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          ❌ <b>Error Details</b>
+
+          <pre>${SAFE_ERROR}</pre>
+
+          ━━━━━━━━━━━━━━━━━━━━
+          🔍 <a href=\"${RUN_URL}\">Open Full Build Log</a>"
 
           echo "Sending build failure notification to Telegram..."
 
@@ -211,7 +320,7 @@ jobs:
       # ─────────────────────────────────────────────
       # Clean Keystore Files
       # ─────────────────────────────────────────────
-      - name: Clean Keystore Files
+      - name: 🧹 Clean Keystore Files
         if: always()
         run: |
           rm -f /tmp/release.keystore
@@ -220,8 +329,9 @@ jobs:
       # ─────────────────────────────────────────────
       # Fail Workflow if Build Failed
       # ─────────────────────────────────────────────
-      - name: Fail Workflow if Build Failed
+      - name: ❌ Fail Workflow if Build Failed
         if: steps.build.outcome == 'failure'
         run: |
           echo "❌ Gradle build failed."
           exit 1
+```
