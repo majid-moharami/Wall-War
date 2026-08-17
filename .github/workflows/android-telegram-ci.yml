@@ -154,35 +154,9 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          CAPTION_DEBUG="🎮 <b>Wall War — New Build</b>
+          CAPTION_DEBUG="🎮 <b>Wall War — New Build</b>%0A%0A🟢 <b>BUILD SUCCESS</b>%0A%0A📦 <b>APK:</b> <code>Debug</code>%0A🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>%0A🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>%0A📝 <b>Message:</b> ${COMMIT_MSG}%0A%0A🔢 <b>Build:</b> #${RUN_NUMBER}%0A%0A─────────────────%0A📲 <b>Debug APK is ready!</b>%0A🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
 
-🟢 <b>BUILD SUCCESS</b>
-
-📦 <b>APK:</b> <code>Debug</code>
-🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
-🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
-📝 <b>Message:</b> ${COMMIT_MSG}
-
-🔢 <b>Build:</b> #${RUN_NUMBER}
-
-─────────────────
-📲 <b>Debug APK is ready!</b>
-🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
-
-          CAPTION_RELEASE="🎮 <b>Wall War — New Build</b>
-
-🟢 <b>BUILD SUCCESS</b>
-
-📦 <b>APK:</b> <code>Release (Signed)</code>
-🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
-🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
-📝 <b>Message:</b> ${COMMIT_MSG}
-
-🔢 <b>Build:</b> #${RUN_NUMBER}
-
-─────────────────
-📲 <b>Release APK is ready!</b>
-🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+          CAPTION_RELEASE="🎮 <b>Wall War — New Build</b>%0A%0A🟢 <b>BUILD SUCCESS</b>%0A%0A📦 <b>APK:</b> <code>Release (Signed)</code>%0A🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>%0A🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>%0A📝 <b>Message:</b> ${COMMIT_MSG}%0A%0A🔢 <b>Build:</b> #${RUN_NUMBER}%0A%0A─────────────────%0A📲 <b>Release APK is ready!</b>%0A🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
 
           echo "Uploading Debug APK to Telegram..."
           curl --fail-with-body -s \
@@ -223,23 +197,7 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          MESSAGE="🚨 <b>Wall War — Build Failed</b>
-
-🔴 <b>BUILD FAILED</b>
-
-📦 <b>Repository:</b> <code>${REPO_NAME}</code>
-🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
-🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
-📝 <b>Message:</b> ${COMMIT_MSG}
-
-🔢 <b>Build:</b> #${RUN_NUMBER}
-
-─────────────────
-❌ <b>Error:</b>
-
-<pre>${BUILD_ERROR}</pre>
-
-🔗 <a href=\"${RUN_URL}\">View Full GitHub Actions Log</a>"
+          MESSAGE="🚨 <b>Wall War — Build Failed</b>%0A%0A🔴 <b>BUILD FAILED</b>%0A%0A📦 <b>Repository:</b> <code>${REPO_NAME}</code>%0A🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>%0A🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>%0A📝 <b>Message:</b> ${COMMIT_MSG}%0A%0A🔢 <b>Build:</b> #${RUN_NUMBER}%0A%0A─────────────────%0A❌ <b>Error:</b>%0A%0A<pre>${BUILD_ERROR}</pre>%0A%0A🔗 <a href=\"${RUN_URL}\">View Full GitHub Actions Log</a>"
 
           echo "Sending build failure notification to Telegram..."
 
