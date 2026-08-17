@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # ─────────────────────────────────────────────
       # Checkout
       # ─────────────────────────────────────────────
@@ -95,7 +96,8 @@ jobs:
             ERROR_TEXT="Build failed, but no build log was generated."
           fi
 
-          ERROR_TEXT=$(echo "$ERROR_TEXT" | tail -c 3500)
+          # Limit error size for Telegram.
+          ERROR_TEXT=$(echo "$ERROR_TEXT" | tail -c 3000)
 
           {
             echo 'error<<EOF'
@@ -110,25 +112,75 @@ jobs:
         id: find_apk
         if: steps.build.outcome == 'success'
         run: |
-          DEBUG_APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          set -e
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔎 Searching for generated APKs"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          echo ""
+          echo "📂 All generated APK files:"
+          find app/build/outputs -type f -name "*.apk" -print || true
+
+          echo ""
+
+          DEBUG_APK_PATH=$(find app/build/outputs/apk/debug \
+            -type f \
+            -name "*.apk" \
+            -print \
+            -quit 2>/dev/null || true)
+
+          RELEASE_APK_PATH=$(find app/build/outputs/apk/release \
+            -type f \
+            -name "*.apk" \
+            -print \
+            -quit 2>/dev/null || true)
+
+          # ─────────────────────────────────────────
+          # Validate Debug APK
+          # ─────────────────────────────────────────
 
           if [ -z "$DEBUG_APK_PATH" ]; then
-            echo "::error::No APK file found in app/build/outputs/apk/debug/"
+            echo "::error::No Debug APK found."
+            echo ""
+            echo "Contents of app/build/outputs:"
+            find app/build/outputs -type f -print || true
             exit 1
           fi
 
-          RELEASE_APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          # ─────────────────────────────────────────
+          # Validate Release APK
+          # ─────────────────────────────────────────
 
           if [ -z "$RELEASE_APK_PATH" ]; then
-            echo "::error::No APK file found in app/build/outputs/apk/release/"
+            echo "::error::No Release APK found."
+            echo ""
+            echo "Contents of app/build/outputs:"
+            find app/build/outputs -type f -print || true
             exit 1
           fi
 
+          # Convert to absolute paths.
+          DEBUG_APK_PATH="$(realpath "$DEBUG_APK_PATH")"
+          RELEASE_APK_PATH="$(realpath "$RELEASE_APK_PATH")"
+
+          # Save paths for later steps.
           echo "debug_apk_path=$DEBUG_APK_PATH" >> "$GITHUB_OUTPUT"
           echo "release_apk_path=$RELEASE_APK_PATH" >> "$GITHUB_OUTPUT"
 
-          echo "Found Debug APK: $DEBUG_APK_PATH"
-          echo "Found Release APK: $RELEASE_APK_PATH"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 DEBUG APK"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "$DEBUG_APK_PATH"
+          ls -lh "$DEBUG_APK_PATH"
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 RELEASE APK"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "$RELEASE_APK_PATH"
+          ls -lh "$RELEASE_APK_PATH"
 
       # ─────────────────────────────────────────────
       # Send Successful Builds to Telegram
@@ -138,14 +190,90 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+          DEBUG_APK_FILE: ${{ steps.find_apk.outputs.debug_apk_path }}
+          RELEASE_APK_FILE: ${{ steps.find_apk.outputs.release_apk_path }}
+
         run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "::error::Missing Telegram secrets."
+          set -e
+
+          # ─────────────────────────────────────────
+          # Validate Telegram secrets
+          # ─────────────────────────────────────────
+
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN secret is missing."
             exit 1
           fi
 
-          DEBUG_APK_FILE="${{ steps.find_apk.outputs.debug_apk_path }}"
-          RELEASE_APK_FILE="${{ steps.find_apk.outputs.release_apk_path }}"
+          if [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error::TELEGRAM_CHAT_ID secret is missing."
+            exit 1
+          fi
+
+          # ─────────────────────────────────────────
+          # Convert APK paths to absolute paths
+          # ─────────────────────────────────────────
+
+          DEBUG_APK_FILE="$(realpath "$DEBUG_APK_FILE")"
+          RELEASE_APK_FILE="$(realpath "$RELEASE_APK_FILE")"
+
+          # ─────────────────────────────────────────
+          # Verify Debug APK
+          # ─────────────────────────────────────────
+
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Checking Debug APK"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          echo "Path:"
+          echo "$DEBUG_APK_FILE"
+
+          if [ ! -f "$DEBUG_APK_FILE" ]; then
+            echo "::error::Debug APK does not exist:"
+            echo "$DEBUG_APK_FILE"
+            exit 1
+          fi
+
+          if [ ! -r "$DEBUG_APK_FILE" ]; then
+            echo "::error::Debug APK is not readable:"
+            echo "$DEBUG_APK_FILE"
+            exit 1
+          fi
+
+          echo "✅ Debug APK exists and is readable."
+          ls -lh "$DEBUG_APK_FILE"
+
+          # ─────────────────────────────────────────
+          # Verify Release APK
+          # ─────────────────────────────────────────
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Checking Release APK"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          echo "Path:"
+          echo "$RELEASE_APK_FILE"
+
+          if [ ! -f "$RELEASE_APK_FILE" ]; then
+            echo "::error::Release APK does not exist:"
+            echo "$RELEASE_APK_FILE"
+            exit 1
+          fi
+
+          if [ ! -r "$RELEASE_APK_FILE" ]; then
+            echo "::error::Release APK is not readable:"
+            echo "$RELEASE_APK_FILE"
+            exit 1
+          fi
+
+          echo "✅ Release APK exists and is readable."
+          ls -lh "$RELEASE_APK_FILE"
+
+          # ─────────────────────────────────────────
+          # GitHub Information
+          # ─────────────────────────────────────────
 
           REPO_NAME="${{ github.repository }}"
           BRANCH_NAME="${{ github.ref_name }}"
@@ -155,19 +283,26 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          # Escape values for Telegram HTML.
+          # ─────────────────────────────────────────
+          # Escape HTML for Telegram
+          # ─────────────────────────────────────────
+
           escape_html() {
-            printf '%s' "$1" \
-              | sed \
-                  -e 's/&/\&amp;/g' \
-                  -e 's/</\&lt;/g' \
-                  -e 's/>/\&gt;/g'
+            printf '%s' "$1" |
+              sed \
+                -e 's/&/\&amp;/g' \
+                -e 's/</\&lt;/g' \
+                -e 's/>/\&gt;/g'
           }
 
           SAFE_REPO=$(escape_html "$REPO_NAME")
           SAFE_BRANCH=$(escape_html "$BRANCH_NAME")
           SAFE_COMMIT=$(escape_html "$SHORT_SHA")
           SAFE_MESSAGE=$(escape_html "$COMMIT_MSG")
+
+          # ─────────────────────────────────────────
+          # Debug Telegram Message
+          # ─────────────────────────────────────────
 
           DEBUG_CAPTION="<b>🎮 WALL WAR</b>
 
@@ -194,6 +329,10 @@ jobs:
 
           🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
 
+          # ─────────────────────────────────────────
+          # Release Telegram Message
+          # ─────────────────────────────────────────
+
           RELEASE_CAPTION="<b>🎮 WALL WAR</b>
 
           ━━━━━━━━━━━━━━━━━━━━
@@ -216,27 +355,60 @@ jobs:
 
           ━━━━━━━━━━━━━━━━━━━━
           📱 <b>Release APK is ready!</b>
-          🔐 <i>Signed & production-ready</i>
+          🔐 <i>Signed &amp; production-ready</i>
 
           🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
 
-          echo "Uploading Debug APK to Telegram..."
+          # ─────────────────────────────────────────
+          # Upload Debug APK
+          # ─────────────────────────────────────────
 
-          curl --fail-with-body -s \
-            -F chat_id="${TELEGRAM_CHAT_ID}" \
-            -F document=@"${DEBUG_APK_FILE}" \
-            -F caption="${DEBUG_CAPTION}" \
-            -F parse_mode="HTML" \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📤 Uploading Debug APK to Telegram..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          echo "Uploading Release APK to Telegram..."
+          DEBUG_RESPONSE=$(curl \
+            --fail-with-body \
+            --show-error \
+            --silent \
+            --request POST \
+            --form "chat_id=${TELEGRAM_CHAT_ID}" \
+            --form "document=@${DEBUG_APK_FILE};type=application/vnd.android.package-archive" \
+            --form "caption=${DEBUG_CAPTION}" \
+            --form "parse_mode=HTML" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument")
 
-          curl --fail-with-body -s \
-            -F chat_id="${TELEGRAM_CHAT_ID}" \
-            -F document=@"${RELEASE_APK_FILE}" \
-            -F caption="${RELEASE_CAPTION}" \
-            -F parse_mode="HTML" \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+          echo "✅ Debug APK uploaded successfully."
+          echo "$DEBUG_RESPONSE"
+
+          # ─────────────────────────────────────────
+          # Upload Release APK
+          # ─────────────────────────────────────────
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📤 Uploading Release APK to Telegram..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          RELEASE_RESPONSE=$(curl \
+            --fail-with-body \
+            --show-error \
+            --silent \
+            --request POST \
+            --form "chat_id=${TELEGRAM_CHAT_ID}" \
+            --form "document=@${RELEASE_APK_FILE};type=application/vnd.android.package-archive" \
+            --form "caption=${RELEASE_CAPTION}" \
+            --form "parse_mode=HTML" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument")
+
+          echo "✅ Release APK uploaded successfully."
+          echo "$RELEASE_RESPONSE"
+
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 ALL APKs SENT TO TELEGRAM"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       # ─────────────────────────────────────────────
       # Send Build Failure to Telegram
@@ -247,9 +419,17 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           BUILD_ERROR: ${{ steps.error.outputs.error }}
+
         run: |
-          if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_CHAT_ID" ]; then
-            echo "::error::Missing Telegram secrets."
+          set -e
+
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "::error::TELEGRAM_BOT_TOKEN secret is missing."
+            exit 1
+          fi
+
+          if [ -z "$TELEGRAM_CHAT_ID" ]; then
+            echo "::error::TELEGRAM_CHAT_ID secret is missing."
             exit 1
           fi
 
@@ -261,13 +441,16 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          # Escape values for Telegram HTML.
+          # ─────────────────────────────────────────
+          # Escape HTML
+          # ─────────────────────────────────────────
+
           escape_html() {
-            printf '%s' "$1" \
-              | sed \
-                  -e 's/&/\&amp;/g' \
-                  -e 's/</\&lt;/g' \
-                  -e 's/>/\&gt;/g'
+            printf '%s' "$1" |
+              sed \
+                -e 's/&/\&amp;/g' \
+                -e 's/</\&lt;/g' \
+                -e 's/>/\&gt;/g'
           }
 
           SAFE_REPO=$(escape_html "$REPO_NAME")
@@ -275,6 +458,10 @@ jobs:
           SAFE_COMMIT=$(escape_html "$SHORT_SHA")
           SAFE_MESSAGE=$(escape_html "$COMMIT_MSG")
           SAFE_ERROR=$(escape_html "$BUILD_ERROR")
+
+          # ─────────────────────────────────────────
+          # Failure Message
+          # ─────────────────────────────────────────
 
           MESSAGE="<b>🎮 WALL WAR</b>
 
@@ -307,14 +494,21 @@ jobs:
           ━━━━━━━━━━━━━━━━━━━━
           🔍 <a href=\"${RUN_URL}\">Open Full Build Log</a>"
 
-          echo "Sending build failure notification to Telegram..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🚨 Sending build failure notification..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          curl --fail-with-body -s \
-            -X POST \
+          curl \
+            --fail-with-body \
+            --show-error \
+            --silent \
+            --request POST \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -d chat_id="${TELEGRAM_CHAT_ID}" \
-            --data-urlencode text="${MESSAGE}" \
-            -d parse_mode="HTML"
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MESSAGE}" \
+            --data-urlencode "parse_mode=HTML"
+
+          echo "✅ Failure notification sent to Telegram."
 
       # ─────────────────────────────────────────────
       # Clean Keystore Files
@@ -333,3 +527,4 @@ jobs:
         run: |
           echo "❌ Gradle build failed."
           exit 1
+

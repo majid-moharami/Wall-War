@@ -478,21 +478,36 @@ class AuthRepository @Inject constructor(
         return true
     }
 
-    fun recordArenaMatchResult(didWin: Boolean, wallsPlaced: Int, winningPrize: Int): MatchResultDelta {
+    fun recordArenaMatchResult(
+        didWin: Boolean,
+        wallsPlaced: Int,
+        winningPrize: Int,
+        isOnline: Boolean = true
+    ): MatchResultDelta {
         val current = _userProfile.value
-        val newWins = if (didWin) current.wins + 1 else current.wins
-        val newMatches = current.totalMatches + 1
+        val newWins = if (isOnline && didWin) current.wins + 1 else current.wins
+        val newMatches = if (isOnline) current.totalMatches + 1 else current.totalMatches
         val newWalls = current.wallsPlaced + wallsPlaced
         val xpGain = if (didWin) 150 else 50
         val newXp = current.xp + xpGain
-        val trophyDelta = if (didWin) 25 else if (current.trophies >= 10) -10 else -current.trophies
+
+        // Trophies and competitive streak only apply to real online matches
+        val trophyDelta = if (isOnline) {
+            if (didWin) 25 else if (current.trophies >= 10) -10 else -current.trophies
+        } else {
+            0
+        }
         val newTrophies = (current.trophies + trophyDelta).coerceAtLeast(0)
 
-        val newStreak = if (didWin) current.currentWinStreak + 1 else 0
+        val newStreak = if (isOnline) {
+            if (didWin) current.currentWinStreak + 1 else 0
+        } else {
+            current.currentWinStreak
+        }
         val newLongestStreak = maxOf(current.longestWinStreak, newStreak)
-        val streakBonus = if (didWin && newStreak >= 2) (newStreak * 10).coerceAtMost(100) else 0
+        val streakBonus = if (isOnline && didWin && newStreak >= 2) (newStreak * 10).coerceAtMost(100) else 0
         
-        // Payout winning prize if player won + streak bonus. Entry fee was already deducted when joining.
+        // Payout winning prize if player won + streak bonus
         val prizeAmount = if (didWin) winningPrize else 0
         val totalCoinsAdded = prizeAmount + streakBonus
         val newCoins = current.coins + totalCoinsAdded
@@ -525,16 +540,18 @@ class AuthRepository @Inject constructor(
             if (totalCoinsAdded > 0) {
                 nakamaRepository.rpcProcessCoinTransaction(totalCoinsAdded, "arena_win_payout")
             }
-            nakamaRepository.recordMatchHistoryToNakama(
-                MatchRecord(
-                    modeName = "Arena Match",
-                    opponentName = "Opponent",
-                    winnerPlayer = if (didWin) 0 else 1,
-                    totalMoves = 10,
-                    totalWallsPlaced = wallsPlaced,
-                    durationSeconds = 60L
+            if (isOnline) {
+                nakamaRepository.recordMatchHistoryToNakama(
+                    MatchRecord(
+                        modeName = "Arena Match",
+                        opponentName = "Opponent",
+                        winnerPlayer = if (didWin) 0 else 1,
+                        totalMoves = 10,
+                        totalWallsPlaced = wallsPlaced,
+                        durationSeconds = 60L
+                    )
                 )
-            )
+            }
         }
 
         return MatchResultDelta(

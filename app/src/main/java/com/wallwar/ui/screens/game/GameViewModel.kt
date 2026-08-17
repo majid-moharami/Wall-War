@@ -168,6 +168,12 @@ class GameViewModel @Inject constructor(
                             _isOpponentDisconnected.value = false
                             _isLocalDisconnected.value = false
                             
+                            // Matchmaking successful: deduct entry fee now
+                            if (selectedArena.entryFee > 0) {
+                                authRepository.deductCoins(selectedArena.entryFee)
+                                analyticsManager.logCoinsSpent(selectedArena.entryFee, "arena_entry_${selectedArena.id}")
+                            }
+
                             // Mark match as active in persistent storage for crash/disconnect recovery
                             authRepository.markActiveOnlineMatch(event.matchId)
 
@@ -668,14 +674,24 @@ class GameViewModel @Inject constructor(
                 )
                 gameRepository.recordMatch(record)
                 
-                // Update local profile with arena payouts and sync to Nakama
-                val delta = authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+                // Update local profile with arena payouts and sync to Nakama (online match)
+                val delta = authRepository.recordArenaMatchResult(
+                    didWin = didWin,
+                    wallsPlaced = wallsPlacedCount,
+                    winningPrize = selectedArena.winningPrize,
+                    isOnline = true
+                )
                 _matchResultDelta.value = delta
                 authRepository.clearActiveOnlineMatch()
             }
         } else if (opponentType == OpponentType.AI || opponentType == OpponentType.LOCAL_PASS_PLAY) {
-            // Also record AI / Local Arena matches with arena payouts
-            val delta = authRepository.recordArenaMatchResult(didWin, wallsPlacedCount, selectedArena.winningPrize)
+            // Practice / AI match: award training rewards without altering ranked history or trophy stats
+            val delta = authRepository.recordArenaMatchResult(
+                didWin = didWin,
+                wallsPlaced = wallsPlacedCount,
+                winningPrize = selectedArena.winningPrize,
+                isOnline = false
+            )
             _matchResultDelta.value = delta
         }
     }

@@ -58,6 +58,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import com.wallwar.ui.components.DailyStreakRewardsCard
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -1501,212 +1502,135 @@ fun DailyRetentionHubSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        // 1. Redesigned 7-Day Streak Rewards Card
+        DailyStreakRewardsCard(
+            dailyStreakState = dailyStreakState,
+            onClaim = onClaimDailyStreak
+        )
+
+        // 2. Lucky Spinner Banner Card
+        Card(
+            onClick = onOpenSpinner,
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            border = BorderStroke(
+                1.5.dp,
+                if (spinnerState.hasFreeSpin) SolidColor(NeonMagenta)
+                else Brush.horizontalGradient(listOf(NeonAmber, NeonCyan))
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("btn_open_spinner")
         ) {
-            Text(
-                text = "🎁 DAILY REWARDS & MISSIONS",
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Black,
-                color = NeonAmber,
-                letterSpacing = 1.2.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Row 1: Daily Streak & Lucky Spinner side by side
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Daily Streak Card
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-                border = BorderStroke(1.dp, if (dailyStreakState.canClaim) NeonAmber else NeonBorder),
+            Row(
                 modifier = Modifier
-                    .weight(1.1f)
-                    .height(130.dp)
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "🔥 Day ${dailyStreakState.currentDay} Streak",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "+${dailyStreakState.todayReward}🪙",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 12.sp,
-                            color = NeonAmber
-                        )
-                    }
-
-                    // 7-day mini progress dots
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        for (day in 1..7) {
-                            val isDone = day <= dailyStreakState.currentDay
-                            val isCurrent = day == (dailyStreakState.currentDay + 1).coerceAtMost(7)
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        when {
-                                            isDone -> NeonEmerald
-                                            isCurrent && dailyStreakState.canClaim -> NeonAmber
-                                            else -> Color(0xFF2A3142)
-                                        }
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "$day",
-                                    fontSize = 8.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDone || (isCurrent && dailyStreakState.canClaim)) Color.Black else Color.Gray
-                                )
-                            }
-                        }
-                    }
-
-                    Button(
-                        onClick = onClaimDailyStreak,
-                        enabled = dailyStreakState.canClaim,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = NeonAmber,
-                            contentColor = Color.Black,
-                            disabledContainerColor = Color(0xFF262C3A),
-                            disabledContentColor = Color(0xFF6B7280)
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(32.dp)
-                            .testTag("btn_claim_streak")
-                    ) {
-                        Text(
-                            text = if (dailyStreakState.canClaim) "Claim +${dailyStreakState.todayReward}🪙" else "Claimed ✓",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-            }
-
-            // Lucky Spinner Trigger Card
-            Card(
-                onClick = onOpenSpinner,
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-                border = BorderStroke(
-                    1.5.dp,
-                    if (spinnerState.hasFreeSpin) SolidColor(NeonMagenta) else Brush.horizontalGradient(listOf(NeonAmber, NeonCyan))
-                ),
-                modifier = Modifier
-                    .weight(0.9f)
-                    .height(130.dp)
-                    .testTag("btn_open_spinner")
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .background(Brush.radialGradient(listOf(NeonAmber, NeonMagenta))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🎡", fontSize = 18.sp)
+                        Text(text = "🎡", fontSize = 22.sp)
                     }
 
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "LUCKY WHEEL",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 14.sp,
+                                color = Color.White
+                            )
+                            if (spinnerState.hasFreeSpin) {
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = NeonEmerald
+                                ) {
+                                    Text(
+                                        text = "FREE SPIN!",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.Black,
+                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                         Text(
-                            text = "Lucky Wheel",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Win Prizes",
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 10.sp,
-                            color = NeonAmber
+                            text = "Spin now to win up to 1,000 Coins & XP",
+                            fontSize = 11.sp,
+                            color = Color(0xFFA0ACCC)
                         )
                     }
+                }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (spinnerState.hasFreeSpin) NeonEmerald else Color(0xFF262C3A))
-                            .padding(vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (spinnerState.hasFreeSpin) "FREE" else "500 🪙",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 10.sp,
-                            color = if (spinnerState.hasFreeSpin) Color.Black else Color(0xFFA0ACCC)
-                        )
-                    }
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (spinnerState.hasFreeSpin) NeonEmerald else Color(0xFF262C3A),
+                    border = if (!spinnerState.hasFreeSpin) BorderStroke(1.dp, NeonBorder) else null
+                ) {
+                    Text(
+                        text = if (spinnerState.hasFreeSpin) "SPIN NOW" else "500 🪙",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp,
+                        color = if (spinnerState.hasFreeSpin) Color.Black else NeonAmber,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
                 }
             }
         }
 
-        // Daily Missions Quests List
+        // 3. Daily Quests Section
         if (dailyMissions.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(12.dp))
             Card(
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
                 border = BorderStroke(1.dp, NeonBorder),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "🎯 Daily Quests",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "${dailyMissions.count { it.isClaimed }}/${dailyMissions.size} Done",
-                            fontSize = 11.sp,
-                            color = Color(0xFFA0ACCC)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(text = "🎯", fontSize = 16.sp)
+                            Text(
+                                text = "DAILY QUESTS",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                color = Color.White
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = NeonDarkSurface
+                        ) {
+                            Text(
+                                text = "${dailyMissions.count { it.isClaimed }}/${dailyMissions.size} Done",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonCyan,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     dailyMissions.forEachIndexed { index, mission ->
                         if (index > 0) {

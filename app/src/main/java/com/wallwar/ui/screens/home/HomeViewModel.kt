@@ -96,13 +96,10 @@ class HomeViewModel @Inject constructor(
             return
         }
 
-        val success = authRepository.deductCoins(arena.entryFee)
-        if (success) {
-            _arenaErrorMessage.value = null
-            onSuccess(_selectedGameMode.value, OpponentType.ONLINE, AiDifficulty.NORMAL, arena)
-        } else {
-            _arenaErrorMessage.value = "Failed to deduct coins. Please try again."
-        }
+        // Do not deduct coins before successful matchmaking.
+        // The entry fee will be deducted only once an opponent is found in GameViewModel.
+        _arenaErrorMessage.value = null
+        onSuccess(_selectedGameMode.value, OpponentType.ONLINE, AiDifficulty.NORMAL, arena)
     }
 
     fun joinOfflineMatch(
