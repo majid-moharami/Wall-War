@@ -8,7 +8,7 @@ on:
 
 jobs:
   build_and_send:
-    name: Build Debug APK & Send to Telegram
+    name: Build APKs & Send to Telegram
     runs-on: ubuntu-latest
 
     steps:
@@ -41,15 +41,30 @@ jobs:
           chmod +x gradlew
 
       # ─────────────────────────────────────────────
-      # Build Debug APK
+      # Setup Keystore and Properties
       # ─────────────────────────────────────────────
-      - name: Build Debug APK
+      - name: Setup Keystore and Properties
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PROPERTIES: ${{ secrets.KEYSTORE_PROPERTIES }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/release.keystore
+          fi
+          if [ -n "$KEYSTORE_PROPERTIES" ]; then
+            echo "$KEYSTORE_PROPERTIES" > keystore.properties
+          fi
+
+      # ─────────────────────────────────────────────
+      # Build Debug & Release APKs
+      # ─────────────────────────────────────────────
+      - name: Build APKs
         id: build
         continue-on-error: true
         run: |
           set -o pipefail
 
-          ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+          ./gradlew assembleDebug assembleRelease --stacktrace 2>&1 | tee build.log
 
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
 
@@ -90,27 +105,34 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       # ─────────────────────────────────────────────
-      # Find APK
+      # Find APKs
       # ─────────────────────────────────────────────
-      - name: Locate Built APK
+      - name: Locate Built APKs
         id: find_apk
         if: steps.build.outcome == 'success'
         run: |
-          APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
-
-          if [ -z "$APK_PATH" ]; then
+          DEBUG_APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -n 1)
+          if [ -z "$DEBUG_APK_PATH" ]; then
             echo "::error::No APK file found in app/build/outputs/apk/debug/"
             exit 1
           fi
 
-          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+          RELEASE_APK_PATH=$(find app/build/outputs/apk/release/ -name "*.apk" | head -n 1)
+          if [ -z "$RELEASE_APK_PATH" ]; then
+            echo "::error::No APK file found in app/build/outputs/apk/release/"
+            exit 1
+          fi
 
-          echo "Found APK: $APK_PATH"
+          echo "debug_apk_path=$DEBUG_APK_PATH" >> "$GITHUB_OUTPUT"
+          echo "release_apk_path=$RELEASE_APK_PATH" >> "$GITHUB_OUTPUT"
+
+          echo "Found Debug APK: $DEBUG_APK_PATH"
+          echo "Found Release APK: $RELEASE_APK_PATH"
 
       # ─────────────────────────────────────────────
-      # Send Successful Build to Telegram
+      # Send Successful Builds to Telegram
       # ─────────────────────────────────────────────
-      - name: Send Successful Build to Telegram
+      - name: Send Successful Builds to Telegram
         if: steps.build.outcome == 'success' && steps.find_apk.outcome == 'success'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -121,7 +143,8 @@ jobs:
             exit 1
           fi
 
-          APK_FILE="${{ steps.find_apk.outputs.apk_path }}"
+          DEBUG_APK_FILE="${{ steps.find_apk.outputs.debug_apk_path }}"
+          RELEASE_APK_FILE="${{ steps.find_apk.outputs.release_apk_path }}"
 
           REPO_NAME="${{ github.repository }}"
           BRANCH_NAME="${{ github.ref_name }}"
@@ -131,27 +154,49 @@ jobs:
 
           COMMIT_MSG=$(git log -1 --pretty=%s)
 
-          CAPTION="🎮 <b>Wall War — New Build</b>
+          CAPTION_DEBUG="🎮 <b>Wall War — New Build</b>
 
-          🟢 <b>BUILD SUCCESS</b>
+🟢 <b>BUILD SUCCESS</b>
 
-          📦 <b>APK:</b> <code>Debug</code>
-          🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
-          🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
-          📝 <b>Message:</b> ${COMMIT_MSG}
+📦 <b>APK:</b> <code>Debug</code>
+🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
+🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
+📝 <b>Message:</b> ${COMMIT_MSG}
 
-          🔢 <b>Build:</b> #${RUN_NUMBER}
+🔢 <b>Build:</b> #${RUN_NUMBER}
 
-          ─────────────────
-          📲 <b>APK is ready!</b>
-          🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+─────────────────
+📲 <b>Debug APK is ready!</b>
+🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+
+          CAPTION_RELEASE="🎮 <b>Wall War — New Build</b>
+
+🟢 <b>BUILD SUCCESS</b>
+
+📦 <b>APK:</b> <code>Release (Signed)</code>
+🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
+🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
+📝 <b>Message:</b> ${COMMIT_MSG}
+
+🔢 <b>Build:</b> #${RUN_NUMBER}
+
+─────────────────
+📲 <b>Release APK is ready!</b>
+🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
 
           echo "Uploading Debug APK to Telegram..."
-
           curl --fail-with-body -s \
             -F chat_id="${TELEGRAM_CHAT_ID}" \
-            -F document=@"${APK_FILE}" \
-            -F caption="${CAPTION}" \
+            -F document=@"${DEBUG_APK_FILE}" \
+            -F caption="${CAPTION_DEBUG}" \
+            -F parse_mode="HTML" \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+
+          echo "Uploading Release APK to Telegram..."
+          curl --fail-with-body -s \
+            -F chat_id="${TELEGRAM_CHAT_ID}" \
+            -F document=@"${RELEASE_APK_FILE}" \
+            -F caption="${CAPTION_RELEASE}" \
             -F parse_mode="HTML" \
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
 
@@ -180,21 +225,21 @@ jobs:
 
           MESSAGE="🚨 <b>Wall War — Build Failed</b>
 
-          🔴 <b>BUILD FAILED</b>
+🔴 <b>BUILD FAILED</b>
 
-          📦 <b>Repository:</b> <code>${REPO_NAME}</code>
-          🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
-          🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
-          📝 <b>Message:</b> ${COMMIT_MSG}
+📦 <b>Repository:</b> <code>${REPO_NAME}</code>
+🌿 <b>Branch:</b> <code>${BRANCH_NAME}</code>
+🔖 <b>Commit:</b> <code>${SHORT_SHA}</code>
+📝 <b>Message:</b> ${COMMIT_MSG}
 
-          🔢 <b>Build:</b> #${RUN_NUMBER}
+🔢 <b>Build:</b> #${RUN_NUMBER}
 
-          ─────────────────
-          ❌ <b>Error:</b>
+─────────────────
+❌ <b>Error:</b>
 
-          <pre>${BUILD_ERROR}</pre>
+<pre>${BUILD_ERROR}</pre>
 
-          🔗 <a href=\"${RUN_URL}\">View Full GitHub Actions Log</a>"
+🔗 <a href=\"${RUN_URL}\">View Full GitHub Actions Log</a>"
 
           echo "Sending build failure notification to Telegram..."
 
@@ -204,6 +249,15 @@ jobs:
             -d chat_id="${TELEGRAM_CHAT_ID}" \
             --data-urlencode text="${MESSAGE}" \
             -d parse_mode="HTML"
+
+      # ─────────────────────────────────────────────
+      # Clean Keystore Files
+      # ─────────────────────────────────────────────
+      - name: Clean Keystore Files
+        if: always()
+        run: |
+          rm -f /tmp/release.keystore
+          rm -f keystore.properties
 
       # ─────────────────────────────────────────────
       # Fail Workflow if Build Failed
