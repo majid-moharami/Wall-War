@@ -151,8 +151,15 @@ fun HomeScreen(
             isAdPlaying = isAdPlaying,
             isRewardedAdLoading = isRewardedAdLoading,
             onStartOfflineMatch = onJoinOfflineMatch,
-            onOpenShop = { onNavigate(AppScreen.COIN_SHOP) },
-            onDismiss = { showOfflinePlayDialog = false }
+            onOpenShop = {
+                showOfflinePlayDialog = false
+                onNavigate(AppScreen.COIN_SHOP)
+            },
+            onDismiss = {
+                if (!isRewardedAdLoading && !isAdPlaying) {
+                    showOfflinePlayDialog = false
+                }
+            }
         )
     }
 

@@ -74,8 +74,16 @@ fun OfflinePlayDialog(
     val sectionColor = Color(offlineArena.colorHex)
 
     Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        onDismissRequest = {
+            if (!isRewardedAdLoading && !isAdPlaying) {
+                onDismiss()
+            }
+        },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = !isRewardedAdLoading && !isAdPlaying,
+            dismissOnClickOutside = !isRewardedAdLoading && !isAdPlaying
+        )
     ) {
         Card(
             shape = RoundedCornerShape(24.dp),
@@ -134,13 +142,18 @@ fun OfflinePlayDialog(
                     }
 
                     IconButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            if (!isRewardedAdLoading && !isAdPlaying) {
+                                onDismiss()
+                            }
+                        },
+                        enabled = !isRewardedAdLoading && !isAdPlaying,
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color(0xFFA0ACCC)
+                            tint = if (isRewardedAdLoading || isAdPlaying) Color(0xFF4A5568) else Color(0xFFA0ACCC)
                         )
                     }
                 }
@@ -175,7 +188,9 @@ fun OfflinePlayDialog(
                                 if (selectedOpponent == OpponentType.AI) sectionColor.copy(alpha = 0.25f)
                                 else Color.Transparent
                             )
-                            .clickable { selectedOpponent = OpponentType.AI }
+                            .clickable(enabled = !isRewardedAdLoading && !isAdPlaying) {
+                                selectedOpponent = OpponentType.AI
+                            }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -195,7 +210,9 @@ fun OfflinePlayDialog(
                                 if (selectedOpponent == OpponentType.LOCAL_PASS_PLAY) sectionColor.copy(alpha = 0.25f)
                                 else Color.Transparent
                             )
-                            .clickable { selectedOpponent = OpponentType.LOCAL_PASS_PLAY }
+                            .clickable(enabled = !isRewardedAdLoading && !isAdPlaying) {
+                                selectedOpponent = OpponentType.LOCAL_PASS_PLAY
+                            }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -235,7 +252,9 @@ fun OfflinePlayDialog(
                                         if (isSelected) sectionColor.copy(alpha = 0.25f)
                                         else NeonDarkSurface
                                     )
-                                    .clickable { selectedDifficulty = diff }
+                                    .clickable(enabled = !isRewardedAdLoading && !isAdPlaying) {
+                                        selectedDifficulty = diff
+                                    }
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -252,25 +271,59 @@ fun OfflinePlayDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Info banner: Practice rules
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = NeonDarkSurface,
-                    border = BorderStroke(1.dp, Color(0xFF222B42)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // Info banner: Practice rules or Ad Loading Banner
+                if (isRewardedAdLoading || isAdPlaying) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = NeonDarkSurface,
+                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.8f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(text = "🛡️", fontSize = 14.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Practice mode features 10 walls per player and 0 coin rewards to prevent exploit farming.",
-                            fontSize = 11.sp,
-                            color = Color(0xFFBAC5E1),
-                            lineHeight = 15.sp
-                        )
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                color = NeonCyan,
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.5.dp
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = if (isAdPlaying) "Playing Video Ad..." else "Loading Video Ad...",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "Match will start automatically after the ad.",
+                                    fontSize = 10.sp,
+                                    color = Color(0xFFA0ACCC)
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = NeonDarkSurface,
+                        border = BorderStroke(1.dp, Color(0xFF222B42)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "🛡️", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Practice mode features 10 walls per player and 0 coin rewards to prevent exploit farming.",
+                                fontSize = 11.sp,
+                                color = Color(0xFFBAC5E1),
+                                lineHeight = 15.sp
+                            )
+                        }
                     }
                 }
 
@@ -283,6 +336,7 @@ fun OfflinePlayDialog(
                             onDismiss()
                             onStartOfflineMatch(selectedOpponent, selectedDifficulty, false)
                         },
+                        enabled = !isRewardedAdLoading && !isAdPlaying,
                         colors = ButtonDefaults.buttonColors(containerColor = sectionColor),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
@@ -303,6 +357,7 @@ fun OfflinePlayDialog(
                             onDismiss()
                             onOpenShop()
                         },
+                        enabled = !isRewardedAdLoading && !isAdPlaying,
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonAmber),
                         border = BorderStroke(1.dp, NeonAmber),
                         shape = RoundedCornerShape(12.dp),
@@ -323,14 +378,17 @@ fun OfflinePlayDialog(
                 // Action 2: Free Entry via Video Ad
                 Button(
                     onClick = {
-                        onDismiss()
+                        // Do not dismiss immediately; keep dialog open so loading is visible until ad plays!
                         onStartOfflineMatch(selectedOpponent, selectedDifficulty, true)
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonDarkSurface,
+                        containerColor = if (isRewardedAdLoading || isAdPlaying) NeonDarkSurface else NeonDarkSurface,
                         contentColor = NeonCyan
                     ),
-                    border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.6f)),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isRewardedAdLoading || isAdPlaying) NeonCyan else NeonCyan.copy(alpha = 0.6f)
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isAdPlaying && !isRewardedAdLoading,
                     modifier = Modifier
@@ -338,7 +396,7 @@ fun OfflinePlayDialog(
                         .height(46.dp)
                         .testTag("offline_play_ad_btn")
                 ) {
-                    if (isRewardedAdLoading) {
+                    if (isRewardedAdLoading || isAdPlaying) {
                         CircularProgressIndicator(
                             color = NeonCyan,
                             modifier = Modifier.size(18.dp),
@@ -346,7 +404,7 @@ fun OfflinePlayDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Preparing Ad...",
+                            text = if (isAdPlaying) "Playing Ad..." else "Loading Ad...",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonCyan
