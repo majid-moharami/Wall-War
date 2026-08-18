@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import com.wallwar.ui.AppScreen
 import com.wallwar.ui.screens.auth.AuthScreen
 import com.wallwar.ui.screens.auth.AuthViewModel
+import com.wallwar.ui.screens.DailyQuestsScreen
 import com.wallwar.ui.screens.DailyRewardsScreen
 import com.wallwar.ui.screens.GameBoardScreen
 import com.wallwar.ui.screens.HistoryScreen
@@ -148,6 +149,8 @@ fun WallWarNavGraph(
                         AppScreen.SETTINGS -> navController.navigate(SettingsRoute)
                         AppScreen.COIN_SHOP -> navController.navigate(CoinShopRoute)
                         AppScreen.DAILY_REWARDS -> navController.navigate(DailyRewardsRoute)
+                        AppScreen.DAILY_QUESTS -> navController.navigate(DailyQuestsRoute)
+                        AppScreen.PROFILE -> navController.navigate(ProfileRoute)
                         AppScreen.HOME -> navController.navigate(HomeRoute) {
                             popUpTo(HomeRoute) { inclusive = true }
                         }
@@ -363,6 +366,24 @@ fun WallWarNavGraph(
                 userProfile = userProfile,
                 dailyStreakState = dailyStreakState,
                 onClaimReward = viewModel::claimDailyBonus,
+                onNavigateToShop = { navController.navigate(CoinShopRoute) },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeRoute)
+                    }
+                }
+            )
+        }
+
+        composable<DailyQuestsRoute> {
+            val viewModel: HomeViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val dailyMissions by viewModel.dailyMissions.collectAsStateWithLifecycle()
+
+            DailyQuestsScreen(
+                userProfile = userProfile,
+                dailyMissions = dailyMissions,
+                onClaimMissionReward = viewModel::claimMissionReward,
                 onNavigateToShop = { navController.navigate(CoinShopRoute) },
                 onBack = {
                     if (!navController.popBackStack()) {

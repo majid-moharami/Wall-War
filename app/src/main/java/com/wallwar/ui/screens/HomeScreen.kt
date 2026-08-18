@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -263,10 +264,14 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 1. Top Header: Player Avatar, Clean Name (No level badge overlay on avatar), and Coins Pill
+        // 1. Top Header: Player Avatar on left, Coins + Daily Quests + Settings on right
         HomeHeaderSection(
             userProfile = userProfile,
+            dailyMissions = dailyMissions,
+            onOpenProfile = { onNavigate(AppScreen.PROFILE) },
             onOpenShop = { onNavigate(AppScreen.COIN_SHOP) },
+            onOpenDailyQuests = { onNavigate(AppScreen.DAILY_QUESTS) },
+            onOpenSettings = { onNavigate(AppScreen.SETTINGS) },
             modifier = Modifier.padding(horizontal = 20.dp)
         )
 
@@ -312,17 +317,7 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // 7. Daily Quests (If available)
-        if (dailyMissions.isNotEmpty()) {
-            DailyQuestsSection(
-                dailyMissions = dailyMissions,
-                onClaimMissionReward = onClaimMissionReward,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-        }
-
-        // 8. Bottom Navigation Cards (How to Play & Match History, followed by Settings)
+        // 6. Bottom Navigation Cards (How to Play & Match History, followed by Settings)
         BottomUtilitySection(
             onNavigate = onNavigate,
             modifier = Modifier.padding(horizontal = 20.dp)
@@ -335,90 +330,137 @@ fun HomeScreen(
 @Composable
 fun HomeHeaderSection(
     userProfile: UserProfile,
+    dailyMissions: List<DailyMission>,
+    onOpenProfile: () -> Unit,
     onOpenShop: () -> Unit,
+    onOpenDailyQuests: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val unClaimedQuestsCount = dailyMissions.count { it.isCompleted && !it.isClaimed }
+
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Player Profile info (Clean avatar without overlay badge, username and subtitle)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        // Player Profile Avatar only (No text name/description to keep top bar minimalist & spacious)
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(NeonDarkSurface)
+                .border(2.dp, NeonCyan, CircleShape)
+                .clickable { onOpenProfile() }
+                .padding(if (userProfile.photoUrl.isNullOrBlank()) 0.dp else 2.dp)
+                .testTag("home_profile_avatar"),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(NeonDarkSurface)
-                    .border(2.dp, NeonCyan, CircleShape)
-                    .padding(if (userProfile.photoUrl.isNullOrBlank()) 0.dp else 2.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!userProfile.photoUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = userProfile.photoUrl,
-                        contentDescription = userProfile.displayName,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(CircleShape)
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = userProfile.displayName,
-                        tint = NeonCyan,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Column {
-                Text(
-                    text = "TACTICAL ARENA",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NeonCyan,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.5.sp
+            if (!userProfile.photoUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = userProfile.photoUrl,
+                    contentDescription = userProfile.displayName,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
                 )
-                Text(
-                    text = userProfile.displayName.ifBlank { "Cyber Gladiator" },
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = userProfile.displayName,
+                    tint = NeonCyan,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
 
-        // Coins counter pill (Clickable to open Coin Shop)
+        // Right side: Coins Pill + Daily Quests Icon Button + Settings Icon Button
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(NeonDarkSurface)
-                .border(1.dp, NeonAmber.copy(alpha = 0.8f), RoundedCornerShape(20.dp))
-                .clickable { onOpenShop() }
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-                .testTag("home_coins_pill")
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(text = "🪙", fontSize = 14.sp)
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "${userProfile.coins} Coins",
-                fontWeight = FontWeight.Black,
-                color = NeonAmber,
-                fontSize = 13.sp
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                imageVector = Icons.Default.AddCircle,
-                contentDescription = "Buy Coins",
-                tint = NeonAmber,
-                modifier = Modifier.size(16.dp)
-            )
+            // Coins counter pill (Clickable to open Coin Shop)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(NeonDarkSurface)
+                    .border(1.dp, NeonAmber.copy(alpha = 0.8f), RoundedCornerShape(20.dp))
+                    .clickable { onOpenShop() }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .testTag("home_coins_pill")
+            ) {
+                Text(text = "🪙", fontSize = 13.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "${userProfile.coins}",
+                    fontWeight = FontWeight.Black,
+                    color = NeonAmber,
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.AddCircle,
+                    contentDescription = "Buy Coins",
+                    tint = NeonAmber,
+                    modifier = Modifier.size(15.dp)
+                )
+            }
+
+            // Daily Quests Icon Button with Notification Badge
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(NeonDarkSurface)
+                    .border(
+                        1.dp,
+                        if (unClaimedQuestsCount > 0) NeonEmerald else NeonBorder,
+                        CircleShape
+                    )
+                    .clickable { onOpenDailyQuests() }
+                    .testTag("home_daily_quests_btn"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Assignment,
+                    contentDescription = "Daily Quests",
+                    tint = if (unClaimedQuestsCount > 0) NeonEmerald else Color(0xFFBAC5E1),
+                    modifier = Modifier.size(20.dp)
+                )
+
+                if (unClaimedQuestsCount > 0) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 2.dp, end = 2.dp)
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(NeonEmerald)
+                            .border(1.5.dp, NeonDarkSurface, CircleShape)
+                    )
+                }
+            }
+
+            // Settings Icon Button
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(NeonDarkSurface)
+                    .border(1.dp, NeonBorder, CircleShape)
+                    .clickable { onOpenSettings() }
+                    .testTag("home_settings_btn"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = Color(0xFFBAC5E1),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1123,320 +1165,108 @@ fun SimpleOfflinePlaySection(
 }
 
 @Composable
-fun DailyQuestsSection(
-    dailyMissions: List<DailyMission>,
-    onClaimMissionReward: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-        border = BorderStroke(1.dp, NeonBorder),
-        modifier = modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = "🎯", fontSize = 16.sp)
-                    Text(
-                        text = "DAILY QUESTS",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 13.sp,
-                        color = Color.White
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = NeonDarkSurface
-                ) {
-                    Text(
-                        text = "${dailyMissions.count { it.isClaimed }}/${dailyMissions.size} Done",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = NeonCyan,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            dailyMissions.forEachIndexed { index, mission ->
-                if (index > 0) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
-                DailyMissionItemRow(
-                    mission = mission,
-                    onClaim = { onClaimMissionReward(mission.id) }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun DailyMissionItemRow(
-    mission: DailyMission,
-    onClaim: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(NeonDarkSurface)
-            .padding(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(text = mission.icon, fontSize = 18.sp)
-        Spacer(modifier = Modifier.width(10.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = mission.title,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp,
-                color = Color.White
-            )
-            Text(
-                text = mission.description,
-                fontSize = 10.sp,
-                color = Color(0xFFA0ACCC)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Progress bar
-            val progressRatio = (mission.currentProgress.toFloat() / mission.target.toFloat()).coerceIn(0f, 1f)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0xFF2A3142))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(progressRatio)
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(if (mission.isCompleted) NeonEmerald else NeonCyan)
-                    )
-                }
-                Text(
-                    text = "${mission.currentProgress}/${mission.target}",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFA0ACCC)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        if (mission.isClaimed) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF262C3A))
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-            ) {
-                Text("Claimed", fontSize = 10.sp, color = Color(0xFF6B7280), fontWeight = FontWeight.Bold)
-            }
-        } else if (mission.isCompleted) {
-            Button(
-                onClick = onClaim,
-                colors = ButtonDefaults.buttonColors(containerColor = NeonEmerald, contentColor = Color.Black),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                modifier = Modifier.height(28.dp)
-            ) {
-                Text("Claim +${mission.coinReward}🪙", fontSize = 10.sp, fontWeight = FontWeight.Black)
-            }
-        } else {
-            Column(horizontalAlignment = Alignment.End) {
-                Text("+${mission.coinReward} 🪙", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = NeonAmber)
-                Text("+${mission.xpReward} XP", fontSize = 9.sp, color = NeonCyan)
-            }
-        }
-    }
-}
-
-@Composable
 fun BottomUtilitySection(
     onNavigate: (AppScreen) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    // Row with 2 cards: How to Play (Rules) and Match History (Stats)
+    Row(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Row with 2 cards: How to Play (Rules) and Match History (Stats)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Rules & Guide Card
-            Card(
-                onClick = { onNavigate(AppScreen.RULES) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-                border = BorderStroke(1.dp, NeonBorder),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("btn_rules")
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(NeonCyan.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Book,
-                            contentDescription = "Rules",
-                            tint = NeonCyan,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = "How to Play",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Rules & Guide",
-                            fontSize = 10.sp,
-                            color = Color(0xFFA0ACCC)
-                        )
-                    }
-                }
-            }
-
-            // Match History & Stats Card
-            Card(
-                onClick = { onNavigate(AppScreen.HISTORY) },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-                border = BorderStroke(1.dp, NeonBorder),
-                modifier = Modifier
-                    .weight(1f)
-                    .testTag("btn_stats_history")
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(NeonAmber.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.BarChart,
-                            contentDescription = "History",
-                            tint = NeonAmber,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = "Match History",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Logs & Stats",
-                            fontSize = 10.sp,
-                            color = Color(0xFFA0ACCC)
-                        )
-                    }
-                }
-            }
-        }
-
-        // Settings & Preferences Card
+        // Rules & Guide Card
         Card(
-            onClick = { onNavigate(AppScreen.SETTINGS) },
+            onClick = { onNavigate(AppScreen.RULES) },
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
             border = BorderStroke(1.dp, NeonBorder),
             modifier = Modifier
-                .fillMaxWidth()
-                .testTag("btn_settings")
+                .weight(1f)
+                .testTag("btn_rules")
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(NeonCyan.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(NeonPurple.copy(alpha = 0.2f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = "Settings",
-                            tint = NeonPurple,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Column {
-                        Text(
-                            text = "Settings & Audio",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Sound effects, board themes & cloud account sync",
-                            fontSize = 10.sp,
-                            color = Color(0xFFA0ACCC)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.Book,
+                        contentDescription = "Rules",
+                        tint = NeonCyan,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
 
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = Color(0xFFA0ACCC),
-                    modifier = Modifier.size(16.dp)
-                )
+                Column {
+                    Text(
+                        text = "How to Play",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Rules & Guide",
+                        fontSize = 10.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+                }
+            }
+        }
+
+        // Match History & Stats Card
+        Card(
+            onClick = { onNavigate(AppScreen.HISTORY) },
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            border = BorderStroke(1.dp, NeonBorder),
+            modifier = Modifier
+                .weight(1f)
+                .testTag("btn_stats_history")
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(NeonAmber.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.BarChart,
+                        contentDescription = "History",
+                        tint = NeonAmber,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Column {
+                    Text(
+                        text = "Match History",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Logs & Stats",
+                        fontSize = 10.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+                }
             }
         }
     }

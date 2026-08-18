@@ -36,3 +36,6 @@ object CoinShopRoute
 
 @Serializable
 object DailyRewardsRoute
+
+@Serializable
+object DailyQuestsRoute
