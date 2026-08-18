@@ -127,10 +127,10 @@ fun LuckySpinnerDialog(
                             color = Color.White
                         )
                         Text(
-                            text = if (spinnerState.hasFreeSpin) "1 Free Spin Available" else "Cost: 🪙 $spinFee",
+                            text = if (spinnerState.canSpinToday) "Cost: 🪙 $spinFee • 1 Spin / Day" else "Already Spun Today • 1 Spin / Day",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (spinnerState.hasFreeSpin) NeonEmerald else NeonAmber
+                            color = if (spinnerState.canSpinToday) NeonAmber else Color(0xFFA0ACCC)
                         )
                     }
 
@@ -310,22 +310,22 @@ fun LuckySpinnerDialog(
                         text = "Cost: 🪙 $spinFee",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = if (spinnerState.hasFreeSpin) NeonEmerald else NeonAmber
+                        color = NeonAmber
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Spin Action Button (Simple & Clean text)
-                val hasFree = spinnerState.hasFreeSpin
+                // Spin Action Button
+                val canSpinToday = spinnerState.canSpinToday
                 val canAffordPaid = userCoins >= spinFee
-                val canSpin = (hasFree || canAffordPaid) && !isSpinning
+                val canSpin = canSpinToday && canAffordPaid && !isSpinning
 
                 Button(
                     onClick = {
                         if (!canSpin) return@Button
                         isSpinning = true
-                        val outcome = onSpin(hasFree)
+                        val outcome = onSpin(false)
                         currentOutcome = outcome
 
                         coroutineScope.launch {
@@ -343,7 +343,7 @@ fun LuckySpinnerDialog(
                     },
                     enabled = canSpin,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (hasFree) NeonEmerald else NeonAmber,
+                        containerColor = NeonAmber,
                         disabledContainerColor = Color(0xFF1B2232),
                         disabledContentColor = Color(0xFF6B7A99)
                     ),
@@ -360,12 +360,12 @@ fun LuckySpinnerDialog(
                             fontSize = 14.sp,
                             color = Color.Black
                         )
-                    } else if (hasFree) {
+                    } else if (!canSpinToday) {
                         Text(
-                            text = "Free Spin",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.sp,
-                            color = Color.Black
+                            text = "Already Spun Today (1/Day)",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp,
+                            color = Color(0xFF8895AE)
                         )
                     } else if (canAffordPaid) {
                         Text(

@@ -39,6 +39,14 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-7491262702706670~2468898549" />
 
+        <!-- Disable automatic FCM token generation on start to prevent startup registration hard failure in environments without active FCM gateway -->
+        <meta-data
+            android:name="firebase_messaging_auto_init_enabled"
+            android:value="false" />
+        <meta-data
+            android:name="firebase_analytics_collection_deactivated"
+            android:value="true" />
+
         <!-- Firebase Cloud Messaging Service -->
         <service
             android:name=".notification.WallWarMessagingService"

@@ -33,12 +33,14 @@ data class WheelSegment(
 )
 
 data class SpinnerState(
-    val hasFreeSpin: Boolean = true,
+    val canSpinToday: Boolean = true,
     val lastSpinDate: String? = null,
     val totalSpins: Int = 0,
     val lastWonItem: String? = null,
     val spinFee: Int = DailySpinnerManager.SPIN_FEE_COINS
-)
+) {
+    val hasFreeSpin: Boolean get() = canSpinToday
+}
 
 data class SpinOutcome(
     val winningSegment: WheelSegment,
@@ -165,12 +167,13 @@ class DailySpinnerManager @Inject constructor(
         val totalSpins = prefs.getInt("spinner_total_spins", 0)
         val lastWon = prefs.getString("spinner_last_won", null)
 
-        val hasFreeSpin = lastDate != today
+        val canSpinToday = lastDate != today
         return SpinnerState(
-            hasFreeSpin = hasFreeSpin,
+            canSpinToday = canSpinToday,
             lastSpinDate = lastDate,
             totalSpins = totalSpins,
-            lastWonItem = lastWon
+            lastWonItem = lastWon,
+            spinFee = SPIN_FEE_COINS
         )
     }
 
@@ -193,9 +196,9 @@ class DailySpinnerManager @Inject constructor(
         } catch (_: Exception) { }
     }
 
-    fun hasFreeSpinToday(): Boolean = _spinnerState.value.hasFreeSpin
+    fun canSpinToday(): Boolean = _spinnerState.value.canSpinToday
 
-    fun performSpin(isFreeSpin: Boolean = true): SpinOutcome {
+    fun performSpin(isFreeSpin: Boolean = false): SpinOutcome {
         val totalWeight = SEGMENTS.sumOf { it.weight }
         val randomVal = Random.nextInt(totalWeight)
 
@@ -223,9 +226,7 @@ class DailySpinnerManager @Inject constructor(
         val totalSpins = prefs.getInt("spinner_total_spins", 0) + 1
 
         val editor = prefs.edit()
-        if (isFreeSpin) {
-            editor.putString("spinner_last_date", today)
-        }
+        editor.putString("spinner_last_date", today)
         editor.putInt("spinner_total_spins", totalSpins)
         editor.putString("spinner_last_won", winningSegment.label)
         editor.apply()

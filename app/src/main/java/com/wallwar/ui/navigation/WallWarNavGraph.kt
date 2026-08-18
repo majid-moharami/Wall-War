@@ -14,6 +14,7 @@ import androidx.navigation.compose.composable
 import com.wallwar.ui.AppScreen
 import com.wallwar.ui.screens.auth.AuthScreen
 import com.wallwar.ui.screens.auth.AuthViewModel
+import com.wallwar.ui.screens.DailyRewardsScreen
 import com.wallwar.ui.screens.GameBoardScreen
 import com.wallwar.ui.screens.HistoryScreen
 import com.wallwar.ui.screens.HomeScreen
@@ -80,7 +81,6 @@ fun WallWarNavGraph(
             val dailyStreakState by viewModel.dailyStreakState.collectAsStateWithLifecycle()
             val dailyMissions by viewModel.dailyMissions.collectAsStateWithLifecycle()
             val spinnerState by viewModel.spinnerState.collectAsStateWithLifecycle()
-            val selectedGameMode by viewModel.selectedGameMode.collectAsStateWithLifecycle()
 
             HomeScreen(
                 userProfile = userProfile,
@@ -97,8 +97,6 @@ fun WallWarNavGraph(
                 dailyStreakState = dailyStreakState,
                 dailyMissions = dailyMissions,
                 spinnerState = spinnerState,
-                selectedGameMode = selectedGameMode,
-                onSelectGameMode = viewModel::selectGameMode,
                 onJoinOnlineArenaMatch = { arena ->
                     viewModel.joinOnlineArenaMatch(arena) { mode, opp, diff, ar ->
                         navController.navigate(
@@ -149,6 +147,7 @@ fun WallWarNavGraph(
                         AppScreen.HISTORY -> navController.navigate(HistoryRoute)
                         AppScreen.SETTINGS -> navController.navigate(SettingsRoute)
                         AppScreen.COIN_SHOP -> navController.navigate(CoinShopRoute)
+                        AppScreen.DAILY_REWARDS -> navController.navigate(DailyRewardsRoute)
                         AppScreen.HOME -> navController.navigate(HomeRoute) {
                             popUpTo(HomeRoute) { inclusive = true }
                         }
@@ -347,6 +346,24 @@ fun WallWarNavGraph(
                 onWatchRewardedAd = { viewModel.watchRewardedAdForCoins(activity) },
                 onBuyPack = { pack -> viewModel.buyCoinPack(activity, pack) },
                 onClearMessage = viewModel::clearPurchaseMessage,
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeRoute)
+                    }
+                }
+            )
+        }
+
+        composable<DailyRewardsRoute> {
+            val viewModel: HomeViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val dailyStreakState by viewModel.dailyStreakState.collectAsStateWithLifecycle()
+
+            DailyRewardsScreen(
+                userProfile = userProfile,
+                dailyStreakState = dailyStreakState,
+                onClaimReward = viewModel::claimDailyBonus,
+                onNavigateToShop = { navController.navigate(CoinShopRoute) },
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)

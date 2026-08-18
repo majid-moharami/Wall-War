@@ -6,5 +6,6 @@ enum class AppScreen {
     RULES,
     HISTORY,
     SETTINGS,
-    COIN_SHOP
+    COIN_SHOP,
+    DAILY_REWARDS
 }

@@ -56,17 +56,6 @@ class HomeViewModel @Inject constructor(
     val dailySpinnerState: StateFlow<SpinnerState> = dailySpinnerManager.spinnerState
     val spinnerState: StateFlow<SpinnerState> = dailySpinnerState
 
-    private val _selectedGameMode = MutableStateFlow(GameMode.DUEL)
-    val selectedGameMode: StateFlow<GameMode> = _selectedGameMode.asStateFlow()
-
-    fun setSelectedGameMode(mode: GameMode) {
-        _selectedGameMode.value = mode
-    }
-
-    fun selectGameMode(mode: GameMode) {
-        setSelectedGameMode(mode)
-    }
-
     fun clearAbandonedMatchNotice() {
         authRepository.clearAbandonedMatchNotice()
     }
@@ -99,7 +88,7 @@ class HomeViewModel @Inject constructor(
         // Do not deduct coins before successful matchmaking.
         // The entry fee will be deducted only once an opponent is found in GameViewModel.
         _arenaErrorMessage.value = null
-        onSuccess(_selectedGameMode.value, OpponentType.ONLINE, AiDifficulty.NORMAL, arena)
+        onSuccess(GameMode.DUEL, OpponentType.ONLINE, AiDifficulty.NORMAL, arena)
     }
 
     fun joinOfflineMatch(
@@ -110,7 +99,7 @@ class HomeViewModel @Inject constructor(
     ) {
         if (useAdForFreeEntry) {
             _arenaErrorMessage.value = null
-            onSuccess(_selectedGameMode.value, opponentType, difficulty, offlineArena)
+            onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
         } else {
             val entryFee = offlineArena.entryFee
             val currentCoins = userProfile.value.coins
@@ -121,7 +110,7 @@ class HomeViewModel @Inject constructor(
             val success = authRepository.deductCoins(entryFee)
             if (success) {
                 _arenaErrorMessage.value = null
-                onSuccess(_selectedGameMode.value, opponentType, difficulty, offlineArena)
+                onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
             } else {
                 _arenaErrorMessage.value = "Failed to deduct coins. Please try again."
             }
@@ -138,7 +127,7 @@ class HomeViewModel @Inject constructor(
         adManager.watchRewardedAdForFreeEntry(
             activity = activity,
             onSuccess = {
-                onSuccess(_selectedGameMode.value, opponentType, difficulty, offlineArena)
+                onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
             },
             onError = { error ->
                 _arenaErrorMessage.value = error
@@ -166,11 +155,9 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun spinWheel(isFree: Boolean): SpinOutcome {
-        if (!isFree) {
-            authRepository.deductCoins(DailySpinnerManager.SPIN_FEE_COINS)
-        }
-        val outcome = dailySpinnerManager.performSpin(isFree)
+    fun spinWheel(isFree: Boolean = false): SpinOutcome {
+        authRepository.deductCoins(DailySpinnerManager.SPIN_FEE_COINS)
+        val outcome = dailySpinnerManager.performSpin(false)
         when (val r = outcome.winningSegment.reward) {
             is SpinRewardType.Coins -> {
                 authRepository.addCoins(r.amount)
