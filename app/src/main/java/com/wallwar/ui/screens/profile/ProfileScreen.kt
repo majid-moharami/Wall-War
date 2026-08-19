@@ -8,6 +8,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,10 +25,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonAdd
@@ -61,11 +66,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.wallwar.data.ProfileSkin
+import com.wallwar.data.ProfileSkinCatalog
 import com.wallwar.data.UserProfile
 import com.wallwar.data.nakama.NakamaFriend
+import com.wallwar.ui.components.AvatarBadge
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonDarkBg
@@ -74,11 +83,18 @@ import com.wallwar.ui.theme.NeonDarkSurface
 import com.wallwar.ui.theme.NeonEmerald
 import com.wallwar.ui.theme.NeonMagenta
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(
     userProfile: UserProfile,
     signInStatus: String?,
     friends: List<NakamaFriend> = emptyList(),
+    unlockedAvatarSkinIds: Set<String> = ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS,
+    allProfileSkins: List<ProfileSkin> = ProfileSkinCatalog.ALL_SKINS,
+    savedGooglePhotoUrl: String? = null,
+    onUnlockSkin: (ProfileSkin, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
+    onEquipSkin: (ProfileSkin) -> Unit = {},
+    onEquipGoogleAvatar: () -> Unit = {},
     onSignInWithGoogle: (Context) -> Unit,
     onClearSignInStatus: () -> Unit,
     onSignOut: (Context) -> Unit,
@@ -94,6 +110,11 @@ fun ProfileScreen(
     val context = LocalContext.current
     var friendSearchQuery by remember { mutableStateOf("") }
     var addFriendStatus by remember { mutableStateOf<String?>(null) }
+    var skinActionFeedback by remember { mutableStateOf<String?>(null) }
+
+    val activeSkin = ProfileSkinCatalog.getSkinById(userProfile.photoUrl)
+    val isGoogleAvatarEquipped = !userProfile.photoUrl.isNullOrBlank() &&
+            (userProfile.photoUrl.startsWith("http://") || userProfile.photoUrl.startsWith("https://"))
 
     Column(
         modifier = modifier
@@ -105,14 +126,17 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Status / Banner Feedback
-        if (!signInStatus.isNullOrBlank()) {
+        val bannerMessage = skinActionFeedback ?: signInStatus
+        if (!bannerMessage.isNullOrBlank()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 12.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (signInStatus.contains("error", ignoreCase = true) || signInStatus.contains("failed", ignoreCase = true)) {
+                    containerColor = if (bannerMessage.contains("error", ignoreCase = true) || 
+                        bannerMessage.contains("failed", ignoreCase = true) ||
+                        bannerMessage.contains("Not enough", ignoreCase = true)) {
                         Color(0xFF3E1A24)
                     } else {
                         NeonDarkSurface
@@ -120,7 +144,9 @@ fun ProfileScreen(
                 ),
                 border = BorderStroke(
                     1.dp,
-                    if (signInStatus.contains("error", ignoreCase = true) || signInStatus.contains("failed", ignoreCase = true)) NeonMagenta else NeonCyan
+                    if (bannerMessage.contains("error", ignoreCase = true) || 
+                        bannerMessage.contains("failed", ignoreCase = true) ||
+                        bannerMessage.contains("Not enough", ignoreCase = true)) NeonMagenta else NeonCyan
                 )
             ) {
                 Row(
@@ -132,18 +158,23 @@ fun ProfileScreen(
                     Icon(
                         imageVector = Icons.Default.Info,
                         contentDescription = "Status",
-                        tint = if (signInStatus.contains("error", ignoreCase = true) || signInStatus.contains("failed", ignoreCase = true)) NeonMagenta else NeonCyan,
+                        tint = if (bannerMessage.contains("error", ignoreCase = true) || 
+                            bannerMessage.contains("failed", ignoreCase = true) ||
+                            bannerMessage.contains("Not enough", ignoreCase = true)) NeonMagenta else NeonCyan,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = signInStatus,
+                        text = bannerMessage,
                         color = Color.White,
                         fontSize = 13.sp,
                         modifier = Modifier.weight(1f)
                     )
                     IconButton(
-                        onClick = onClearSignInStatus,
+                        onClick = {
+                            skinActionFeedback = null
+                            onClearSignInStatus()
+                        },
                         modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
@@ -172,31 +203,12 @@ fun ProfileScreen(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(NeonDarkSurface)
-                        .border(3.dp, NeonCyan, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!userProfile.photoUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = userProfile.photoUrl,
-                            contentDescription = userProfile.displayName,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = userProfile.displayName,
-                            tint = NeonCyan,
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-                }
+                // Avatar with Universal AvatarBadge
+                AvatarBadge(
+                    photoUrl = userProfile.photoUrl,
+                    size = 88.dp,
+                    borderWidth = 3.dp
+                )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -212,6 +224,43 @@ fun ProfileScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFA0ACCC)
                 )
+
+                // Currently Equipped Avatar Pill
+                if (activeSkin != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(activeSkin.primaryColorHex).copy(alpha = 0.15f))
+                            .border(1.dp, Color(activeSkin.primaryColorHex).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "${activeSkin.symbol} ${activeSkin.name} (${activeSkin.tag})",
+                            color = Color(activeSkin.primaryColorHex),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else if (isGoogleAvatarEquipped) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF4285F4).copy(alpha = 0.15f))
+                            .border(1.dp, Color(0xFF4285F4).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "🌐 Google Account Photo Equipped",
+                            color = Color(0xFF8AB4F8),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -345,45 +394,328 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // ══════════════════════════════════════════════════════════════════════
+        // PROFILE SKINS SHOP & CUSTOMIZATION (10 Unique Skins, 1000 - 9000 Coins)
+        // ══════════════════════════════════════════════════════════════════════
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+            border = BorderStroke(1.5.dp, NeonCyan.copy(alpha = 0.5f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text(
+                            text = "CYBER PROFILE SKINS",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = "Buy skins with coins • Saved to cloud account",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFA0ACCC)
+                        )
+                    }
+                    // Coin balance indicator
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF2C2411))
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MonetizationOn,
+                            contentDescription = "Coins",
+                            tint = NeonAmber,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${userProfile.coins}",
+                            color = NeonAmber,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                // Google Account Picture Option (if available)
+                val effectiveGoogleUrl = savedGooglePhotoUrl ?: (if (userProfile.photoUrl?.startsWith("http") == true) userProfile.photoUrl else null)
+                if (!effectiveGoogleUrl.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onEquipGoogleAvatar() },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = NeonDarkSurface),
+                        border = BorderStroke(
+                            if (isGoogleAvatarEquipped) 2.dp else 1.dp,
+                            if (isGoogleAvatarEquipped) NeonEmerald else Color(0xFF4285F4).copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            AvatarBadge(
+                                photoUrl = effectiveGoogleUrl,
+                                size = 44.dp,
+                                borderWidth = 2.dp,
+                                borderColor = if (isGoogleAvatarEquipped) NeonEmerald else Color(0xFF4285F4)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Google Account Photo",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                                Text(
+                                    text = if (isGoogleAvatarEquipped) "Currently Equipped" else "Tap to equip your Google profile picture",
+                                    color = if (isGoogleAvatarEquipped) NeonEmerald else Color(0xFFA0ACCC),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            if (isGoogleAvatarEquipped) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(NeonEmerald.copy(alpha = 0.2f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Equipped",
+                                        tint = NeonEmerald,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "EQUIPPED",
+                                        color = NeonEmerald,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            } else {
+                                OutlinedButton(
+                                    onClick = onEquipGoogleAvatar,
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF8AB4F8)),
+                                    border = BorderStroke(1.dp, Color(0xFF8AB4F8))
+                                ) {
+                                    Text(text = "Equip", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Grid of 10 Profile Skins
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    allProfileSkins.forEach { skin ->
+                        val isOwned = skin.isDefault || unlockedAvatarSkinIds.contains(skin.id)
+                        val isEquipped = (userProfile.photoUrl == "skin:${skin.id}" || userProfile.photoUrl == skin.id) ||
+                                (skin.isDefault && (userProfile.photoUrl.isNullOrBlank() || userProfile.photoUrl == "skin:skin_default"))
+
+                        val skinColor = Color(skin.primaryColorHex)
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isEquipped) skinColor.copy(alpha = 0.12f) else NeonDarkSurface
+                            ),
+                            border = BorderStroke(
+                                if (isEquipped) 1.8.dp else 1.dp,
+                                if (isEquipped) skinColor else Color(0xFF262E48)
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Avatar Badge Preview
+                                AvatarBadge(
+                                    photoUrl = "skin:${skin.id}",
+                                    size = 52.dp,
+                                    borderWidth = 2.5.dp
+                                )
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                // Details
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = skin.name,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Color.White,
+                                            fontSize = 14.sp
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = skin.tag,
+                                            fontSize = 10.sp,
+                                            color = skinColor,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(4.dp))
+                                                .background(skinColor.copy(alpha = 0.15f))
+                                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = skin.title,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFA0ACCC),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Text(
+                                        text = skin.description,
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF7582A0),
+                                        maxLines = 2
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                // Action Button
+                                if (isEquipped) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(NeonEmerald.copy(alpha = 0.2f))
+                                            .border(1.dp, NeonEmerald, RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Equipped",
+                                            tint = NeonEmerald,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "ACTIVE",
+                                            color = NeonEmerald,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    }
+                                } else if (isOwned) {
+                                    Button(
+                                        onClick = {
+                                            onEquipSkin(skin)
+                                            skinActionFeedback = "Equipped ${skin.name}!"
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = skinColor),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Text(
+                                            text = "Equip",
+                                            color = Color.Black,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                    }
+                                } else {
+                                    val canAfford = userProfile.coins >= skin.priceCoins
+                                    Button(
+                                        onClick = {
+                                            onUnlockSkin(skin) { success, msg ->
+                                                skinActionFeedback = msg
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = if (canAfford) NeonAmber else Color(0xFF383120),
+                                            contentColor = if (canAfford) Color.Black else Color(0xFFA0ACCC)
+                                        ),
+                                        modifier = Modifier.height(36.dp)
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Default.MonetizationOn,
+                                                contentDescription = "Price",
+                                                tint = if (canAfford) Color.Black else NeonAmber,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "${skin.priceCoins}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.ExtraBold
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Level & XP Progress Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = NeonDarkCard)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Level",
-                            tint = NeonAmber
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Level ${userProfile.level}",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 16.sp
-                        )
-                    }
+                    Text(
+                        text = "LEVEL ${userProfile.level}",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeonCyan
+                    )
                     Text(
                         text = userProfile.rankTitle,
-                        color = NeonCyan,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodySmall,
+                        color = NeonMagenta,
+                        fontWeight = FontWeight.Bold
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                val progress = ((userProfile.xp % 500) / 500f).coerceIn(0f, 1f)
                 LinearProgressIndicator(
-                    progress = { progress },
+                    progress = { (userProfile.xp % 100) / 100f },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(8.dp)
@@ -399,14 +731,15 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "${userProfile.xp} XP",
-                        color = Color(0xFFA0ACCC),
-                        fontSize = 11.sp
+                        text = "${userProfile.xp % 100} / 100 XP to next level",
+                        fontSize = 11.sp,
+                        color = Color(0xFFA0ACCC)
                     )
                     Text(
-                        text = "Next: ${(userProfile.level) * 500} XP",
-                        color = Color(0xFFA0ACCC),
-                        fontSize = 11.sp
+                        text = "${userProfile.trophies} Trophies",
+                        fontSize = 11.sp,
+                        color = NeonAmber,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
@@ -414,80 +747,163 @@ fun ProfileScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Nakama Search & Friends Section
-        Text(
-            text = "FRIENDS & NAKAMA SEARCH",
-            style = MaterialTheme.typography.labelMedium,
-            color = Color(0xFFA0ACCC),
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
+        // Win Streaks Card
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = NeonDarkCard)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "🔥 ${userProfile.currentWinStreak}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeonAmber
+                    )
+                    Text(
+                        text = "Current Streak",
+                        fontSize = 12.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(40.dp)
+                        .background(NeonDarkSurface)
+                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "⚡ ${userProfile.longestWinStreak}",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeonCyan
+                    )
+                    Text(
+                        text = "Best Streak",
+                        fontSize = 12.sp,
+                        color = Color(0xFFA0ACCC)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Nakama Friends Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = NeonDarkCard)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.PersonAdd,
+                            contentDescription = "Friends",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "NAKAMA FRIENDS (${friends.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Add Friend input
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     OutlinedTextField(
                         value = friendSearchQuery,
                         onValueChange = { friendSearchQuery = it },
-                        placeholder = { Text("Enter username to add...", color = Color(0xFF6B7280)) },
+                        placeholder = { Text("Friend's username", fontSize = 13.sp, color = Color(0xFF6B7280)) },
                         singleLine = true,
-                        leadingIcon = {
-                            Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = NeonCyan)
-                        },
+                        modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = NeonCyan,
-                            unfocusedBorderColor = Color(0xFF374151)
+                            unfocusedBorderColor = Color(0xFF2E334D),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
                         ),
-                        modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(10.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
                             if (friendSearchQuery.isNotBlank()) {
-                                onAddFriend(friendSearchQuery) { success ->
+                                addFriendStatus = "Adding..."
+                                onAddFriend(friendSearchQuery.trim()) { success ->
                                     addFriendStatus = if (success) "Friend added!" else "User not found"
                                     if (success) friendSearchQuery = ""
                                 }
                             }
                         },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
                     ) {
-                        Icon(imageVector = Icons.Default.PersonAdd, contentDescription = "Add", tint = Color.Black)
+                        Text("Add", color = Color.Black, fontWeight = FontWeight.Bold)
                     }
                 }
 
-                addFriendStatus?.let { status ->
+                if (!addFriendStatus.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = status,
+                        text = addFriendStatus ?: "",
                         fontSize = 12.sp,
-                        color = if (status.contains("added")) NeonEmerald else NeonMagenta,
-                        fontWeight = FontWeight.Bold
+                        color = if (addFriendStatus?.contains("added", ignoreCase = true) == true) NeonEmerald else NeonMagenta
                     )
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 if (friends.isEmpty()) {
-                    Text(
-                        text = "No friends added yet. Search above to add online duelists!",
-                        fontSize = 12.sp,
-                        color = Color(0xFFA0ACCC)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(NeonDarkSurface)
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No friends added yet. Enter a username above to duel them online!",
+                            color = Color(0xFFA0ACCC),
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 } else {
                     friends.forEach { friend ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 6.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .background(NeonDarkSurface)
-                                .padding(12.dp),
+                                .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(

@@ -16,7 +16,12 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 sealed class GoogleAuthResult {
-    data class Success(val idToken: String, val displayName: String, val email: String) : GoogleAuthResult()
+    data class Success(
+        val idToken: String,
+        val displayName: String,
+        val email: String,
+        val photoUrl: String? = null
+    ) : GoogleAuthResult()
     object Cancelled : GoogleAuthResult()
     data class Error(val message: String) : GoogleAuthResult()
 }
@@ -72,10 +77,11 @@ class GoogleAuthManager @Inject constructor() {
                     ?: googleIdTokenCredential.givenName
                     ?: googleIdTokenCredential.id.substringBefore("@")
                 val email = googleIdTokenCredential.id
+                val photoUrl = googleIdTokenCredential.profilePictureUri?.toString()
 
                 if (idToken.isNotBlank()) {
-                    Log.i(tag, "Google ID Token retrieved successfully for: $email")
-                    GoogleAuthResult.Success(idToken = idToken, displayName = displayName, email = email)
+                    Log.i(tag, "Google ID Token retrieved successfully for: $email, photoUrl=$photoUrl")
+                    GoogleAuthResult.Success(idToken = idToken, displayName = displayName, email = email, photoUrl = photoUrl)
                 } else {
                     GoogleAuthResult.Error("Google returned an empty ID token.")
                 }

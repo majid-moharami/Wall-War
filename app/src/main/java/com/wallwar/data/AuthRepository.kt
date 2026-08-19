@@ -74,6 +74,9 @@ class AuthRepository @Inject constructor(
     private val _unlockedEmojiIds = MutableStateFlow(loadUnlockedEmojis())
     val unlockedEmojiIds: StateFlow<Set<String>> = _unlockedEmojiIds.asStateFlow()
 
+    private val _unlockedAvatarSkinIds = MutableStateFlow(loadUnlockedAvatarSkins())
+    val unlockedAvatarSkinIds: StateFlow<Set<String>> = _unlockedAvatarSkinIds.asStateFlow()
+
     private val _abandonedMatchNotice = MutableStateFlow<String?>(null)
     val abandonedMatchNotice: StateFlow<String?> = _abandonedMatchNotice.asStateFlow()
 
@@ -241,6 +244,32 @@ class AuthRepository @Inject constructor(
             .apply()
     }
 
+    private fun getAvatarSkinPrefsKey(email: String?, userId: String?): String {
+        val sanitizedEmail = email?.takeIf { it.isNotBlank() && it != "guest@wallwar.app" }?.replace("@", "_")?.replace(".", "_")
+        val sanitizedUser = userId?.takeIf { it.isNotBlank() }
+        val id = sanitizedEmail ?: sanitizedUser ?: "guest"
+        return "unlocked_avatar_skins_set_$id"
+    }
+
+    private fun loadUnlockedAvatarSkins(email: String? = null, userId: String? = null): Set<String> {
+        val key = getAvatarSkinPrefsKey(email, userId)
+        val stored = prefs.getStringSet(key, null) ?: prefs.getStringSet("unlocked_avatar_skins_set", null)
+        val defaultSet = com.wallwar.data.ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS
+        return if (stored.isNullOrEmpty()) {
+            defaultSet
+        } else {
+            stored.toSet() + defaultSet
+        }
+    }
+
+    private fun saveUnlockedAvatarSkins(skins: Set<String>, email: String? = null, userId: String? = null) {
+        val key = getAvatarSkinPrefsKey(email, userId)
+        prefs.edit()
+            .putStringSet(key, skins)
+            .putStringSet("unlocked_avatar_skins_set", skins)
+            .apply()
+    }
+
     suspend fun syncFromNakamaServer() {
         val stats = nakamaRepository.fetchUserProfileFromNakama()
         if (stats != null) {
@@ -304,6 +333,83 @@ class AuthRepository @Inject constructor(
         } catch (e: Exception) {
             Log.w("AuthRepository", "Could not restore server emoji skins: ${e.message}")
         }
+
+        // Sync unlocked avatar skins from Nakama server for this specific account
+        try {
+            val currentProfile = _userProfile.value
+            val avatarResult = nakamaRepository.fetchAvatarSkinsFromNakama()
+            val defaultSkinSet = com.wallwar.data.ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS
+            if (avatarResult != null) {
+                val (serverSkins, selectedSkin) = avatarResult
+                val accountSkins = (serverSkins + defaultSkinSet).toSet()
+                _unlockedAvatarSkinIds.value = accountSkins
+                saveUnlockedAvatarSkins(accountSkins, currentProfile.email, currentProfile.nakamaUserId)
+
+                // Restore equipped avatar if available on server
+                if (!selectedSkin.isNullOrBlank()) {
+                    val updated = _userProfile.value.copy(photoUrl = selectedSkin)
+                    saveProfile(updated)
+                }
+                Log.d("AuthRepository", "Restored ${accountSkins.size} avatar skins from server for ${currentProfile.displayName}")
+            } else {
+                val localSkins = loadUnlockedAvatarSkins(currentProfile.email, currentProfile.nakamaUserId)
+                _unlockedAvatarSkinIds.value = localSkins
+                nakamaRepository.syncAvatarSkinsToNakama(localSkins, _userProfile.value.photoUrl)
+                Log.d("AuthRepository", "Initialized server avatar skins for ${currentProfile.displayName}: $localSkins")
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Could not restore server avatar skins: ${e.message}")
+        }
+    }
+
+    fun unlockAvatarSkin(skinId: String, priceCoins: Int): Boolean {
+        val currentSet = _unlockedAvatarSkinIds.value
+        if (currentSet.contains(skinId)) {
+            return true
+        }
+
+        val profile = _userProfile.value
+        if (profile.coins < priceCoins) {
+            return false
+        }
+
+        val successDeduct = deductCoins(priceCoins)
+        if (!successDeduct) return false
+
+        val newSet = currentSet + skinId
+        _unlockedAvatarSkinIds.value = newSet
+        saveUnlockedAvatarSkins(newSet, profile.email, profile.nakamaUserId)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncAvatarSkinsToNakama(newSet, _userProfile.value.photoUrl)
+        }
+        return true
+    }
+
+    fun equipAvatarSkin(skinId: String) {
+        val current = _userProfile.value
+        val skinIdentifier = if (skinId.startsWith("skin:")) skinId else "skin:$skinId"
+        val updated = current.copy(photoUrl = skinIdentifier)
+        saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncAvatarSkinsToNakama(_unlockedAvatarSkinIds.value, skinIdentifier)
+        }
+    }
+
+    fun equipGoogleAvatar(googlePhotoUrl: String) {
+        val current = _userProfile.value
+        val updated = current.copy(photoUrl = googlePhotoUrl)
+        saveProfile(updated)
+        prefs.edit().putString("google_photo_url", googlePhotoUrl).apply()
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncAvatarSkinsToNakama(_unlockedAvatarSkinIds.value, googlePhotoUrl)
+        }
+    }
+
+    fun getSavedGooglePhotoUrl(): String? {
+        return prefs.getString("google_photo_url", null)
     }
 
     fun unlockEmojiSkin(emojiId: String, priceCoins: Int): Boolean {
@@ -443,16 +549,29 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun authenticateWithGoogle(idToken: String, displayName: String? = null): SignInResult {
+    suspend fun authenticateWithGoogle(
+        idToken: String,
+        displayName: String? = null,
+        photoUrl: String? = null
+    ): SignInResult {
         return try {
             val name = displayName?.ifBlank { "Duelist" } ?: "Duelist"
             nakamaRepository.authenticateWithGoogle(idToken, name)
             syncFromNakamaServer()
 
+            if (!photoUrl.isNullOrBlank()) {
+                prefs.edit().putString("google_photo_url", photoUrl).apply()
+            }
+
             val current = _userProfile.value
+            // If user hasn't set a custom profile skin, automatically use the Google account photo
+            val shouldApplyGooglePhoto = !photoUrl.isNullOrBlank() && 
+                    (current.photoUrl.isNullOrBlank() || current.photoUrl == "skin:skin_default" || !com.wallwar.data.ProfileSkinCatalog.isSkinUrl(current.photoUrl))
+            
             val updated = current.copy(
                 isLoggedIn = true,
                 displayName = name,
+                photoUrl = if (shouldApplyGooglePhoto) photoUrl else current.photoUrl,
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
@@ -467,8 +586,8 @@ class AuthRepository @Inject constructor(
         val googleResult = googleAuthManager.getGoogleIdToken(callingContext, serverClientId)
         return when (googleResult) {
             is GoogleAuthResult.Success -> {
-                // Authenticate with Nakama Server using extracted Google ID Token
-                authenticateWithGoogle(googleResult.idToken, googleResult.displayName)
+                // Authenticate with Nakama Server using extracted Google ID Token & Profile Photo
+                authenticateWithGoogle(googleResult.idToken, googleResult.displayName, googleResult.photoUrl)
             }
             is GoogleAuthResult.Cancelled -> SignInResult.Cancelled
             is GoogleAuthResult.Error -> SignInResult.Error(googleResult.message)
@@ -503,6 +622,7 @@ class AuthRepository @Inject constructor(
         )
         saveProfile(updated)
         _unlockedEmojiIds.value = loadUnlockedEmojis("guest@wallwar.app", null)
+        _unlockedAvatarSkinIds.value = com.wallwar.data.ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS
     }
 
     fun addCoins(amount: Int) {

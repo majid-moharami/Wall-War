@@ -354,32 +354,14 @@ fun HomeHeaderSection(
         // Player Profile Avatar only (No text name/description to keep top bar minimalist & spacious)
         Box(
             modifier = Modifier
-                .size(46.dp)
-                .clip(CircleShape)
-                .background(NeonDarkSurface)
-                .border(2.dp, NeonCyan, CircleShape)
                 .clickable { onOpenProfile() }
-                .padding(if (userProfile.photoUrl.isNullOrBlank()) 0.dp else 2.dp)
-                .testTag("home_profile_avatar"),
-            contentAlignment = Alignment.Center
+                .testTag("home_profile_avatar")
         ) {
-            if (!userProfile.photoUrl.isNullOrBlank()) {
-                AsyncImage(
-                    model = userProfile.photoUrl,
-                    contentDescription = userProfile.displayName,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape)
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = userProfile.displayName,
-                    tint = NeonCyan,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+            com.wallwar.ui.components.AvatarBadge(
+                photoUrl = userProfile.photoUrl,
+                size = 46.dp,
+                borderWidth = 2.dp
+            )
         }
 
         // Right side: Coins Pill + Daily Quests Icon Button + Settings Icon Button

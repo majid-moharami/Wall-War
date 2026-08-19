@@ -183,11 +183,18 @@ fun WallWarNavGraph(
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val signInStatus by viewModel.signInStatus.collectAsStateWithLifecycle()
             val friends by viewModel.friends.collectAsStateWithLifecycle()
+            val unlockedAvatarSkinIds by viewModel.unlockedAvatarSkinIds.collectAsStateWithLifecycle()
 
             ProfileScreen(
                 userProfile = userProfile,
                 signInStatus = signInStatus,
                 friends = friends,
+                unlockedAvatarSkinIds = unlockedAvatarSkinIds,
+                allProfileSkins = viewModel.allProfileSkins,
+                savedGooglePhotoUrl = viewModel.savedGooglePhotoUrl,
+                onUnlockSkin = viewModel::unlockAvatarSkin,
+                onEquipSkin = viewModel::equipAvatarSkin,
+                onEquipGoogleAvatar = viewModel::equipGoogleAvatar,
                 onSignInWithGoogle = viewModel::signInWithGoogle,
                 onClearSignInStatus = viewModel::clearSignInStatus,
                 onSignOut = viewModel::signOut,
