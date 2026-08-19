@@ -215,6 +215,32 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    private fun getEmojiPrefsKey(email: String?, userId: String?): String {
+        val sanitizedEmail = email?.takeIf { it.isNotBlank() && it != "guest@wallwar.app" }?.replace("@", "_")?.replace(".", "_")
+        val sanitizedUser = userId?.takeIf { it.isNotBlank() }
+        val id = sanitizedEmail ?: sanitizedUser ?: "guest"
+        return "unlocked_emojis_set_$id"
+    }
+
+    private fun loadUnlockedEmojis(email: String? = null, userId: String? = null): Set<String> {
+        val key = getEmojiPrefsKey(email, userId)
+        val stored = prefs.getStringSet(key, null) ?: prefs.getStringSet("unlocked_emojis_set", null)
+        val defaultSet = com.wallwar.data.EmojiSkinCatalog.DEFAULT_UNLOCKED_IDS
+        return if (stored.isNullOrEmpty()) {
+            defaultSet
+        } else {
+            stored.toSet() + defaultSet
+        }
+    }
+
+    private fun saveUnlockedEmojis(emojis: Set<String>, email: String? = null, userId: String? = null) {
+        val key = getEmojiPrefsKey(email, userId)
+        prefs.edit()
+            .putStringSet(key, emojis)
+            .putStringSet("unlocked_emojis_set", emojis)
+            .apply()
+    }
+
     suspend fun syncFromNakamaServer() {
         val stats = nakamaRepository.fetchUserProfileFromNakama()
         if (stats != null) {
@@ -258,39 +284,26 @@ class AuthRepository @Inject constructor(
             Log.w("AuthRepository", "Could not restore server settings: ${e.message}")
         }
 
-        // Sync unlocked emoji skins from Nakama server
+        // Sync unlocked emoji skins from Nakama server for this specific account
         try {
+            val currentProfile = _userProfile.value
             val serverEmojis = nakamaRepository.fetchEmojiSkinsFromNakama()
+            val defaultSet = com.wallwar.data.EmojiSkinCatalog.DEFAULT_UNLOCKED_IDS
             if (!serverEmojis.isNullOrEmpty()) {
-                val merged = _unlockedEmojiIds.value.toMutableSet().apply {
-                    addAll(serverEmojis)
-                    addAll(com.wallwar.data.EmojiSkinCatalog.DEFAULT_UNLOCKED_IDS)
-                }
-                _unlockedEmojiIds.value = merged
-                saveUnlockedEmojis(merged)
+                val accountEmojis = (serverEmojis + defaultSet).toSet()
+                _unlockedEmojiIds.value = accountEmojis
+                saveUnlockedEmojis(accountEmojis, currentProfile.email, currentProfile.nakamaUserId)
+                Log.d("AuthRepository", "Restored ${accountEmojis.size} emojis from server for ${currentProfile.displayName}")
             } else {
-                // If server has no emojis recorded yet, push current unlocked set
-                nakamaRepository.syncEmojiSkinsToNakama(_unlockedEmojiIds.value)
+                // If server has no emojis recorded yet, load local account cache and push to server
+                val localEmojis = loadUnlockedEmojis(currentProfile.email, currentProfile.nakamaUserId)
+                _unlockedEmojiIds.value = localEmojis
+                nakamaRepository.syncEmojiSkinsToNakama(localEmojis)
+                Log.d("AuthRepository", "Initialized server emojis for ${currentProfile.displayName}: $localEmojis")
             }
         } catch (e: Exception) {
             Log.w("AuthRepository", "Could not restore server emoji skins: ${e.message}")
         }
-    }
-
-    private fun loadUnlockedEmojis(): Set<String> {
-        val stored = prefs.getStringSet("unlocked_emojis_set", null)
-        val defaultSet = com.wallwar.data.EmojiSkinCatalog.DEFAULT_UNLOCKED_IDS
-        return if (stored.isNullOrEmpty()) {
-            defaultSet
-        } else {
-            stored.toSet() + defaultSet
-        }
-    }
-
-    private fun saveUnlockedEmojis(emojis: Set<String>) {
-        prefs.edit()
-            .putStringSet("unlocked_emojis_set", emojis)
-            .apply()
     }
 
     fun unlockEmojiSkin(emojiId: String, priceCoins: Int): Boolean {
@@ -309,7 +322,7 @@ class AuthRepository @Inject constructor(
 
         val newSet = currentSet + emojiId
         _unlockedEmojiIds.value = newSet
-        saveUnlockedEmojis(newSet)
+        saveUnlockedEmojis(newSet, profile.email, profile.nakamaUserId)
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             nakamaRepository.syncEmojiSkinsToNakama(newSet)
@@ -489,6 +502,7 @@ class AuthRepository @Inject constructor(
             photoUrl = null
         )
         saveProfile(updated)
+        _unlockedEmojiIds.value = loadUnlockedEmojis("guest@wallwar.app", null)
     }
 
     fun addCoins(amount: Int) {

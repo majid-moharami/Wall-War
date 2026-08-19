@@ -637,6 +637,7 @@ class NakamaRepository @Inject constructor(
             }
             val writeObj = StorageObjectWrite("user_data", "unlocked_emojis", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
             client.writeStorageObjects(s, writeObj).await()
+            Log.d("NakamaRepository", "Successfully synced ${unlockedEmojiIds.size} emoji skins to server for user $nakamaUserId")
         } catch (e: Exception) {
             Log.w("NakamaRepository", "Error syncing emoji skins to Nakama: ${e.message}")
         }
@@ -645,9 +646,12 @@ class NakamaRepository @Inject constructor(
     suspend fun fetchEmojiSkinsFromNakama(): Set<String>? = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext null
         try {
+            val effectiveUserId = nakamaUserId ?: s.userId
             val objectId = StorageObjectId("user_data")
             objectId.setKey("unlocked_emojis")
-            objectId.setUserId(nakamaUserId)
+            if (!effectiveUserId.isNullOrBlank()) {
+                objectId.setUserId(effectiveUserId)
+            }
             val result = client.readStorageObjects(s, objectId).await()
             if (result.objectsCount > 0) {
                 val obj = JSONObject(result.getObjects(0).value)
@@ -657,6 +661,7 @@ class NakamaRepository @Inject constructor(
                     for (i in 0 until array.length()) {
                         set.add(array.getString(i))
                     }
+                    Log.d("NakamaRepository", "Successfully fetched ${set.size} emojis from server for user $effectiveUserId")
                     return@withContext set
                 }
             }
