@@ -39,3 +39,6 @@ object DailyRewardsRoute
 
 @Serializable
 object DailyQuestsRoute
+
+@Serializable
+object EmojiShopRoute

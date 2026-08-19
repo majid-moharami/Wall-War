@@ -27,6 +27,19 @@ class SoundManager(private val context: Context) {
         context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
+    private val audioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+        .build()
+
+    private val sampleRate = 22050
+
+    private val audioFormat = AudioFormat.Builder()
+        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+        .setSampleRate(sampleRate)
+        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+        .build()
+
     /**
      * Synthesizes PCM Audio in real-time.
      * mine = true -> higher frequency pitch tick
@@ -36,7 +49,6 @@ class SoundManager(private val context: Context) {
         if (!isSoundEnabled) return
         scope.launch {
             try {
-                val sampleRate = 22050
                 val durationMs = if (isWall) 120 else 80
                 val numSamples = (sampleRate * durationMs) / 1000
                 val buffer = ShortArray(numSamples)
@@ -63,41 +75,56 @@ class SoundManager(private val context: Context) {
                     buffer[i] = (wave * envelope * Short.MAX_VALUE * 0.35).toInt().toShort()
                 }
 
-                val audioTrack = AudioTrack.Builder()
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_GAME)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                            .build()
-                    )
-                    .setBufferSizeInBytes(buffer.size * 2)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .build()
-
-                audioTrack.write(buffer, 0, buffer.size)
-                audioTrack.play()
-                
-                // Auto release audioTrack memory after playback
-                kotlinx.coroutines.delay(durationMs.toLong() + 50)
-                audioTrack.release()
-            } catch (_: Exception) {
-                // Ignore audio failures gracefully
+                playPcmBuffer(buffer, durationMs)
+            } catch (_: Throwable) {
+                // Graceful fallback
             }
         }
+    }
+
+    fun playButtonClick() {
+        if (!isSoundEnabled) return
+        scope.launch {
+            try {
+                val durationMs = 40
+                val numSamples = (sampleRate * durationMs) / 1000
+                val buffer = ShortArray(numSamples)
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val progress = i.toDouble() / numSamples
+                    val envelope = kotlin.math.exp(-progress * 8.0)
+                    val wave = sin(2.0 * Math.PI * 880.0 * t)
+                    buffer[i] = (wave * envelope * Short.MAX_VALUE * 0.2).toInt().toShort()
+                }
+                playPcmBuffer(buffer, durationMs)
+            } catch (_: Throwable) {}
+        }
+    }
+
+    fun playInvalidMove() {
+        playErrorSound()
+        vibrateShort()
+    }
+
+    fun playVictory() {
+        playVictoryFanfare()
+        vibrateSuccess()
+    }
+
+    fun playPawnMove() {
+        playMoveSound(isMine = true, isWall = false)
+        vibrateShort()
+    }
+
+    fun playWallPlaced() {
+        playMoveSound(isMine = true, isWall = true)
+        vibrateShort()
     }
 
     fun playErrorSound() {
         if (!isSoundEnabled) return
         scope.launch {
             try {
-                val sampleRate = 22050
                 val durationMs = 150
                 val numSamples = (sampleRate * durationMs) / 1000
                 val buffer = ShortArray(numSamples)
@@ -110,29 +137,8 @@ class SoundManager(private val context: Context) {
                     buffer[i] = (wave * 0.5 * envelope * Short.MAX_VALUE * 0.3).toInt().toShort()
                 }
 
-                val audioTrack = AudioTrack.Builder()
-                    .setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_GAME)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                            .build()
-                    )
-                    .setAudioFormat(
-                        AudioFormat.Builder()
-                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                            .setSampleRate(sampleRate)
-                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                            .build()
-                    )
-                    .setBufferSizeInBytes(buffer.size * 2)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .build()
-
-                audioTrack.write(buffer, 0, buffer.size)
-                audioTrack.play()
-                kotlinx.coroutines.delay(durationMs.toLong() + 50)
-                audioTrack.release()
-            } catch (_: Exception) {}
+                playPcmBuffer(buffer, durationMs)
+            } catch (_: Throwable) {}
         }
     }
 
@@ -142,7 +148,6 @@ class SoundManager(private val context: Context) {
             val notes = listOf(523.25, 659.25, 783.99, 1046.50) // C5, E5, G5, C6
             for (freq in notes) {
                 try {
-                    val sampleRate = 22050
                     val durationMs = 120
                     val numSamples = (sampleRate * durationMs) / 1000
                     val buffer = ShortArray(numSamples)
@@ -155,30 +160,31 @@ class SoundManager(private val context: Context) {
                         buffer[i] = (wave * envelope * Short.MAX_VALUE * 0.4).toInt().toShort()
                     }
 
-                    val audioTrack = AudioTrack.Builder()
-                        .setAudioAttributes(
-                            AudioAttributes.Builder()
-                                .setUsage(AudioAttributes.USAGE_GAME)
-                                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                                .build()
-                        )
-                        .setAudioFormat(
-                            AudioFormat.Builder()
-                                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                                .setSampleRate(sampleRate)
-                                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                                .build()
-                        )
-                        .setBufferSizeInBytes(buffer.size * 2)
-                        .setTransferMode(AudioTrack.MODE_STATIC)
-                        .build()
-
-                    audioTrack.write(buffer, 0, buffer.size)
-                    audioTrack.play()
+                    playPcmBuffer(buffer, durationMs)
                     kotlinx.coroutines.delay(100)
-                    audioTrack.release()
-                } catch (_: Exception) {}
+                } catch (_: Throwable) {}
             }
+        }
+    }
+
+    private suspend fun playPcmBuffer(buffer: ShortArray, durationMs: Int) {
+        var track: AudioTrack? = null
+        try {
+            track = AudioTrack.Builder()
+                .setAudioAttributes(audioAttributes)
+                .setAudioFormat(audioFormat)
+                .setBufferSizeInBytes(buffer.size * 2)
+                .setTransferMode(AudioTrack.MODE_STATIC)
+                .build()
+
+            track.write(buffer, 0, buffer.size)
+            track.play()
+            kotlinx.coroutines.delay(durationMs.toLong() + 30)
+        } finally {
+            try {
+                track?.stop()
+                track?.release()
+            } catch (_: Throwable) {}
         }
     }
 

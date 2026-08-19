@@ -16,6 +16,8 @@ import com.wallwar.ui.screens.auth.AuthScreen
 import com.wallwar.ui.screens.auth.AuthViewModel
 import com.wallwar.ui.screens.DailyQuestsScreen
 import com.wallwar.ui.screens.DailyRewardsScreen
+import com.wallwar.ui.screens.emoji.EmojiShopScreen
+import com.wallwar.ui.screens.emoji.EmojiShopViewModel
 import com.wallwar.ui.screens.GameBoardScreen
 import com.wallwar.ui.screens.HistoryScreen
 import com.wallwar.ui.screens.HomeScreen
@@ -150,6 +152,7 @@ fun WallWarNavGraph(
                         AppScreen.COIN_SHOP -> navController.navigate(CoinShopRoute)
                         AppScreen.DAILY_REWARDS -> navController.navigate(DailyRewardsRoute)
                         AppScreen.DAILY_QUESTS -> navController.navigate(DailyQuestsRoute)
+                        AppScreen.EMOJI_SHOP -> navController.navigate(EmojiShopRoute)
                         AppScreen.PROFILE -> navController.navigate(ProfileRoute)
                         AppScreen.HOME -> navController.navigate(HomeRoute) {
                             popUpTo(HomeRoute) { inclusive = true }
@@ -222,6 +225,9 @@ fun WallWarNavGraph(
             val localDisconnectSeconds by viewModel.localDisconnectSeconds.collectAsStateWithLifecycle()
             val onlineErrorMessage by viewModel.onlineErrorMessage.collectAsStateWithLifecycle()
             val matchResultDelta by viewModel.matchResultDelta.collectAsStateWithLifecycle()
+            val playerEmote by viewModel.playerEmote.collectAsStateWithLifecycle()
+            val opponentEmote by viewModel.opponentEmote.collectAsStateWithLifecycle()
+            val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
 
             val activity = LocalActivity.current
 
@@ -245,6 +251,14 @@ fun WallWarNavGraph(
                 arenaTitle = viewModel.selectedArena.title,
                 onlineErrorMessage = onlineErrorMessage,
                 matchResultDelta = matchResultDelta,
+                playerEmote = playerEmote,
+                opponentEmote = opponentEmote,
+                allEmojis = viewModel.allEmojis,
+                unlockedEmojiIds = unlockedEmojiIds,
+                onSendEmote = viewModel::sendEmote,
+                onNavigateToEmojiShop = {
+                    navController.navigate(EmojiShopRoute)
+                },
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
                 onForfeitAndQuitLocalMatch = viewModel::forfeitAndQuitLocalMatch,
@@ -385,6 +399,31 @@ fun WallWarNavGraph(
                 dailyMissions = dailyMissions,
                 onClaimMissionReward = viewModel::claimMissionReward,
                 onNavigateToShop = { navController.navigate(CoinShopRoute) },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeRoute)
+                    }
+                }
+            )
+        }
+
+        composable<EmojiShopRoute> {
+            val viewModel: EmojiShopViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
+            val previewEmoji by viewModel.previewEmoji.collectAsStateWithLifecycle()
+            val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
+
+            EmojiShopScreen(
+                userProfile = userProfile,
+                allEmojis = viewModel.allEmojis,
+                unlockedEmojiIds = unlockedEmojiIds,
+                previewEmoji = previewEmoji,
+                statusMessage = statusMessage,
+                onPreviewEmoji = viewModel::preview,
+                onBuyEmoji = { emoji -> viewModel.buyEmoji(emoji, onNavigateToCoinShop = { navController.navigate(CoinShopRoute) }) },
+                onClearStatusMessage = viewModel::clearStatusMessage,
+                onOpenCoinShop = { navController.navigate(CoinShopRoute) },
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)

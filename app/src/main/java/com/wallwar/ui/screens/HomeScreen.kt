@@ -677,102 +677,107 @@ fun QuickDailyAccessSection(
     onOpenSpinner: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Daily Reward Quick Card
-        Card(
-            onClick = onOpenDailyRewardsScreen,
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            border = BorderStroke(
-                1.5.dp,
-                if (dailyStreakState.canClaim) SolidColor(NeonAmber)
-                else Brush.horizontalGradient(listOf(NeonAmber.copy(alpha = 0.5f), NeonMagenta.copy(alpha = 0.5f)))
-            ),
-            modifier = Modifier
-                .weight(1f)
-                .testTag("quick_daily_reward_btn")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
+            // Daily Reward Quick Card
+            Card(
+                onClick = onOpenDailyRewardsScreen,
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                border = BorderStroke(
+                    1.5.dp,
+                    if (dailyStreakState.canClaim) SolidColor(NeonAmber)
+                    else Brush.horizontalGradient(listOf(NeonAmber.copy(alpha = 0.5f), NeonMagenta.copy(alpha = 0.5f)))
+                ),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .weight(1f)
+                    .testTag("quick_daily_reward_btn")
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(NeonAmber, Color(0xFFB45309)))),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(text = "🎁", fontSize = 20.sp)
-                }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Brush.radialGradient(listOf(NeonAmber, Color(0xFFB45309)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🎁", fontSize = 20.sp)
+                    }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "DAILY REWARD",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        color = Color.White
-                    )
-                    Text(
-                        text = if (dailyStreakState.canClaim) "Day ${dailyStreakState.currentDay} • Ready!" else "Day ${dailyStreakState.currentDay}/7 Streak",
-                        fontSize = 10.sp,
-                        fontWeight = if (dailyStreakState.canClaim) FontWeight.Bold else FontWeight.Normal,
-                        color = if (dailyStreakState.canClaim) NeonAmber else Color(0xFFA0ACCC)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "DAILY REWARD",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (dailyStreakState.canClaim) "Day ${dailyStreakState.currentDay} • Ready!" else "Day ${dailyStreakState.currentDay}/7 Streak",
+                            fontSize = 10.sp,
+                            fontWeight = if (dailyStreakState.canClaim) FontWeight.Bold else FontWeight.Normal,
+                            color = if (dailyStreakState.canClaim) NeonAmber else Color(0xFFA0ACCC)
+                        )
+                    }
                 }
             }
-        }
 
-        // Lucky Spinner Quick Card
-        Card(
-            onClick = onOpenSpinner,
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            border = BorderStroke(
-                1.5.dp,
-                if (spinnerState.canSpinToday) SolidColor(NeonCyan)
-                else Brush.horizontalGradient(listOf(Color(0xFF2A334A), Color(0xFF1E2435)))
-            ),
-            modifier = Modifier
-                .weight(1f)
-                .testTag("quick_spinner_btn")
-        ) {
-            Row(
+            // Lucky Spinner Quick Card
+            Card(
+                onClick = onOpenSpinner,
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                border = BorderStroke(
+                    1.5.dp,
+                    if (spinnerState.canSpinToday) SolidColor(NeonCyan)
+                    else Brush.horizontalGradient(listOf(Color(0xFF2A334A), Color(0xFF1E2435)))
+                ),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    .weight(1f)
+                    .testTag("quick_spinner_btn")
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(Brush.radialGradient(listOf(NeonMagenta, NeonCyan))),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(text = "🎡", fontSize = 20.sp)
-                }
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Brush.radialGradient(listOf(NeonMagenta, NeonCyan))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "🎡", fontSize = 20.sp)
+                    }
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "LUCKY WHEEL",
-                        fontWeight = FontWeight.Black,
-                        fontSize = 11.sp,
-                        color = Color.White
-                    )
-                    Text(
-                        text = if (spinnerState.canSpinToday) "🪙 500 • 1/Day" else "Spun Today ✓",
-                        fontSize = 10.sp,
-                        fontWeight = if (spinnerState.canSpinToday) FontWeight.Bold else FontWeight.Normal,
-                        color = if (spinnerState.canSpinToday) NeonCyan else Color(0xFFA0ACCC)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "LUCKY WHEEL",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            color = Color.White
+                        )
+                        Text(
+                            text = if (spinnerState.canSpinToday) "🪙 500 • 1/Day" else "Spun Today ✓",
+                            fontSize = 10.sp,
+                            fontWeight = if (spinnerState.canSpinToday) FontWeight.Bold else FontWeight.Normal,
+                            color = if (spinnerState.canSpinToday) NeonCyan else Color(0xFFA0ACCC)
+                        )
+                    }
                 }
             }
         }

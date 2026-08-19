@@ -136,6 +136,19 @@ class GameViewModel @Inject constructor(
     private val _matchResultDelta = MutableStateFlow<MatchResultDelta?>(null)
     val matchResultDelta: StateFlow<MatchResultDelta?> = _matchResultDelta.asStateFlow()
 
+    // Emoji Skins & Real-time In-Game Emote Reactions
+    val unlockedEmojiIds: StateFlow<Set<String>> = authRepository.unlockedEmojiIds
+    val allEmojis: List<com.wallwar.data.EmojiSkin> = com.wallwar.data.EmojiSkinCatalog.ALL_EMOJIS
+
+    private val _playerEmote = MutableStateFlow<com.wallwar.data.EmojiSkin?>(null)
+    val playerEmote: StateFlow<com.wallwar.data.EmojiSkin?> = _playerEmote.asStateFlow()
+
+    private val _opponentEmote = MutableStateFlow<com.wallwar.data.EmojiSkin?>(null)
+    val opponentEmote: StateFlow<com.wallwar.data.EmojiSkin?> = _opponentEmote.asStateFlow()
+
+    private var playerEmoteJob: kotlinx.coroutines.Job? = null
+    private var opponentEmoteJob: kotlinx.coroutines.Job? = null
+
     private var matchStartTime: Long = System.currentTimeMillis()
     private var timerJob: kotlinx.coroutines.Job? = null
     private var disconnectTimerJob: kotlinx.coroutines.Job? = null
@@ -206,6 +219,12 @@ class GameViewModel @Inject constructor(
                         }
                         is OnlineMatchEvent.OpponentReconnected -> {
                             handleOpponentReconnected()
+                        }
+                        is OnlineMatchEvent.OpponentEmote -> {
+                            val emote = com.wallwar.data.EmojiSkinCatalog.getById(event.emojiId)
+                            if (emote != null) {
+                                showOpponentEmote(emote)
+                            }
                         }
                         else -> {}
                     }
@@ -696,10 +715,53 @@ class GameViewModel @Inject constructor(
         }
     }
 
+    fun sendEmote(emoji: com.wallwar.data.EmojiSkin) {
+        if (!unlockedEmojiIds.value.contains(emoji.id)) return
+
+        _playerEmote.value = emoji
+        soundManager.playButtonClick()
+
+        playerEmoteJob?.cancel()
+        playerEmoteJob = viewModelScope.launch {
+            delay(2000)
+            if (_playerEmote.value?.id == emoji.id) {
+                _playerEmote.value = null
+            }
+        }
+
+        if (opponentType == OpponentType.ONLINE) {
+            nakamaRepository.sendOnlineEmote(emoji.id, emoji.symbol)
+        } else if (opponentType == OpponentType.AI) {
+            // Bot AI reacts dynamically back with an emote
+            viewModelScope.launch {
+                delay(1200)
+                val botResponses = allEmojis.filter { it.id != emoji.id }
+                if (botResponses.isNotEmpty()) {
+                    showOpponentEmote(botResponses.random())
+                }
+            }
+        }
+    }
+
+    fun showOpponentEmote(emoji: com.wallwar.data.EmojiSkin) {
+        _opponentEmote.value = emoji
+        soundManager.playButtonClick()
+
+        opponentEmoteJob?.cancel()
+        opponentEmoteJob = viewModelScope.launch {
+            delay(2000)
+            if (_opponentEmote.value?.id == emoji.id) {
+                _opponentEmote.value = null
+            }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         timerJob?.cancel()
         disconnectTimerJob?.cancel()
+        playerEmoteJob?.cancel()
+        opponentEmoteJob?.cancel()
         if (opponentType == OpponentType.ONLINE) {
             nakamaRepository.leaveMatch()
         }

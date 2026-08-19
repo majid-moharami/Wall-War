@@ -271,59 +271,25 @@ fun OfflinePlayDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Info banner: Practice rules or Ad Loading Banner
-                if (isRewardedAdLoading || isAdPlaying) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = NeonDarkSurface,
-                        border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.8f)),
-                        modifier = Modifier.fillMaxWidth()
+                // Info banner: Practice rules
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = NeonDarkSurface,
+                    border = BorderStroke(1.dp, Color(0xFF222B42)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CircularProgressIndicator(
-                                color = NeonCyan,
-                                modifier = Modifier.size(22.dp),
-                                strokeWidth = 2.5.dp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = if (isAdPlaying) "Playing Video Ad..." else "Loading Video Ad...",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                                Text(
-                                    text = "Match will start automatically after the ad.",
-                                    fontSize = 10.sp,
-                                    color = Color(0xFFA0ACCC)
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = NeonDarkSurface,
-                        border = BorderStroke(1.dp, Color(0xFF222B42)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "🛡️", fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Practice mode features 10 walls per player and 0 coin rewards to prevent exploit farming.",
-                                fontSize = 11.sp,
-                                color = Color(0xFFBAC5E1),
-                                lineHeight = 15.sp
-                            )
-                        }
+                        Text(text = "🛡️", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Practice mode features 10 walls per player and 0 coin rewards to prevent exploit farming.",
+                            fontSize = 11.sp,
+                            color = Color(0xFFBAC5E1),
+                            lineHeight = 15.sp
+                        )
                     }
                 }
 

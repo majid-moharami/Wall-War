@@ -1,5 +1,6 @@
 package com.wallwar.ui.screens
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -9,17 +10,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.geometry.CornerRadius
@@ -36,14 +30,18 @@ import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CropLandscape
 import androidx.compose.material.icons.filled.CropPortrait
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Mood
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.Warning
+import com.wallwar.data.EmojiSkin
 import com.wallwar.ui.theme.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -54,6 +52,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -112,6 +111,12 @@ fun GameBoardScreen(
     arenaTitle: String = "Pro Arena",
     onlineErrorMessage: String? = null,
     matchResultDelta: com.wallwar.data.MatchResultDelta? = null,
+    playerEmote: EmojiSkin? = null,
+    opponentEmote: EmojiSkin? = null,
+    allEmojis: List<EmojiSkin> = emptyList(),
+    unlockedEmojiIds: Set<String> = emptySet(),
+    onSendEmote: (EmojiSkin) -> Unit = {},
+    onNavigateToEmojiShop: () -> Unit = {},
     onRetryOnlineConnection: () -> Unit = {},
     onCancelOnlineMatchmaking: () -> Unit = {},
     onForfeitAndQuitLocalMatch: () -> Unit = {},
@@ -131,6 +136,7 @@ fun GameBoardScreen(
     var boardBoundsInWindow by remember { mutableStateOf<Rect?>(null) }
     var showResignConfirmation by remember { mutableStateOf(false) }
     var showExitConfirmation by remember { mutableStateOf(false) }
+    var showEmotePicker by remember { mutableStateOf(false) }
 
     val handleStartWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit = { isHorizontal, windowPos ->
         onSelectWallOrientation(isHorizontal)
@@ -251,7 +257,7 @@ fun GameBoardScreen(
     val themeOuterTop = Color(boardTheme.outerBgTop)
     val themeOuterBottom = Color(boardTheme.outerBgBottom)
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(
@@ -263,10 +269,14 @@ fun GameBoardScreen(
                     )
                 )
             )
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Top Header Bar
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top Header Bar
         Box(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -442,7 +452,7 @@ fun GameBoardScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Center Game Board View
         Box(
@@ -496,7 +506,7 @@ fun GameBoardScreen(
             isWallMode
         }
 
-        // Row 1: Wall items (Icons only)
+        // Row 1: Wall items (Icons only) + Emote Button
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -512,7 +522,7 @@ fun GameBoardScreen(
                 onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
                 onEndDrag = handleEndWallDrag
             )
-            Spacer(modifier = Modifier.width(20.dp))
+            Spacer(modifier = Modifier.width(16.dp))
             WallItemButton(
                 isHorizontal = false,
                 isSelected = p1WallSelected && !isWallHorizontal,
@@ -523,6 +533,39 @@ fun GameBoardScreen(
                 onUpdateDrag = { pos -> handleUpdateWallDrag(false, pos) },
                 onEndDrag = handleEndWallDrag
             )
+
+            // Emote Button (Accessible in Online or AI Matches)
+            if (opponentType == OpponentType.ONLINE || gameState.isAiMatch) {
+                Spacer(modifier = Modifier.width(16.dp))
+                Box(
+                    modifier = Modifier
+                        .size(56.dp, 46.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(NeonDarkCard)
+                        .border(
+                            1.5.dp,
+                            Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta)),
+                            RoundedCornerShape(12.dp)
+                        )
+                        .clickable { showEmotePicker = true }
+                        .testTag("btn_open_emotes"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(text = "😎", fontSize = 18.sp)
+                        Text(
+                            text = "EMOTE",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeonCyan,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -1129,6 +1172,36 @@ fun GameBoardScreen(
             }
         )
     }
+
+    // Emote Picker Dialog
+    if (showEmotePicker) {
+        EmotePickerDialog(
+            allEmojis = allEmojis,
+            unlockedEmojiIds = unlockedEmojiIds,
+            onSendEmote = { emoji ->
+                showEmotePicker = false
+                onSendEmote(emoji)
+            },
+            onNavigateToShop = {
+                showEmotePicker = false
+                onNavigateToEmojiShop()
+            },
+            onDismiss = { showEmotePicker = false }
+        )
+    }
+
+    // Dynamic Center Screen Emote Overlay with Flying & Pop Animation
+    CenterScreenEmoteOverlay(
+        playerEmote = playerEmote,
+        opponentEmote = opponentEmote,
+        userDisplayName = userDisplayName,
+        onlineOpponentName = onlineOpponentName,
+        opponentType = opponentType,
+        myPlayerIndex = myPlayerIndex,
+        isAiMatch = gameState.isAiMatch,
+        modifier = Modifier.align(Alignment.Center)
+    )
+    }
 }
 
 @Composable
@@ -1319,7 +1392,7 @@ fun PlayerScoreCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(36.dp)
                     .clip(CircleShape)
                     .background(NeonDarkSurface)
                     .border(
@@ -1333,10 +1406,11 @@ fun PlayerScoreCard(
                     imageVector = if (isAi) Icons.Default.SmartToy else Icons.Default.Person,
                     contentDescription = "User Avatar",
                     tint = if (isTurn) pawnColor else Color(0xFFA0ACCC),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.width(10.dp))
+
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = playerName,
@@ -1368,5 +1442,295 @@ fun PlayerScoreCard(
             }
         }
     }
+}
+
+@Composable
+fun CenterScreenEmoteOverlay(
+    playerEmote: EmojiSkin?,
+    opponentEmote: EmojiSkin?,
+    userDisplayName: String,
+    onlineOpponentName: String,
+    opponentType: OpponentType,
+    myPlayerIndex: Int,
+    isAiMatch: Boolean,
+    modifier: Modifier = Modifier
+) {
+    // Show either opponent emote or player emote
+    val activeEmote = opponentEmote ?: playerEmote
+    val isOpponent = opponentEmote != null
+
+    val senderName = if (isOpponent) {
+        if (opponentType == OpponentType.ONLINE) onlineOpponentName else if (isAiMatch) "AI Bot" else "Player 2"
+    } else {
+        if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else userDisplayName
+    }
+
+    val accentColor = if (isOpponent) {
+        if (opponentType == OpponentType.ONLINE && myPlayerIndex == 1) NeonCyan else NeonMagenta
+    } else {
+        NeonCyan
+    }
+
+    androidx.compose.animation.AnimatedVisibility(
+        visible = activeEmote != null,
+        enter = slideInVertically(
+            initialOffsetY = { if (isOpponent) -it * 2 else it * 2 },
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        ) + scaleIn(
+            initialScale = 0.2f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        ) + fadeIn(animationSpec = tween(200)),
+        exit = scaleOut(
+            targetScale = 1.4f,
+            animationSpec = tween(300, easing = FastOutLinearInEasing)
+        ) + fadeOut(animationSpec = tween(300)),
+        modifier = modifier
+    ) {
+        activeEmote?.let { emote ->
+            val infiniteTransition = rememberInfiniteTransition(label = "center_emote_pulse")
+            val scale by infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.08f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(400, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "scale"
+            )
+            val rotation by infiniteTransition.animateFloat(
+                initialValue = -5f,
+                targetValue = 5f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(300, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "rotation"
+            )
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        rotationZ = rotation
+                    }
+                    .testTag(if (isOpponent) "center_opponent_emote" else "center_player_emote")
+            ) {
+                // Large Glowing Disc for Emoji
+                Box(
+                    modifier = Modifier
+                        .size(116.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    accentColor.copy(alpha = 0.35f),
+                                    NeonDarkCard.copy(alpha = 0.95f),
+                                    Color.Black.copy(alpha = 0.95f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 3.dp,
+                            brush = Brush.sweepGradient(
+                                listOf(accentColor, NeonAmber, accentColor, NeonMagenta, accentColor)
+                            ),
+                            shape = CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = emote.symbol,
+                        fontSize = 62.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Emote Name and Sender Tag Banner
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = NeonDarkCard.copy(alpha = 0.95f),
+                    border = BorderStroke(1.5.dp, accentColor),
+                    shadowElevation = 12.dp
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = if (isOpponent) "$senderName:" else "You:",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = accentColor
+                        )
+                        Text(
+                            text = emote.name,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmotePickerDialog(
+    allEmojis: List<EmojiSkin>,
+    unlockedEmojiIds: Set<String>,
+    onSendEmote: (EmojiSkin) -> Unit,
+    onNavigateToShop: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = NeonDarkCard,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "😎 SEND EMOTE",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Taunt or react to your opponent (3s)",
+                        fontSize = 11.sp,
+                        color = NeonCyan
+                    )
+                }
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color(0xFFA0ACCC)
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 280.dp)
+                ) {
+                    items(allEmojis) { emoji ->
+                        val isUnlocked = unlockedEmojiIds.contains(emoji.id)
+
+                        Card(
+                            onClick = {
+                                if (isUnlocked) {
+                                    onSendEmote(emoji)
+                                } else {
+                                    onNavigateToShop()
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isUnlocked) NeonDarkSurface else Color(0xFF141926)
+                            ),
+                            border = BorderStroke(
+                                1.5.dp,
+                                if (isUnlocked) NeonCyan else Color(0xFF2A334A)
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                                .testTag("emote_item_${emoji.id}")
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center,
+                                    modifier = Modifier.padding(4.dp)
+                                ) {
+                                    Text(
+                                        text = emoji.symbol,
+                                        fontSize = 28.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = emoji.name,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isUnlocked) Color.White else Color(0xFFA0ACCC),
+                                        maxLines = 1
+                                    )
+                                    if (!isUnlocked) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Lock,
+                                                contentDescription = "Locked",
+                                                tint = NeonAmber,
+                                                modifier = Modifier.size(9.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(2.dp))
+                                            Text(
+                                                text = "${emoji.coinPrice}",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = NeonAmber
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onNavigateToShop,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = NeonCyan,
+                    contentColor = Color.Black
+                ),
+                shape = RoundedCornerShape(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("btn_open_emoji_shop_from_dialog")
+            ) {
+                Text(
+                    text = "🛒 Open Emoji Skins Shop",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 13.sp
+                )
+            }
+        },
+        dismissButton = {}
+    )
 }
 

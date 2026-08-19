@@ -49,6 +49,7 @@ sealed class OnlineMatchEvent {
         OnlineMatchEvent()
 
     data class OpponentMove(val move: Move) : OnlineMatchEvent()
+    data class OpponentEmote(val emojiId: String, val emojiSymbol: String, val playerIndex: Int) : OnlineMatchEvent()
     data class TurnTimeout(val playerIndex: Int) : OnlineMatchEvent()
     data class OpponentSurrendered(val winnerIndex: Int) : OnlineMatchEvent()
     object OpponentDisconnected : OnlineMatchEvent()
@@ -625,6 +626,46 @@ class NakamaRepository @Inject constructor(
         return@withContext null
     }
 
+    suspend fun syncEmojiSkinsToNakama(unlockedEmojiIds: Set<String>) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val json = JSONObject().apply {
+                val array = JSONArray()
+                unlockedEmojiIds.forEach { array.put(it) }
+                put("unlocked_emojis", array)
+                put("updated_at", System.currentTimeMillis())
+            }
+            val writeObj = StorageObjectWrite("user_data", "unlocked_emojis", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error syncing emoji skins to Nakama: ${e.message}")
+        }
+    }
+
+    suspend fun fetchEmojiSkinsFromNakama(): Set<String>? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("unlocked_emojis")
+            objectId.setUserId(nakamaUserId)
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                val obj = JSONObject(result.getObjects(0).value)
+                val array = obj.optJSONArray("unlocked_emojis")
+                if (array != null) {
+                    val set = mutableSetOf<String>()
+                    for (i in 0 until array.length()) {
+                        set.add(array.getString(i))
+                    }
+                    return@withContext set
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error reading emoji skins from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
     suspend fun syncDailySpinnerToNakama(lastSpinDate: String, totalSpins: Int, lastWonItem: String) = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext
         try {
@@ -879,7 +920,29 @@ class NakamaRepository @Inject constructor(
                     val winnerIndex = payloadJson.getInt("winnerIndex")
                     _matchEvents.emit(OnlineMatchEvent.OpponentSurrendered(winnerIndex))
                 }
+                5 -> { // OP_EMOTE
+                    val emojiId = payloadJson.optString("emojiId", "emoji_cool")
+                    val emojiSymbol = payloadJson.optString("emojiSymbol", "😎")
+                    val playerIndex = payloadJson.optInt("playerIndex", if (myPlayerIndex == 0) 1 else 0)
+                    _matchEvents.emit(OnlineMatchEvent.OpponentEmote(emojiId, emojiSymbol, playerIndex))
+                }
             }
+        }
+    }
+
+    fun sendOnlineEmote(emojiId: String, emojiSymbol: String) {
+        val mid = activeMatchId ?: return
+        val sock = socket ?: return
+
+        try {
+            val payload = JSONObject().apply {
+                put("emojiId", emojiId)
+                put("emojiSymbol", emojiSymbol)
+                put("playerIndex", myPlayerIndex)
+            }
+            sock.sendMatchData(mid, 5L, payload.toString().toByteArray())
+        } catch (e: Exception) {
+            Log.e("NakamaRepository", "Error sending emote: ${e.message}")
         }
     }
 
