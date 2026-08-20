@@ -992,6 +992,14 @@ fun GameBoardComposable(
                 val ballDiameter = minOf(cellW, cellH).roundToInt()
                 val ballBitmap = if (p == 0) blueBallBitmap else redBallBitmap
 
+                // Crop source bitmap to centered 1:1 square to avoid distortion
+                val srcMinDim = minOf(ballBitmap.width, ballBitmap.height)
+                val srcOffset = IntOffset(
+                    (ballBitmap.width - srcMinDim) / 2,
+                    (ballBitmap.height - srcMinDim) / 2
+                )
+                val srcSize = IntSize(srcMinDim, srcMinDim)
+
                 val dstOffset = IntOffset(
                     (centerX - ballDiameter / 2f).roundToInt(),
                     (centerY - ballDiameter / 2f).roundToInt()
@@ -1000,6 +1008,8 @@ fun GameBoardComposable(
 
                 drawImage(
                     image = ballBitmap,
+                    srcOffset = srcOffset,
+                    srcSize = srcSize,
                     dstOffset = dstOffset,
                     dstSize = dstSize
                 )
