@@ -39,6 +39,11 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import com.wallwar.R
 import com.wallwar.audio.SoundManager
 import com.wallwar.engine.GameEngine
 import com.wallwar.model.BoardTheme
@@ -117,6 +122,10 @@ fun GameBoardComposable(
 
     val effectiveHoverWall = if (isWallMode || externalDragWall != null) (externalDragWall ?: activeHoverWall) else null
     val effectiveIsValidHover = if (externalDragWall != null) externalIsValidDrag else isValidHover
+
+    // Load custom ball drawables
+    val blueBallBitmap = ImageBitmap.imageResource(id = R.drawable.ic_blue_ball)
+    val redBallBitmap = ImageBitmap.imageResource(id = R.drawable.ic_red_ball)
 
     BoxWithConstraints(
         modifier = modifier
@@ -974,114 +983,26 @@ fun GameBoardComposable(
                 }
             }
 
-            // 10. Draw Player Pawns with Smooth Ball Movement & Motion Dynamics
+            // 10. Draw Player Pawns cleanly in full size of each chart place
             for (p in gameState.pawns.indices) {
                 val centerX = if (p == 0) animP0X else animP1X
                 val centerY = if (p == 0) animP0Y else animP1Y
-                val targetX = if (p == 0) p0TargetX else p1TargetX
-                val targetY = if (p == 0) p0TargetY else p1TargetY
 
-                val distToTarget = hypot(targetX - centerX, targetY - centerY)
-                val motionRatio = (distToTarget / stepX).coerceIn(0f, 1f)
-                val scaleFactor = 1f + (motionRatio * 0.18f)
-                val shadowOffsetY = 5f + (motionRatio * 8f)
+                // Full size matching cell square dimensions
+                val ballDiameter = minOf(cellW, cellH).roundToInt()
+                val ballBitmap = if (p == 0) blueBallBitmap else redBallBitmap
 
-                val basePawnRadius = minOf(cellW, cellH) * 0.38f
-                val pawnRadius = basePawnRadius * scaleFactor
-
-                val isTurn = gameState.turn == p && gameState.winner == null
-
-                // Dynamic drop shadow (stretches and lightens slightly while ball is in motion)
-                drawCircle(
-                    color = Color.Black.copy(alpha = (0.5f - motionRatio * 0.15f).coerceIn(0.15f, 0.5f)),
-                    radius = pawnRadius * (1.05f + motionRatio * 0.1f),
-                    center = Offset(centerX + 2f, centerY + shadowOffsetY)
+                val dstOffset = IntOffset(
+                    (centerX - ballDiameter / 2f).roundToInt(),
+                    (centerY - ballDiameter / 2f).roundToInt()
                 )
+                val dstSize = IntSize(ballDiameter, ballDiameter)
 
-                if (p == 0) {
-                    if (isTurn) {
-                        drawCircle(
-                            color = NeonCyan.copy(alpha = 0.35f),
-                            radius = pawnRadius * 1.35f,
-                            center = Offset(centerX, centerY)
-                        )
-                        drawCircle(
-                            color = NeonCyan,
-                            radius = pawnRadius * 1.2f,
-                            center = Offset(centerX, centerY),
-                            style = Stroke(width = 3f)
-                        )
-                    }
-
-                    drawCircle(
-                        color = Color.White,
-                        radius = pawnRadius * 1.25f,
-                        center = Offset(centerX, centerY),
-                        style = Stroke(width = 3.5f)
-                    )
-
-                    val sphereGradients = listOf(
-                        Color(0xFFE0F2FE),
-                        Color(0xFF93C5FD),
-                        Color(0xFF3B82F6),
-                        Color(0xFF1D4ED8),
-                        Color(0xFF1E3A8A)
-                    )
-
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = sphereGradients,
-                            center = Offset(centerX - pawnRadius * 0.35f, centerY - pawnRadius * 0.35f),
-                            radius = pawnRadius * 1.5f
-                        ),
-                        radius = pawnRadius,
-                        center = Offset(centerX, centerY)
-                    )
-
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.7f),
-                        radius = pawnRadius * 0.32f,
-                        center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
-                    )
-                } else {
-                    if (isTurn) {
-                        drawCircle(
-                            color = Color(0xFFEF4444).copy(alpha = 0.35f),
-                            radius = pawnRadius * 1.35f,
-                            center = Offset(centerX, centerY)
-                        )
-                        drawCircle(
-                            color = Color(0xFFEF4444),
-                            radius = pawnRadius * 1.2f,
-                            center = Offset(centerX, centerY),
-                            style = Stroke(width = 3f)
-                        )
-                    }
-
-                    val sphereGradients = listOf(
-                        Color(0xFFFFE4E6),
-                        Color(0xFFFCA5A5),
-                        Color(0xFFE84560),
-                        Color(0xFFDC2626),
-                        Color(0xFF881337)
-                    )
-
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = sphereGradients,
-                            center = Offset(centerX - pawnRadius * 0.35f, centerY - pawnRadius * 0.35f),
-                            radius = pawnRadius * 1.5f
-                        ),
-                        radius = pawnRadius,
-                        center = Offset(centerX, centerY)
-                    )
-
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.7f),
-                        radius = pawnRadius * 0.32f,
-                        center = Offset(centerX - pawnRadius * 0.32f, centerY - pawnRadius * 0.32f)
-                    )
-                }
+                drawImage(
+                    image = ballBitmap,
+                    dstOffset = dstOffset,
+                    dstSize = dstSize
+                )
             }
         }
     }

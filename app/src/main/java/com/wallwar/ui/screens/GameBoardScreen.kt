@@ -4,9 +4,13 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import com.wallwar.R
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -1390,25 +1394,13 @@ fun PlayerScoreCard(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(NeonDarkSurface)
-                    .border(
-                        width = 1.dp,
-                        color = if (isTurn) pawnColor else NeonBorder,
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (isAi) Icons.Default.SmartToy else Icons.Default.Person,
-                    contentDescription = "User Avatar",
-                    tint = if (isTurn) pawnColor else Color(0xFFA0ACCC),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            val ballRes = if (pawnColor == NeonCyan) R.drawable.ic_blue_ball else R.drawable.ic_red_ball
+            Image(
+                painter = painterResource(id = ballRes),
+                contentDescription = if (pawnColor == NeonCyan) "Blue Ball" else "Red Ball",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.size(36.dp)
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
