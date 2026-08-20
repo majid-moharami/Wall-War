@@ -10,5 +10,6 @@ enum class AppScreen {
     DAILY_REWARDS,
     DAILY_QUESTS,
     EMOJI_SHOP,
+    SKIN_SHOP,
     PROFILE
 }

@@ -720,6 +720,55 @@ class NakamaRepository @Inject constructor(
         return@withContext null
     }
 
+    suspend fun syncBallSkinsToNakama(unlockedBallIds: Set<String>, selectedBallId: String?) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val json = JSONObject().apply {
+                val array = JSONArray()
+                unlockedBallIds.forEach { array.put(it) }
+                put("unlocked_balls", array)
+                if (selectedBallId != null) {
+                    put("selected_ball_id", selectedBallId)
+                }
+                put("updated_at", System.currentTimeMillis())
+            }
+            val writeObj = StorageObjectWrite("user_data", "ball_skins", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+            Log.d("NakamaRepository", "Successfully synced ${unlockedBallIds.size} ball skins to server (selected: $selectedBallId)")
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error syncing ball skins to Nakama: ${e.message}")
+        }
+    }
+
+    suspend fun fetchBallSkinsFromNakama(): Pair<Set<String>, String?>? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val effectiveUserId = nakamaUserId ?: s.userId
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("ball_skins")
+            if (!effectiveUserId.isNullOrBlank()) {
+                objectId.setUserId(effectiveUserId)
+            }
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                val obj = JSONObject(result.getObjects(0).value)
+                val array = obj.optJSONArray("unlocked_balls")
+                val selected = obj.optString("selected_ball_id", "").ifBlank { null }
+                val set = mutableSetOf<String>()
+                if (array != null) {
+                    for (i in 0 until array.length()) {
+                        set.add(array.getString(i))
+                    }
+                }
+                Log.d("NakamaRepository", "Successfully fetched ${set.size} ball skins from server (selected: $selected)")
+                return@withContext Pair(set, selected)
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error reading ball skins from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
     suspend fun syncDailySpinnerToNakama(lastSpinDate: String, totalSpins: Int, lastWonItem: String) = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext
         try {

@@ -167,6 +167,37 @@ class SoundManager(private val context: Context) {
         }
     }
 
+    fun playRewardSound() {
+        playVictoryFanfare()
+        vibrateSuccess()
+    }
+
+    fun playEmoteSound(emoteId: String = "") {
+        if (!isSoundEnabled) return
+        scope.launch {
+            try {
+                val durationMs = 100
+                val numSamples = (sampleRate * durationMs) / 1000
+                val buffer = ShortArray(numSamples)
+                val baseFreq = when {
+                    emoteId.contains("fire") -> 700.0
+                    emoteId.contains("cool") -> 520.0
+                    emoteId.contains("smirk") -> 440.0
+                    emoteId.contains("greedy") -> 880.0
+                    else -> 600.0
+                }
+                for (i in 0 until numSamples) {
+                    val t = i.toDouble() / sampleRate
+                    val progress = i.toDouble() / numSamples
+                    val envelope = kotlin.math.exp(-progress * 5.0)
+                    val wave = sin(2.0 * Math.PI * (baseFreq + (progress * 200.0)) * t)
+                    buffer[i] = (wave * envelope * Short.MAX_VALUE * 0.3).toInt().toShort()
+                }
+                playPcmBuffer(buffer, durationMs)
+            } catch (_: Throwable) {}
+        }
+    }
+
     private suspend fun playPcmBuffer(buffer: ShortArray, durationMs: Int) {
         var track: AudioTrack? = null
         try {

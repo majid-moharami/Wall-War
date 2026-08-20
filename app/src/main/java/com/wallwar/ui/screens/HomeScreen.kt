@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -34,10 +35,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
@@ -63,6 +66,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -72,6 +76,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -271,12 +276,13 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 1. Top Header: Player Avatar on left, Coins + Daily Quests + Settings on right
+        // 1. Top Header: Player Avatar on left, Coins + Skins + Daily Quests + Settings on right
         HomeHeaderSection(
             userProfile = userProfile,
             dailyMissions = dailyMissions,
             onOpenProfile = { onNavigate(AppScreen.PROFILE) },
             onOpenShop = { onNavigate(AppScreen.COIN_SHOP) },
+            onOpenSkins = { onNavigate(AppScreen.SKIN_SHOP) },
             onOpenDailyQuests = { onNavigate(AppScreen.DAILY_QUESTS) },
             onOpenSettings = { onNavigate(AppScreen.SETTINGS) },
             modifier = Modifier.padding(horizontal = 20.dp)
@@ -284,11 +290,12 @@ fun HomeScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 2. Global Ranking Tier Card with integrated Win Rate, Total Wins, and Win Streak tags
+        // 2. Global Ranking Tier Card with integrated Win Rate, Total Wins, and Win Streak tags (Click to open Daily Quests)
         HeroRatingCard(
             userProfile = userProfile,
             actualWins = actualWins,
             actualMatches = actualMatches,
+            onClick = { onNavigate(AppScreen.DAILY_QUESTS) },
             modifier = Modifier.padding(horizontal = 20.dp)
         )
 
@@ -340,6 +347,7 @@ fun HomeHeaderSection(
     dailyMissions: List<DailyMission>,
     onOpenProfile: () -> Unit,
     onOpenShop: () -> Unit,
+    onOpenSkins: () -> Unit,
     onOpenDailyQuests: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -364,7 +372,7 @@ fun HomeHeaderSection(
             )
         }
 
-        // Right side: Coins Pill + Daily Quests Icon Button + Settings Icon Button
+        // Right side: Coins Pill + Skins Button + Settings Button
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -397,40 +405,11 @@ fun HomeHeaderSection(
                 )
             }
 
-            // Daily Quests Icon Button with Notification Badge
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(NeonDarkSurface)
-                    .border(
-                        1.dp,
-                        if (unClaimedQuestsCount > 0) NeonEmerald else NeonBorder,
-                        CircleShape
-                    )
-                    .clickable { onOpenDailyQuests() }
-                    .testTag("home_daily_quests_btn"),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Assignment,
-                    contentDescription = "Daily Quests",
-                    tint = if (unClaimedQuestsCount > 0) NeonEmerald else Color(0xFFBAC5E1),
-                    modifier = Modifier.size(20.dp)
-                )
-
-                if (unClaimedQuestsCount > 0) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(top = 2.dp, end = 2.dp)
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(NeonEmerald)
-                            .border(1.5.dp, NeonDarkSurface, CircleShape)
-                    )
-                }
-            }
+            // Skins Armory Shining Moving Button with Glowing Shadow, Badge & "Skins" Text Label
+            ShiningSkinButton(
+                onClick = onOpenSkins,
+                modifier = Modifier.testTag("home_skins_btn")
+            )
 
             // Settings Icon Button
             Box(
@@ -455,10 +434,187 @@ fun HomeHeaderSection(
 }
 
 @Composable
+fun ShiningSkinButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "SkinBtnDynamicAnimation")
+
+    // 1. Smooth dynamic color phase (0f to 1f)
+    val colorPhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ColorPhase"
+    )
+
+    // 2. Subtle breath scale
+    val scalePulse by infiniteTransition.animateFloat(
+        initialValue = 0.98f,
+        targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "ScalePulse"
+    )
+
+    // 3. Specular shine sweep across pill
+    val shineProgress by infiniteTransition.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "ShineProgress"
+    )
+
+    // Dynamic color sequence: Gold -> Neon Magenta -> Cyber Purple -> Electric Cyan -> Neon Emerald -> Gold
+    val dynamicColors = listOf(
+        Color(0xFFFFD54F), // Gold
+        NeonMagenta,       // Magenta
+        NeonPurple,        // Purple
+        NeonCyan,          // Cyan
+        NeonEmerald,       // Emerald
+        Color(0xFFFFD54F)  // Back to Gold
+    )
+
+    // Interpolate current primary & secondary colors for dynamic shadow & highlights
+    val totalStops = dynamicColors.size - 1
+    val scaledProgress = (colorPhase * totalStops).coerceIn(0f, totalStops.toFloat())
+    val currentIndex = scaledProgress.toInt().coerceIn(0, totalStops - 1)
+    val localFraction = scaledProgress - currentIndex
+    val activeColor1 = dynamicColors[currentIndex]
+    val activeColor2 = dynamicColors[(currentIndex + 1) % dynamicColors.size]
+    val activeColor3 = dynamicColors[(currentIndex + 2) % dynamicColors.size]
+
+    val currentGlowColor = androidx.compose.ui.graphics.lerp(activeColor1, activeColor2, localFraction)
+    val secondaryGlowColor = androidx.compose.ui.graphics.lerp(activeColor2, activeColor3, localFraction)
+
+    Box(
+        modifier = modifier
+            .scale(scalePulse),
+        contentAlignment = Alignment.Center
+    ) {
+        // Dynamic Glowing Soft Ambient & Spot Shadow Canvas
+        Canvas(
+            modifier = Modifier
+                .matchParentSize()
+        ) {
+            // Layer 1: Outer soft ambient glow with dynamic color
+            drawRoundRect(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        currentGlowColor.copy(alpha = 0.45f),
+                        secondaryGlowColor.copy(alpha = 0.20f),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width / 2f, size.height / 2f),
+                    radius = size.maxDimension * 0.9f
+                ),
+                cornerRadius = CornerRadius(22.dp.toPx(), 22.dp.toPx())
+            )
+            // Layer 2: Tight intense glow hugging the border
+            drawRoundRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        currentGlowColor.copy(alpha = 0.4f),
+                        secondaryGlowColor.copy(alpha = 0.4f)
+                    ),
+                    start = Offset(0f, 0f),
+                    end = Offset(size.width, size.height)
+                ),
+                cornerRadius = CornerRadius(18.dp.toPx(), 18.dp.toPx()),
+                style = Stroke(width = 3.dp.toPx())
+            )
+        }
+
+        // Main Button Surface Pill with "Skins" label
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            color = Color.Transparent,
+            modifier = Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .clickable { onClick() }
+        ) {
+            Box(
+                modifier = Modifier
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF1E1430),
+                                Color(0xFF0D0A16)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.8.dp,
+                        brush = Brush.linearGradient(
+                            colors = listOf(
+                                currentGlowColor,
+                                secondaryGlowColor,
+                                currentGlowColor
+                            ),
+                            start = Offset(0f, 0f),
+                            end = Offset(200f * (1f + colorPhase), 100f)
+                        ),
+                        shape = RoundedCornerShape(18.dp)
+                    )
+                    .padding(horizontal = 11.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Shimmer specular sweep glint
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val beamX = size.width * shineProgress
+                    drawLine(
+                        brush = Brush.linearGradient(
+                            0.0f to Color.Transparent,
+                            0.5f to Color.White.copy(alpha = 0.5f),
+                            1.0f to Color.Transparent,
+                            start = Offset(beamX, 0f),
+                            end = Offset(beamX + size.width * 0.35f, size.height)
+                        ),
+                        start = Offset(beamX, 0f),
+                        end = Offset(beamX + size.width * 0.35f, size.height),
+                        strokeWidth = 12.dp.toPx()
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    // High-appeal Cosmetic Sparkle Icon with dynamic glowing tint
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Skins Vault",
+                        tint = currentGlowColor,
+                        modifier = Modifier.size(17.dp)
+                    )
+                    Spacer(modifier = Modifier.width(5.dp))
+                    Text(
+                        text = "Skins",
+                        color = Color.White,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 12.sp,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun HeroRatingCard(
     userProfile: UserProfile,
     actualWins: Int,
     actualMatches: Int,
+    onClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val winRate = if (actualMatches > 0) (actualWins * 100 / actualMatches) else 0
@@ -474,6 +630,7 @@ fun HeroRatingCard(
         ),
         modifier = modifier
             .fillMaxWidth()
+            .clickable { onClick() }
             .testTag("hero_rating_card")
     ) {
         Column(
@@ -487,13 +644,31 @@ fun HeroRatingCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(
-                        text = "GLOBAL RANKING TIER",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFFA0ACCC),
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.sp
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "GLOBAL RANKING TIER",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFFA0ACCC),
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = 1.sp
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(NeonEmerald.copy(alpha = 0.2f))
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = "📋 DAILY QUESTS",
+                                color = NeonEmerald,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = userProfile.rankTitle.uppercase(),

@@ -115,6 +115,7 @@ fun GameBoardScreen(
     arenaTitle: String = "Pro Arena",
     onlineErrorMessage: String? = null,
     matchResultDelta: com.wallwar.data.MatchResultDelta? = null,
+    equippedBallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
     playerEmote: EmojiSkin? = null,
     opponentEmote: EmojiSkin? = null,
     allEmojis: List<EmojiSkin> = emptyList(),
@@ -480,7 +481,9 @@ fun GameBoardScreen(
                 onCancelWallMode = onCancelWallMode,
                 shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1),
                 externalDragWall = activeDragWall,
-                externalIsValidDrag = isValidDrag
+                externalIsValidDrag = isValidDrag,
+                player0BallSkinId = if (myPlayerIndex == 0) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
+                player1BallSkinId = if (myPlayerIndex == 1) equippedBallSkinId else "ic_red_ball"
             )
         }
 

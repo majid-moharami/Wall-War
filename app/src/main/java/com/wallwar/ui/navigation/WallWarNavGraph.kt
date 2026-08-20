@@ -18,6 +18,8 @@ import com.wallwar.ui.screens.DailyQuestsScreen
 import com.wallwar.ui.screens.DailyRewardsScreen
 import com.wallwar.ui.screens.emoji.EmojiShopScreen
 import com.wallwar.ui.screens.emoji.EmojiShopViewModel
+import com.wallwar.ui.screens.skin.SkinShopScreen
+import com.wallwar.ui.screens.skin.SkinShopViewModel
 import com.wallwar.ui.screens.GameBoardScreen
 import com.wallwar.ui.screens.HistoryScreen
 import com.wallwar.ui.screens.HomeScreen
@@ -152,7 +154,8 @@ fun WallWarNavGraph(
                         AppScreen.COIN_SHOP -> navController.navigate(CoinShopRoute)
                         AppScreen.DAILY_REWARDS -> navController.navigate(DailyRewardsRoute)
                         AppScreen.DAILY_QUESTS -> navController.navigate(DailyQuestsRoute)
-                        AppScreen.EMOJI_SHOP -> navController.navigate(EmojiShopRoute)
+                        AppScreen.EMOJI_SHOP -> navController.navigate(SkinShopRoute(initialTab = 1))
+                        AppScreen.SKIN_SHOP -> navController.navigate(SkinShopRoute(initialTab = 0))
                         AppScreen.PROFILE -> navController.navigate(ProfileRoute)
                         AppScreen.HOME -> navController.navigate(HomeRoute) {
                             popUpTo(HomeRoute) { inclusive = true }
@@ -235,6 +238,7 @@ fun WallWarNavGraph(
             val playerEmote by viewModel.playerEmote.collectAsStateWithLifecycle()
             val opponentEmote by viewModel.opponentEmote.collectAsStateWithLifecycle()
             val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
+            val equippedBallSkinId by viewModel.equippedBallSkinId.collectAsStateWithLifecycle()
 
             val activity = LocalActivity.current
 
@@ -258,13 +262,14 @@ fun WallWarNavGraph(
                 arenaTitle = viewModel.selectedArena.title,
                 onlineErrorMessage = onlineErrorMessage,
                 matchResultDelta = matchResultDelta,
+                equippedBallSkinId = equippedBallSkinId,
                 playerEmote = playerEmote,
                 opponentEmote = opponentEmote,
                 allEmojis = viewModel.allEmojis,
                 unlockedEmojiIds = unlockedEmojiIds,
                 onSendEmote = viewModel::sendEmote,
                 onNavigateToEmojiShop = {
-                    navController.navigate(EmojiShopRoute)
+                    navController.navigate(SkinShopRoute(initialTab = 1))
                 },
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
@@ -406,6 +411,58 @@ fun WallWarNavGraph(
                 dailyMissions = dailyMissions,
                 onClaimMissionReward = viewModel::claimMissionReward,
                 onNavigateToShop = { navController.navigate(CoinShopRoute) },
+                onBack = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(HomeRoute)
+                    }
+                }
+            )
+        }
+
+        composable<SkinShopRoute> {
+            val viewModel: SkinShopViewModel = hiltViewModel()
+            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val unlockedBallSkinIds by viewModel.unlockedBallSkinIds.collectAsStateWithLifecycle()
+            val equippedBallSkinId by viewModel.equippedBallSkinId.collectAsStateWithLifecycle()
+            val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
+            val unlockedAvatarSkinIds by viewModel.unlockedAvatarSkinIds.collectAsStateWithLifecycle()
+            val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
+            val previewBallSkin by viewModel.previewBallSkin.collectAsStateWithLifecycle()
+            val previewEmoji by viewModel.previewEmoji.collectAsStateWithLifecycle()
+            val previewProfileSkin by viewModel.previewProfileSkin.collectAsStateWithLifecycle()
+            val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
+            val insufficientCoinsInfo by viewModel.insufficientCoinsInfo.collectAsStateWithLifecycle()
+
+            SkinShopScreen(
+                userProfile = userProfile,
+                allBallSkins = viewModel.allBallSkins,
+                unlockedBallSkinIds = unlockedBallSkinIds,
+                equippedBallSkinId = equippedBallSkinId,
+                allEmojis = viewModel.allEmojis,
+                unlockedEmojiIds = unlockedEmojiIds,
+                allProfileSkins = viewModel.allProfileSkins,
+                unlockedAvatarSkinIds = unlockedAvatarSkinIds,
+                selectedTab = selectedTab,
+                previewBallSkin = previewBallSkin,
+                previewEmoji = previewEmoji,
+                previewProfileSkin = previewProfileSkin,
+                statusMessage = statusMessage,
+                insufficientCoinsInfo = insufficientCoinsInfo,
+                onDismissInsufficientCoinsDialog = viewModel::dismissInsufficientCoinsDialog,
+                onSelectTab = viewModel::selectTab,
+                onPreviewBallSkin = viewModel::previewBall,
+                onClearBallPreview = viewModel::clearBallPreview,
+                onBuyBallSkin = viewModel::buyBall,
+                onEquipBallSkin = viewModel::equipBall,
+                onPreviewEmoji = viewModel::previewEmoji,
+                onClearEmojiPreview = viewModel::clearEmojiPreview,
+                onBuyEmoji = viewModel::buyEmoji,
+                onPreviewProfileSkin = viewModel::previewProfileSkin,
+                onClearProfileSkinPreview = viewModel::clearProfileSkinPreview,
+                onBuyProfileSkin = viewModel::buyProfileSkin,
+                onEquipProfileSkin = viewModel::equipProfileSkin,
+                onClearStatusMessage = viewModel::clearStatusMessage,
+                onOpenCoinShop = { navController.navigate(CoinShopRoute) },
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)

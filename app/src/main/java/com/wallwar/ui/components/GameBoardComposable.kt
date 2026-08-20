@@ -71,6 +71,8 @@ fun GameBoardComposable(
     shouldFlip: Boolean = false,
     externalDragWall: Wall? = null,
     externalIsValidDrag: Boolean = false,
+    player0BallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
+    player1BallSkinId: String = "ic_red_ball",
     modifier: Modifier = Modifier
 ) {
     val cols = gameState.cols
@@ -123,9 +125,11 @@ fun GameBoardComposable(
     val effectiveHoverWall = if (isWallMode || externalDragWall != null) (externalDragWall ?: activeHoverWall) else null
     val effectiveIsValidHover = if (externalDragWall != null) externalIsValidDrag else isValidHover
 
-    // Load custom ball drawables
-    val blueBallBitmap = ImageBitmap.imageResource(id = R.drawable.ic_blue_ball)
-    val redBallBitmap = ImageBitmap.imageResource(id = R.drawable.ic_red_ball)
+    // Load custom ball drawables from catalog
+    val p0DrawableId = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(player0BallSkinId)
+    val p1DrawableId = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(player1BallSkinId)
+    val blueBallBitmap = ImageBitmap.imageResource(id = p0DrawableId)
+    val redBallBitmap = ImageBitmap.imageResource(id = p1DrawableId)
 
     BoxWithConstraints(
         modifier = modifier

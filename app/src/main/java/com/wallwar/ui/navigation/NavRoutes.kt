@@ -42,3 +42,6 @@ object DailyQuestsRoute
 
 @Serializable
 object EmojiShopRoute
+
+@Serializable
+data class SkinShopRoute(val initialTab: Int = 0)

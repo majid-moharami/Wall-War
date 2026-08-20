@@ -77,6 +77,12 @@ class AuthRepository @Inject constructor(
     private val _unlockedAvatarSkinIds = MutableStateFlow(loadUnlockedAvatarSkins())
     val unlockedAvatarSkinIds: StateFlow<Set<String>> = _unlockedAvatarSkinIds.asStateFlow()
 
+    private val _unlockedBallSkinIds = MutableStateFlow(loadUnlockedBallSkins())
+    val unlockedBallSkinIds: StateFlow<Set<String>> = _unlockedBallSkinIds.asStateFlow()
+
+    private val _equippedBallSkinId = MutableStateFlow(loadEquippedBallSkin())
+    val equippedBallSkinId: StateFlow<String> = _equippedBallSkinId.asStateFlow()
+
     private val _abandonedMatchNotice = MutableStateFlow<String?>(null)
     val abandonedMatchNotice: StateFlow<String?> = _abandonedMatchNotice.asStateFlow()
 
@@ -270,6 +276,52 @@ class AuthRepository @Inject constructor(
             .apply()
     }
 
+    private fun getBallSkinPrefsKey(email: String?, userId: String?): String {
+        val sanitizedEmail = email?.takeIf { it.isNotBlank() && it != "guest@wallwar.app" }?.replace("@", "_")?.replace(".", "_")
+        val sanitizedUser = userId?.takeIf { it.isNotBlank() }
+        val id = sanitizedEmail ?: sanitizedUser ?: "guest"
+        return "unlocked_ball_skins_set_$id"
+    }
+
+    private fun getEquippedBallPrefsKey(email: String?, userId: String?): String {
+        val sanitizedEmail = email?.takeIf { it.isNotBlank() && it != "guest@wallwar.app" }?.replace("@", "_")?.replace(".", "_")
+        val sanitizedUser = userId?.takeIf { it.isNotBlank() }
+        val id = sanitizedEmail ?: sanitizedUser ?: "guest"
+        return "equipped_ball_skin_id_$id"
+    }
+
+    private fun loadUnlockedBallSkins(email: String? = null, userId: String? = null): Set<String> {
+        val key = getBallSkinPrefsKey(email, userId)
+        val stored = prefs.getStringSet(key, null) ?: prefs.getStringSet("unlocked_ball_skins_set", null)
+        val defaultSet = com.wallwar.data.BallSkinCatalog.DEFAULT_UNLOCKED_BALL_IDS
+        return if (stored.isNullOrEmpty()) {
+            defaultSet
+        } else {
+            stored.toSet() + defaultSet
+        }
+    }
+
+    private fun saveUnlockedBallSkins(skins: Set<String>, email: String? = null, userId: String? = null) {
+        val key = getBallSkinPrefsKey(email, userId)
+        prefs.edit()
+            .putStringSet(key, skins)
+            .putStringSet("unlocked_ball_skins_set", skins)
+            .apply()
+    }
+
+    private fun loadEquippedBallSkin(email: String? = null, userId: String? = null): String {
+        val key = getEquippedBallPrefsKey(email, userId)
+        return prefs.getString(key, null) ?: prefs.getString("equipped_ball_skin_id", com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID) ?: com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID
+    }
+
+    private fun saveEquippedBallSkin(skinId: String, email: String? = null, userId: String? = null) {
+        val key = getEquippedBallPrefsKey(email, userId)
+        prefs.edit()
+            .putString(key, skinId)
+            .putString("equipped_ball_skin_id", skinId)
+            .apply()
+    }
+
     suspend fun syncFromNakamaServer() {
         val stats = nakamaRepository.fetchUserProfileFromNakama()
         if (stats != null) {
@@ -359,6 +411,68 @@ class AuthRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.w("AuthRepository", "Could not restore server avatar skins: ${e.message}")
+        }
+
+        // Sync unlocked ball skins from Nakama server for this specific account
+        try {
+            val currentProfile = _userProfile.value
+            val ballResult = nakamaRepository.fetchBallSkinsFromNakama()
+            val defaultBallSet = com.wallwar.data.BallSkinCatalog.DEFAULT_UNLOCKED_BALL_IDS
+            if (ballResult != null) {
+                val (serverBalls, selectedBall) = ballResult
+                val accountBalls = (serverBalls + defaultBallSet).toSet()
+                _unlockedBallSkinIds.value = accountBalls
+                saveUnlockedBallSkins(accountBalls, currentProfile.email, currentProfile.nakamaUserId)
+
+                if (!selectedBall.isNullOrBlank()) {
+                    _equippedBallSkinId.value = selectedBall
+                    saveEquippedBallSkin(selectedBall, currentProfile.email, currentProfile.nakamaUserId)
+                }
+                Log.d("AuthRepository", "Restored ${accountBalls.size} ball skins from server for ${currentProfile.displayName} (selected: $selectedBall)")
+            } else {
+                val localBalls = loadUnlockedBallSkins(currentProfile.email, currentProfile.nakamaUserId)
+                _unlockedBallSkinIds.value = localBalls
+                val equipped = loadEquippedBallSkin(currentProfile.email, currentProfile.nakamaUserId)
+                _equippedBallSkinId.value = equipped
+                nakamaRepository.syncBallSkinsToNakama(localBalls, equipped)
+                Log.d("AuthRepository", "Initialized server ball skins for ${currentProfile.displayName}: $localBalls")
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Could not restore server ball skins: ${e.message}")
+        }
+    }
+
+    fun unlockBallSkin(skinId: String, priceCoins: Int): Boolean {
+        val currentSet = _unlockedBallSkinIds.value
+        if (currentSet.contains(skinId)) {
+            return true
+        }
+
+        val profile = _userProfile.value
+        if (profile.coins < priceCoins) {
+            return false
+        }
+
+        val successDeduct = deductCoins(priceCoins)
+        if (!successDeduct) return false
+
+        val newSet = currentSet + skinId
+        _unlockedBallSkinIds.value = newSet
+        saveUnlockedBallSkins(newSet, profile.email, profile.nakamaUserId)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncBallSkinsToNakama(newSet, _equippedBallSkinId.value)
+        }
+        return true
+    }
+
+    fun equipBallSkin(skinId: String) {
+        val profile = _userProfile.value
+        _equippedBallSkinId.value = skinId
+        saveEquippedBallSkin(skinId, profile.email, profile.nakamaUserId)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncBallSkinsToNakama(_unlockedBallSkinIds.value, skinId)
         }
     }
 
@@ -623,6 +737,8 @@ class AuthRepository @Inject constructor(
         saveProfile(updated)
         _unlockedEmojiIds.value = loadUnlockedEmojis("guest@wallwar.app", null)
         _unlockedAvatarSkinIds.value = com.wallwar.data.ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS
+        _unlockedBallSkinIds.value = com.wallwar.data.BallSkinCatalog.DEFAULT_UNLOCKED_BALL_IDS
+        _equippedBallSkinId.value = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID
     }
 
     fun addCoins(amount: Int) {
