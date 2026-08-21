@@ -87,8 +87,6 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val clipboardManager = LocalClipboardManager.current
-    var isSoundOn by remember { mutableStateOf(soundManager.isSoundEnabled) }
-    var isVibroOn by remember { mutableStateOf(soundManager.isVibrationEnabled) }
 
     var serverHost by remember(nakamaConfig) { mutableStateOf(nakamaConfig.host) }
     var serverPort by remember(nakamaConfig) { mutableStateOf(nakamaConfig.port.toString()) }
@@ -217,8 +215,8 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         onRestoreDefaultSettings()
-                        isSoundOn = true
-                        isVibroOn = true
+                        soundManager.isSoundEnabled = true
+                        soundManager.isVibrationEnabled = true
                         serverHost = "10.0.2.2"
                         serverPort = "7350"
                         serverKey = "defaultkey"
@@ -433,9 +431,8 @@ fun SettingsScreen(
                     )
                 }
                 Switch(
-                    checked = isSoundOn,
+                    checked = soundManager.isSoundEnabled,
                     onCheckedChange = { checked ->
-                        isSoundOn = checked
                         soundManager.isSoundEnabled = checked
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = NeonPurple)
@@ -477,9 +474,8 @@ fun SettingsScreen(
                     )
                 }
                 Switch(
-                    checked = isVibroOn,
+                    checked = soundManager.isVibrationEnabled,
                     onCheckedChange = { checked ->
-                        isVibroOn = checked
                         soundManager.isVibrationEnabled = checked
                     },
                     colors = SwitchDefaults.colors(checkedThumbColor = NeonPurple)

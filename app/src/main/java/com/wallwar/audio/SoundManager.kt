@@ -1,6 +1,7 @@
 package com.wallwar.audio
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -8,6 +9,9 @@ import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -16,8 +20,33 @@ import kotlin.math.sin
 class SoundManager(private val context: Context) {
 
     private val scope = CoroutineScope(Dispatchers.Default)
-    var isSoundEnabled: Boolean = true
-    var isVibrationEnabled: Boolean = true
+    private val prefs: SharedPreferences = context.getSharedPreferences("wallwar_audio_prefs", Context.MODE_PRIVATE)
+
+    private val _isSoundEnabled = mutableStateOf(prefs.getBoolean("key_sound_enabled", true))
+    var isSoundEnabled: Boolean
+        get() = _isSoundEnabled.value
+        set(value) {
+            _isSoundEnabled.value = value
+            prefs.edit().putBoolean("key_sound_enabled", value).apply()
+        }
+
+    private val _isVibrationEnabled = mutableStateOf(prefs.getBoolean("key_vibration_enabled", true))
+    var isVibrationEnabled: Boolean
+        get() = _isVibrationEnabled.value
+        set(value) {
+            _isVibrationEnabled.value = value
+            prefs.edit().putBoolean("key_vibration_enabled", value).apply()
+        }
+
+    fun toggleSound(): Boolean {
+        isSoundEnabled = !isSoundEnabled
+        return isSoundEnabled
+    }
+
+    fun toggleVibration(): Boolean {
+        isVibrationEnabled = !isVibrationEnabled
+        return isVibrationEnabled
+    }
 
     private val vibrator: Vibrator? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager

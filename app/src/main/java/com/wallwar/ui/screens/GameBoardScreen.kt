@@ -443,16 +443,21 @@ fun GameBoardScreen(
                     isTurn = gameState.turn == 1 && gameState.winner == null,
                     pawnColor = NeonMagenta,
                     isAi = false,
+                    ballDrawableRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID, R.drawable.ic_red_ball),
                     modifier = Modifier.fillMaxWidth(0.7f)
                 )
             }
         } else {
+            val opponentBallId = if (myPlayerIndex == 0) com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID else equippedBallSkinId
+            val opponentBallRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(opponentBallId, R.drawable.ic_red_ball)
+
             PlayerScoreCard(
                 playerName = opponentName,
                 wallsLeft = gameState.leftWalls[opponentIndex],
                 isTurn = gameState.turn == opponentIndex && gameState.winner == null,
                 pawnColor = opponentPawnColor,
                 isAi = gameState.isAiMatch && opponentIndex == 1,
+                ballDrawableRes = opponentBallRes,
                 modifier = Modifier.fillMaxWidth(0.7f)
             )
         }
@@ -483,7 +488,7 @@ fun GameBoardScreen(
                 externalDragWall = activeDragWall,
                 externalIsValidDrag = isValidDrag,
                 player0BallSkinId = if (myPlayerIndex == 0) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
-                player1BallSkinId = if (myPlayerIndex == 1) equippedBallSkinId else "ic_red_ball"
+                player1BallSkinId = if (myPlayerIndex == 1) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID
             )
         }
 
@@ -578,12 +583,16 @@ fun GameBoardScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Local Player Info Card
+        val myBallId = if (myPlayerIndex == 0) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID
+        val myBallRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(myBallId, R.drawable.ic_blue_ball)
+
         PlayerScoreCard(
             playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else "$userDisplayName (You)",
             wallsLeft = gameState.leftWalls[0],
             isTurn = gameState.turn == 0 && gameState.winner == null,
             pawnColor = NeonCyan,
             isAi = false,
+            ballDrawableRes = myBallRes,
             modifier = Modifier.fillMaxWidth(0.7f)
         )
 
@@ -1380,6 +1389,7 @@ fun PlayerScoreCard(
     isTurn: Boolean,
     pawnColor: Color,
     isAi: Boolean = false,
+    @androidx.annotation.DrawableRes ballDrawableRes: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1397,7 +1407,7 @@ fun PlayerScoreCard(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val ballRes = if (pawnColor == NeonCyan) R.drawable.ic_blue_ball else R.drawable.ic_red_ball
+            val ballRes = ballDrawableRes ?: if (pawnColor == NeonCyan) R.drawable.ic_blue_ball else R.drawable.ic_red_ball
             Image(
                 painter = painterResource(id = ballRes),
                 contentDescription = if (pawnColor == NeonCyan) "Blue Ball" else "Red Ball",

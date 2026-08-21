@@ -249,22 +249,32 @@ object BallSkinCatalog {
 
     val DEFAULT_UNLOCKED_BALL_IDS: Set<String> = setOf("ball_blue", "ball_red")
     const val DEFAULT_EQUIPPED_BALL_ID = "ball_blue"
+    const val DEFAULT_OPPONENT_BALL_ID = "ball_red"
+
+    private fun normalize(id: String): String {
+        return id.lowercase().trim()
+            .removePrefix("ball_")
+            .removePrefix("ic_")
+            .removeSuffix("_ball")
+    }
 
     fun getBallSkinById(id: String): BallSkin {
-        val cleanId = id.removePrefix("ball_").removePrefix("ic_")
-        return ALL_BALL_SKINS.find { it.id == id || it.id.removePrefix("ball_").removePrefix("ic_") == cleanId } ?: DEFAULT_BLUE
+        val norm = normalize(id)
+        return ALL_BALL_SKINS.find { it.id == id || normalize(it.id) == norm } ?: DEFAULT_BLUE
     }
 
     @DrawableRes
     fun getDrawableResId(skinId: String?, fallback: Int = R.drawable.ic_blue_ball): Int {
-        if (skinId == null) return fallback
-        val cleanId = skinId.removePrefix("ball_").removePrefix("ic_")
-        val found = ALL_BALL_SKINS.find { it.id == skinId || it.id.removePrefix("ball_").removePrefix("ic_") == cleanId }
+        if (skinId.isNullOrBlank()) return fallback
+        val norm = normalize(skinId)
+        if (norm == "red") return R.drawable.ic_red_ball
+        if (norm == "blue") return R.drawable.ic_blue_ball
+        val found = ALL_BALL_SKINS.find { it.id == skinId || normalize(it.id) == norm }
         return found?.drawableResId ?: fallback
     }
 
     @DrawableRes
-    fun getBallDrawableRes(skinId: String?): Int {
-        return getDrawableResId(skinId)
+    fun getBallDrawableRes(skinId: String?, defaultRes: Int = R.drawable.ic_blue_ball): Int {
+        return getDrawableResId(skinId, defaultRes)
     }
 }
