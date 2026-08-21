@@ -69,5 +69,41 @@ class ExampleUnitTest {
         assertTrue(moves.contains(Position(5, 3))) // left
         assertTrue(moves.contains(Position(5, 5))) // right
     }
+
+    @Test
+    fun testBallSkinResolution_SameFreeBlueBalls_ChangesOneToRed() {
+        val (p0, p1) = com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins("ball_blue", "ball_blue", userPlayerIndex = 0)
+        assertEquals("ball_blue", p0)
+        assertEquals("ball_red", p1)
+    }
+
+    @Test
+    fun testBallSkinResolution_SameFreeRedBalls_ChangesOneToBlue() {
+        val (p0, p1) = com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins("ball_red", "ball_red", userPlayerIndex = 0)
+        assertEquals("ball_red", p0)
+        assertEquals("ball_blue", p1)
+    }
+
+    @Test
+    fun testBallSkinResolution_SameFreeBalls_UserAsPlayer1() {
+        val (p0, p1) = com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins("ball_blue", "ball_blue", userPlayerIndex = 1)
+        assertEquals("ball_red", p0) // Opponent changed to red
+        assertEquals("ball_blue", p1) // User keeps blue
+    }
+
+    @Test
+    fun testBallSkinResolution_OtherSkinsAllowedSame() {
+        // "but for other skins it does not matter."
+        val (p0, p1) = com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins("ball_tennis", "ball_tennis", userPlayerIndex = 0)
+        assertEquals("ball_tennis", p0)
+        assertEquals("ball_tennis", p1)
+    }
+
+    @Test
+    fun testBallSkinResolution_DifferentFreeBalls_Unchanged() {
+        val (p0, p1) = com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins("ball_blue", "ball_red", userPlayerIndex = 0)
+        assertEquals("ball_blue", p0)
+        assertEquals("ball_red", p1)
+    }
 }
 

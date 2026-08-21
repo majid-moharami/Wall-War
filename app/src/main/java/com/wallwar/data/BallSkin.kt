@@ -251,11 +251,49 @@ object BallSkinCatalog {
     const val DEFAULT_EQUIPPED_BALL_ID = "ball_blue"
     const val DEFAULT_OPPONENT_BALL_ID = "ball_red"
 
-    private fun normalize(id: String): String {
+    fun normalize(id: String): String {
         return id.lowercase().trim()
             .removePrefix("ball_")
             .removePrefix("ic_")
             .removeSuffix("_ball")
+    }
+
+    fun isFreeBallSkin(id: String?): Boolean {
+        if (id.isNullOrBlank()) return true
+        val norm = normalize(id)
+        return norm == "blue" || norm == "red"
+    }
+
+    /**
+     * Resolves ball skins for Player 0 and Player 1.
+     * Rule: If both players enter a game with the same free ball skins (just blue or red balls),
+     * change the ball skin for one of them so they don't play with the same ball.
+     * For other skins (e.g. paid/unlocked skins), they are kept unchanged.
+     */
+    fun resolveMatchBallSkins(
+        p0SkinId: String?,
+        p1SkinId: String?,
+        userPlayerIndex: Int = 0
+    ): Pair<String, String> {
+        val s0 = if (p0SkinId.isNullOrBlank()) DEFAULT_EQUIPPED_BALL_ID else p0SkinId
+        val s1 = if (p1SkinId.isNullOrBlank()) DEFAULT_OPPONENT_BALL_ID else p1SkinId
+
+        val norm0 = normalize(s0)
+        val norm1 = normalize(s1)
+
+        // Only swap if both players enter with the exact SAME free default ball (blue or red)
+        if (norm0 == norm1 && (norm0 == "blue" || norm0 == "red")) {
+            val alternateSkin = if (norm0 == "blue") DEFAULT_OPPONENT_BALL_ID else DEFAULT_EQUIPPED_BALL_ID
+            return if (userPlayerIndex == 1) {
+                // User is player 1 and keeps their chosen skin, change player 0 (opponent)
+                Pair(alternateSkin, s1)
+            } else {
+                // User is player 0 (or default) and keeps their chosen skin, change player 1 (opponent)
+                Pair(s0, alternateSkin)
+            }
+        }
+
+        return Pair(s0, s1)
     }
 
     fun getBallSkinById(id: String): BallSkin {

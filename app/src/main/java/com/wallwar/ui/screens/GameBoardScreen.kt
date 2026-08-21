@@ -116,6 +116,7 @@ fun GameBoardScreen(
     onlineErrorMessage: String? = null,
     matchResultDelta: com.wallwar.data.MatchResultDelta? = null,
     equippedBallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
+    opponentBallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID,
     playerEmote: EmojiSkin? = null,
     opponentEmote: EmojiSkin? = null,
     allEmojis: List<EmojiSkin> = emptyList(),
@@ -142,6 +143,16 @@ fun GameBoardScreen(
     var showResignConfirmation by remember { mutableStateOf(false) }
     var showExitConfirmation by remember { mutableStateOf(false) }
     var showEmotePicker by remember { mutableStateOf(false) }
+
+    val initialP0Skin = if (myPlayerIndex == 0) equippedBallSkinId else opponentBallSkinId
+    val initialP1Skin = if (myPlayerIndex == 1) equippedBallSkinId else opponentBallSkinId
+    val (resolvedP0BallSkinId, resolvedP1BallSkinId) = remember(equippedBallSkinId, opponentBallSkinId, myPlayerIndex) {
+        com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins(
+            p0SkinId = initialP0Skin,
+            p1SkinId = initialP1Skin,
+            userPlayerIndex = myPlayerIndex
+        )
+    }
 
     val handleStartWallDrag: (isHorizontal: Boolean, windowPos: Offset) -> Unit = { isHorizontal, windowPos ->
         onSelectWallOrientation(isHorizontal)
@@ -443,13 +454,16 @@ fun GameBoardScreen(
                     isTurn = gameState.turn == 1 && gameState.winner == null,
                     pawnColor = NeonMagenta,
                     isAi = false,
-                    ballDrawableRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID, R.drawable.ic_red_ball),
+                    ballDrawableRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(resolvedP1BallSkinId, R.drawable.ic_red_ball),
                     modifier = Modifier.fillMaxWidth(0.7f)
                 )
             }
         } else {
-            val opponentBallId = if (myPlayerIndex == 0) com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID else equippedBallSkinId
-            val opponentBallRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(opponentBallId, R.drawable.ic_red_ball)
+            val opponentBallId = if (myPlayerIndex == 0) resolvedP1BallSkinId else resolvedP0BallSkinId
+            val opponentBallRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(
+                opponentBallId,
+                if (opponentIndex == 0) R.drawable.ic_blue_ball else R.drawable.ic_red_ball
+            )
 
             PlayerScoreCard(
                 playerName = opponentName,
@@ -487,8 +501,8 @@ fun GameBoardScreen(
                 shouldFlip = (opponentType == OpponentType.ONLINE && myPlayerIndex == 1),
                 externalDragWall = activeDragWall,
                 externalIsValidDrag = isValidDrag,
-                player0BallSkinId = if (myPlayerIndex == 0) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
-                player1BallSkinId = if (myPlayerIndex == 1) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID
+                player0BallSkinId = resolvedP0BallSkinId,
+                player1BallSkinId = resolvedP1BallSkinId
             )
         }
 
@@ -583,8 +597,11 @@ fun GameBoardScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Local Player Info Card
-        val myBallId = if (myPlayerIndex == 0) equippedBallSkinId else com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID
-        val myBallRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(myBallId, R.drawable.ic_blue_ball)
+        val myBallId = if (myPlayerIndex == 0) resolvedP0BallSkinId else resolvedP1BallSkinId
+        val myBallRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(
+            myBallId,
+            if (myPlayerIndex == 0) R.drawable.ic_blue_ball else R.drawable.ic_red_ball
+        )
 
         PlayerScoreCard(
             playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else "$userDisplayName (You)",
