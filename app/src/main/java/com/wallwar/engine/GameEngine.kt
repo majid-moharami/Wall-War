@@ -90,35 +90,14 @@ object GameEngine {
             val r1 = me.r + dr
             val c1 = me.c + dc
 
+            // Check if step in this direction is within board bounds and not blocked by a wall
             if (!inBounds(r1, c1) || isBlocked(state.walls, me.r, me.c, r1, c1)) continue
 
-            if (r1 != opp.r || c1 != opp.c) {
-                moves.add(Position(r1, c1))
-                continue
-            }
+            // If the opponent is occupying this cell, this side is banned/blocked (no jumping, no sidestepping)
+            if (r1 == opp.r && c1 == opp.c) continue
 
-            // Opponent adjacent: try straight jump
-            val r2 = r1 + dr
-            val c2 = c1 + dc
-            val isStraightJumpBlocked = !inBounds(r2, c2) || isBlocked(state.walls, r1, c1, r2, c2)
-            if (inBounds(r2, c2) && !isBlocked(state.walls, r1, c1, r2, c2)) {
-                moves.add(Position(r2, c2))
-            } else if (isStraightJumpBlocked) {
-                // Straight jump blocked by wall OR board edge behind opponent: try diagonal sidesteps
-                val perps = if (dr == 0) {
-                    arrayOf(intArrayOf(-1, 0), intArrayOf(1, 0))
-                } else {
-                    arrayOf(intArrayOf(0, -1), intArrayOf(0, 1))
-                }
-                for (perp in perps) {
-                    val r3 = r1 + perp[0]
-                    val c3 = c1 + perp[1]
-                    if (!inBounds(r3, c3)) continue
-                    if (isBlocked(state.walls, r1, c1, r3, c3)) continue
-                    if (r3 == me.r && c3 == me.c) continue
-                    moves.add(Position(r3, c3))
-                }
-            }
+            // Valid orthogonal 1-step move (top, bottom, left, or right)
+            moves.add(Position(r1, c1))
         }
         return moves
     }
