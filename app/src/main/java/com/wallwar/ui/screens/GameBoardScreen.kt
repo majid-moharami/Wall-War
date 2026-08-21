@@ -10,6 +10,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
 import com.wallwar.R
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -427,6 +430,10 @@ fun GameBoardScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Player 2 Wall Items (First in rotated column -> appears closer to board)
+                val p2WallRes = com.wallwar.data.WallSkinCatalog.getWallDrawableRes(
+                    resolvedP1WallSkinId,
+                    R.drawable.ic_red_wall
+                )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,
@@ -436,6 +443,7 @@ fun GameBoardScreen(
                         isHorizontal = true,
                         isSelected = isWallMode && gameState.turn == 1 && isWallHorizontal,
                         isEnabled = gameState.turn == 1 && gameState.leftWalls[1] > 0 && gameState.winner == null,
+                        wallDrawableRes = p2WallRes,
                         selectedColor = NeonMagenta,
                         isRotated = true,
                         onSelect = { onSelectWallOrientation(true) },
@@ -443,11 +451,12 @@ fun GameBoardScreen(
                         onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
                         onEndDrag = handleEndWallDrag
                     )
-                    Spacer(modifier = Modifier.width(20.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
                     WallItemButton(
                         isHorizontal = false,
                         isSelected = isWallMode && gameState.turn == 1 && !isWallHorizontal,
                         isEnabled = gameState.turn == 1 && gameState.leftWalls[1] > 0 && gameState.winner == null,
+                        wallDrawableRes = p2WallRes,
                         selectedColor = NeonMagenta,
                         isRotated = true,
                         onSelect = { onSelectWallOrientation(false) },
@@ -546,7 +555,18 @@ fun GameBoardScreen(
             isWallMode
         }
 
-        // Row 1: Wall items (Icons only) + Emote Button
+        // Row 1: Wall items (Icons with real skin textures) + Emote Button
+        val myWallSkinId = if (myPlayerIndex == 0) resolvedP0WallSkinId else resolvedP1WallSkinId
+        val myWallRes = com.wallwar.data.WallSkinCatalog.getWallDrawableRes(
+            myWallSkinId,
+            if (myPlayerIndex == 0) R.drawable.ic_blue_wall else R.drawable.ic_red_wall
+        )
+        val activeWallRes = if (isQuickPassPlay && gameState.turn == 1) {
+            com.wallwar.data.WallSkinCatalog.getWallDrawableRes(resolvedP1WallSkinId, R.drawable.ic_red_wall)
+        } else {
+            myWallRes
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center,
@@ -556,17 +576,19 @@ fun GameBoardScreen(
                 isHorizontal = true,
                 isSelected = p1WallSelected && isWallHorizontal,
                 isEnabled = p1WallEnabled,
+                wallDrawableRes = activeWallRes,
                 selectedColor = if (isQuickPassPlay) NeonCyan else currentTurnColor,
                 onSelect = { onSelectWallOrientation(true) },
                 onStartDrag = { pos -> handleStartWallDrag(true, pos) },
                 onUpdateDrag = { pos -> handleUpdateWallDrag(true, pos) },
                 onEndDrag = handleEndWallDrag
             )
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(14.dp))
             WallItemButton(
                 isHorizontal = false,
                 isSelected = p1WallSelected && !isWallHorizontal,
                 isEnabled = p1WallEnabled,
+                wallDrawableRes = activeWallRes,
                 selectedColor = if (isQuickPassPlay) NeonCyan else currentTurnColor,
                 onSelect = { onSelectWallOrientation(false) },
                 onStartDrag = { pos -> handleStartWallDrag(false, pos) },
@@ -576,16 +598,16 @@ fun GameBoardScreen(
 
             // Emote Button (Accessible in Online or AI Matches)
             if (opponentType == OpponentType.ONLINE || gameState.isAiMatch) {
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
                 Box(
                     modifier = Modifier
-                        .size(56.dp, 46.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(NeonDarkCard)
+                        .size(58.dp, 50.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF131A2A))
                         .border(
-                            1.5.dp,
-                            Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta)),
-                            RoundedCornerShape(12.dp)
+                            width = 1.5.dp,
+                            brush = Brush.horizontalGradient(listOf(NeonCyan.copy(alpha = 0.8f), NeonMagenta.copy(alpha = 0.8f))),
+                            shape = RoundedCornerShape(16.dp)
                         )
                         .clickable { showEmotePicker = true }
                         .testTag("btn_open_emotes"),
@@ -595,11 +617,14 @@ fun GameBoardScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text(text = "😎", fontSize = 18.sp)
+                        Text(
+                            text = "😎",
+                            fontSize = 18.sp
+                        )
                         Text(
                             text = "EMOTE",
                             fontSize = 8.sp,
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.Bold,
                             color = NeonCyan,
                             letterSpacing = 0.5.sp
                         )
@@ -1257,6 +1282,7 @@ fun WallItemButton(
     isSelected: Boolean,
     isEnabled: Boolean,
     selectedColor: Color,
+    @androidx.annotation.DrawableRes wallDrawableRes: Int? = null,
     onSelect: () -> Unit,
     onStartDrag: (Offset) -> Unit,
     onUpdateDrag: (Offset) -> Unit,
@@ -1265,10 +1291,32 @@ fun WallItemButton(
     isRotated: Boolean = false
 ) {
     var bounds by remember { mutableStateOf<Rect?>(null) }
+    val containerShape = RoundedCornerShape(16.dp)
 
     Box(
         modifier = modifier
-            .size(56.dp, 46.dp)
+            .size(58.dp, 50.dp)
+            .clip(containerShape)
+            .background(
+                if (!isEnabled) {
+                    Color(0xFF0F172A).copy(alpha = 0.5f)
+                } else if (isSelected) {
+                    selectedColor.copy(alpha = 0.18f)
+                } else {
+                    Color(0xFF131A2A)
+                }
+            )
+            .border(
+                width = if (isSelected) 1.5.dp else 1.dp,
+                color = if (!isEnabled) {
+                    Color(0xFF1E293B).copy(alpha = 0.5f)
+                } else if (isSelected) {
+                    selectedColor
+                } else {
+                    Color(0xFF2A364F)
+                },
+                shape = containerShape
+            )
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .pointerInput(isEnabled) {
                 if (!isEnabled) return@pointerInput
@@ -1316,93 +1364,26 @@ fun WallItemButton(
             },
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val width = size.width
-            val height = size.height
-            val cornerRadiusPx = 12.dp.toPx()
+        val barColor = when {
+            !isEnabled -> Color(0xFF475569)
+            isSelected -> selectedColor
+            else -> Color(0xFF94A3B8)
+        }
 
-            if (!isEnabled) {
-                // Disabled State: Subtle transparent container
-                drawRoundRect(
-                    color = Color(0xFF111827).copy(alpha = 0.5f),
-                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
-                )
-                drawRoundRect(
-                    color = Color(0xFF1F2937).copy(alpha = 0.5f),
-                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                    style = Stroke(width = 1.dp.toPx())
-                )
-            } else if (isSelected) {
-                // Selected State: Clean highlighted container in player's color
-                drawRoundRect(
-                    color = selectedColor.copy(alpha = 0.18f),
-                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
-                )
-                drawRoundRect(
-                    color = selectedColor,
-                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                    style = Stroke(width = 1.5.dp.toPx())
-                )
-            } else {
-                // Unselected Enabled State: Clean dark item
-                drawRoundRect(
-                    color = Color(0xFF111827),
-                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
-                )
-                drawRoundRect(
-                    color = Color(0xFF374151),
-                    cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx),
-                    style = Stroke(width = 1.dp.toPx())
-                )
-            }
-
-            // Draw Wall Bar Icon
-            val centerX = width / 2f
-            val centerY = height / 2f
-
-            val wallColor = when {
-                !isEnabled -> Color(0xFF475569)
-                isSelected -> selectedColor
-                else -> Color(0xFFCBD5E1)
-            }
-
-            if (isHorizontal) {
-                val barW = 28.dp.toPx()
-                val barH = 9.dp.toPx()
-                val left = centerX - (barW / 2f)
-                val top = centerY - (barH / 2f)
-
-                drawRect(
-                    color = wallColor,
-                    topLeft = Offset(left, top),
-                    size = Size(barW, barH)
-                )
-                if (isEnabled) {
-                    drawRect(
-                        color = Color.White.copy(alpha = if (isSelected) 0.45f else 0.25f),
-                        topLeft = Offset(left + 2f, top + 1.5f),
-                        size = Size(barW - 4f, 1.5f)
-                    )
-                }
-            } else {
-                val barW = 9.dp.toPx()
-                val barH = 28.dp.toPx()
-                val left = centerX - (barW / 2f)
-                val top = centerY - (barH / 2f)
-
-                drawRect(
-                    color = wallColor,
-                    topLeft = Offset(left, top),
-                    size = Size(barW, barH)
-                )
-                if (isEnabled) {
-                    drawRect(
-                        color = Color.White.copy(alpha = if (isSelected) 0.45f else 0.25f),
-                        topLeft = Offset(left + 1.5f, top + 2f),
-                        size = Size(1.5f, barH - 4f)
-                    )
-                }
-            }
+        if (isHorizontal) {
+            Box(
+                modifier = Modifier
+                    .size(26.dp, 8.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(barColor)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(8.dp, 26.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(barColor)
+            )
         }
     }
 }
