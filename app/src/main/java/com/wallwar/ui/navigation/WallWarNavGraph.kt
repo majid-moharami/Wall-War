@@ -239,6 +239,7 @@ fun WallWarNavGraph(
             val opponentEmote by viewModel.opponentEmote.collectAsStateWithLifecycle()
             val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
             val equippedBallSkinId by viewModel.equippedBallSkinId.collectAsStateWithLifecycle()
+            val equippedWallSkinId by viewModel.equippedWallSkinId.collectAsStateWithLifecycle()
 
             val activity = LocalActivity.current
 
@@ -263,6 +264,7 @@ fun WallWarNavGraph(
                 onlineErrorMessage = onlineErrorMessage,
                 matchResultDelta = matchResultDelta,
                 equippedBallSkinId = equippedBallSkinId,
+                equippedWallSkinId = equippedWallSkinId,
                 playerEmote = playerEmote,
                 opponentEmote = opponentEmote,
                 allEmojis = viewModel.allEmojis,
@@ -422,11 +424,14 @@ fun WallWarNavGraph(
         composable<SkinShopRoute> {
             val viewModel: SkinShopViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+            val unlockedWallSkinIds by viewModel.unlockedWallSkinIds.collectAsStateWithLifecycle()
+            val equippedWallSkinId by viewModel.equippedWallSkinId.collectAsStateWithLifecycle()
             val unlockedBallSkinIds by viewModel.unlockedBallSkinIds.collectAsStateWithLifecycle()
             val equippedBallSkinId by viewModel.equippedBallSkinId.collectAsStateWithLifecycle()
             val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
             val unlockedAvatarSkinIds by viewModel.unlockedAvatarSkinIds.collectAsStateWithLifecycle()
             val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
+            val previewWallSkin by viewModel.previewWallSkin.collectAsStateWithLifecycle()
             val previewBallSkin by viewModel.previewBallSkin.collectAsStateWithLifecycle()
             val previewEmoji by viewModel.previewEmoji.collectAsStateWithLifecycle()
             val previewProfileSkin by viewModel.previewProfileSkin.collectAsStateWithLifecycle()
@@ -435,6 +440,9 @@ fun WallWarNavGraph(
 
             SkinShopScreen(
                 userProfile = userProfile,
+                allWallSkins = viewModel.allWallSkins,
+                unlockedWallSkinIds = unlockedWallSkinIds,
+                equippedWallSkinId = equippedWallSkinId,
                 allBallSkins = viewModel.allBallSkins,
                 unlockedBallSkinIds = unlockedBallSkinIds,
                 equippedBallSkinId = equippedBallSkinId,
@@ -443,6 +451,7 @@ fun WallWarNavGraph(
                 allProfileSkins = viewModel.allProfileSkins,
                 unlockedAvatarSkinIds = unlockedAvatarSkinIds,
                 selectedTab = selectedTab,
+                previewWallSkin = previewWallSkin,
                 previewBallSkin = previewBallSkin,
                 previewEmoji = previewEmoji,
                 previewProfileSkin = previewProfileSkin,
@@ -450,6 +459,10 @@ fun WallWarNavGraph(
                 insufficientCoinsInfo = insufficientCoinsInfo,
                 onDismissInsufficientCoinsDialog = viewModel::dismissInsufficientCoinsDialog,
                 onSelectTab = viewModel::selectTab,
+                onPreviewWallSkin = viewModel::previewWall,
+                onClearWallPreview = viewModel::clearWallPreview,
+                onBuyWallSkin = viewModel::buyWall,
+                onEquipWallSkin = viewModel::equipWall,
                 onPreviewBallSkin = viewModel::previewBall,
                 onClearBallPreview = viewModel::clearBallPreview,
                 onBuyBallSkin = viewModel::buyBall,

@@ -12,6 +12,8 @@ import com.wallwar.data.EmojiSkinCatalog
 import com.wallwar.data.ProfileSkin
 import com.wallwar.data.ProfileSkinCatalog
 import com.wallwar.data.UserProfile
+import com.wallwar.data.WallSkin
+import com.wallwar.data.WallSkinCatalog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,19 +31,25 @@ class SkinShopViewModel @Inject constructor(
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
     val unlockedBallSkinIds: StateFlow<Set<String>> = authRepository.unlockedBallSkinIds
     val equippedBallSkinId: StateFlow<String> = authRepository.equippedBallSkinId
+    val unlockedWallSkinIds: StateFlow<Set<String>> = authRepository.unlockedWallSkinIds
+    val equippedWallSkinId: StateFlow<String> = authRepository.equippedWallSkinId
     val unlockedEmojiIds: StateFlow<Set<String>> = authRepository.unlockedEmojiIds
     val unlockedAvatarSkinIds: StateFlow<Set<String>> = authRepository.unlockedAvatarSkinIds
 
     val allBallSkins: List<BallSkin> = BallSkinCatalog.ALL_BALL_SKINS
+    val allWallSkins: List<WallSkin> = WallSkinCatalog.ALL_WALL_SKINS
     val allEmojis: List<EmojiSkin> = EmojiSkinCatalog.ALL_EMOJIS
     val allProfileSkins: List<ProfileSkin> = ProfileSkinCatalog.ALL_SKINS
 
     private val initialTab = savedStateHandle.get<Int>("initialTab") ?: 0
-    private val _selectedTab = MutableStateFlow(initialTab.coerceIn(0, 2))
+    private val _selectedTab = MutableStateFlow(initialTab.coerceIn(0, 3))
     val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
     private val _previewBallSkin = MutableStateFlow<BallSkin?>(null)
     val previewBallSkin: StateFlow<BallSkin?> = _previewBallSkin.asStateFlow()
+
+    private val _previewWallSkin = MutableStateFlow<WallSkin?>(null)
+    val previewWallSkin: StateFlow<WallSkin?> = _previewWallSkin.asStateFlow()
 
     private val _previewEmoji = MutableStateFlow<EmojiSkin?>(null)
     val previewEmoji: StateFlow<EmojiSkin?> = _previewEmoji.asStateFlow()
@@ -67,7 +75,7 @@ class SkinShopViewModel @Inject constructor(
 
     fun selectTab(index: Int) {
         soundManager.playButtonClick()
-        _selectedTab.value = index.coerceIn(0, 2)
+        _selectedTab.value = index.coerceIn(0, 3)
     }
 
     fun previewBall(skin: BallSkin) {
@@ -77,6 +85,60 @@ class SkinShopViewModel @Inject constructor(
 
     fun clearBallPreview() {
         _previewBallSkin.value = null
+    }
+
+    fun previewWall(skin: WallSkin) {
+        soundManager.playButtonClick()
+        _previewWallSkin.value = skin
+    }
+
+    fun clearWallPreview() {
+        _previewWallSkin.value = null
+    }
+
+    fun buyWall(skin: WallSkin) {
+        if (skin.isFree || unlockedWallSkinIds.value.contains(skin.id)) {
+            equipWall(skin)
+            return
+        }
+
+        val currentLevel = userProfile.value.level
+        if (currentLevel < skin.requiredLevel) {
+            soundManager.playErrorSound()
+            _statusMessage.value = "🔒 Level ${skin.requiredLevel} Required! (You are Level $currentLevel)"
+            return
+        }
+
+        val currentCoins = userProfile.value.coins
+        if (currentCoins < skin.priceCoins) {
+            soundManager.playErrorSound()
+            _insufficientCoinsInfo.value = InsufficientCoinsInfo(
+                itemName = skin.name,
+                price = skin.priceCoins,
+                shortage = skin.priceCoins - currentCoins
+            )
+            return
+        }
+
+        val success = authRepository.unlockWallSkin(skin.id, skin.priceCoins)
+        if (success) {
+            authRepository.equipWallSkin(skin.id)
+            soundManager.playRewardSound()
+            _statusMessage.value = "Unlocked & Equipped '${skin.name}'! 🧱"
+        } else {
+            soundManager.playErrorSound()
+            _insufficientCoinsInfo.value = InsufficientCoinsInfo(
+                itemName = skin.name,
+                price = skin.priceCoins,
+                shortage = (skin.priceCoins - userProfile.value.coins).coerceAtLeast(0)
+            )
+        }
+    }
+
+    fun equipWall(skin: WallSkin) {
+        authRepository.equipWallSkin(skin.id)
+        soundManager.playButtonClick()
+        _statusMessage.value = "Equipped '${skin.name}' wall skin! 🧱"
     }
 
     fun buyBall(skin: BallSkin) {

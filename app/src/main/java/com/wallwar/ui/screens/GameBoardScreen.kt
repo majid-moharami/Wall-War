@@ -117,6 +117,8 @@ fun GameBoardScreen(
     matchResultDelta: com.wallwar.data.MatchResultDelta? = null,
     equippedBallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
     opponentBallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID,
+    equippedWallSkinId: String = com.wallwar.data.WallSkinCatalog.DEFAULT_EQUIPPED_WALL_ID,
+    opponentWallSkinId: String = com.wallwar.data.WallSkinCatalog.DEFAULT_OPPONENT_WALL_ID,
     playerEmote: EmojiSkin? = null,
     opponentEmote: EmojiSkin? = null,
     allEmojis: List<EmojiSkin> = emptyList(),
@@ -150,6 +152,16 @@ fun GameBoardScreen(
         com.wallwar.data.BallSkinCatalog.resolveMatchBallSkins(
             p0SkinId = initialP0Skin,
             p1SkinId = initialP1Skin,
+            userPlayerIndex = myPlayerIndex
+        )
+    }
+
+    val initialP0WallSkin = if (myPlayerIndex == 0) equippedWallSkinId else opponentWallSkinId
+    val initialP1WallSkin = if (myPlayerIndex == 1) equippedWallSkinId else opponentWallSkinId
+    val (resolvedP0WallSkinId, resolvedP1WallSkinId) = remember(equippedWallSkinId, opponentWallSkinId, myPlayerIndex) {
+        com.wallwar.data.WallSkinCatalog.resolveMatchWallSkins(
+            p0SkinId = initialP0WallSkin,
+            p1SkinId = initialP1WallSkin,
             userPlayerIndex = myPlayerIndex
         )
     }
@@ -502,7 +514,9 @@ fun GameBoardScreen(
                 externalDragWall = activeDragWall,
                 externalIsValidDrag = isValidDrag,
                 player0BallSkinId = resolvedP0BallSkinId,
-                player1BallSkinId = resolvedP1BallSkinId
+                player1BallSkinId = resolvedP1BallSkinId,
+                player0WallSkinId = resolvedP0WallSkinId,
+                player1WallSkinId = resolvedP1WallSkinId
             )
         }
 
@@ -1353,45 +1367,39 @@ fun WallItemButton(
             }
 
             if (isHorizontal) {
-                val barW = 26.dp.toPx()
-                val barH = 8.dp.toPx()
+                val barW = 28.dp.toPx()
+                val barH = 9.dp.toPx()
                 val left = centerX - (barW / 2f)
                 val top = centerY - (barH / 2f)
-                val barRadius = barH / 2f
 
-                drawRoundRect(
+                drawRect(
                     color = wallColor,
                     topLeft = Offset(left, top),
-                    size = Size(barW, barH),
-                    cornerRadius = CornerRadius(barRadius, barRadius)
+                    size = Size(barW, barH)
                 )
                 if (isEnabled) {
-                    drawRoundRect(
+                    drawRect(
                         color = Color.White.copy(alpha = if (isSelected) 0.45f else 0.25f),
                         topLeft = Offset(left + 2f, top + 1.5f),
-                        size = Size(barW - 4f, 1.5f),
-                        cornerRadius = CornerRadius(0.75f, 0.75f)
+                        size = Size(barW - 4f, 1.5f)
                     )
                 }
             } else {
-                val barW = 8.dp.toPx()
-                val barH = 26.dp.toPx()
+                val barW = 9.dp.toPx()
+                val barH = 28.dp.toPx()
                 val left = centerX - (barW / 2f)
                 val top = centerY - (barH / 2f)
-                val barRadius = barW / 2f
 
-                drawRoundRect(
+                drawRect(
                     color = wallColor,
                     topLeft = Offset(left, top),
-                    size = Size(barW, barH),
-                    cornerRadius = CornerRadius(barRadius, barRadius)
+                    size = Size(barW, barH)
                 )
                 if (isEnabled) {
-                    drawRoundRect(
+                    drawRect(
                         color = Color.White.copy(alpha = if (isSelected) 0.45f else 0.25f),
                         topLeft = Offset(left + 1.5f, top + 2f),
-                        size = Size(1.5f, barH - 4f),
-                        cornerRadius = CornerRadius(0.75f, 0.75f)
+                        size = Size(1.5f, barH - 4f)
                     )
                 }
             }

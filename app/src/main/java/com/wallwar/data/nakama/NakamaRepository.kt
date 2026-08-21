@@ -769,6 +769,55 @@ class NakamaRepository @Inject constructor(
         return@withContext null
     }
 
+    suspend fun syncWallSkinsToNakama(unlockedWallIds: Set<String>, selectedWallId: String?) = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext
+        try {
+            val json = JSONObject().apply {
+                val array = JSONArray()
+                unlockedWallIds.forEach { array.put(it) }
+                put("unlocked_walls", array)
+                if (selectedWallId != null) {
+                    put("selected_wall_id", selectedWallId)
+                }
+                put("updated_at", System.currentTimeMillis())
+            }
+            val writeObj = StorageObjectWrite("user_data", "wall_skins", json.toString(), PermissionRead.OWNER_READ, PermissionWrite.OWNER_WRITE)
+            client.writeStorageObjects(s, writeObj).await()
+            Log.d("NakamaRepository", "Successfully synced ${unlockedWallIds.size} wall skins to server (selected: $selectedWallId)")
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error syncing wall skins to Nakama: ${e.message}")
+        }
+    }
+
+    suspend fun fetchWallSkinsFromNakama(): Pair<Set<String>, String?>? = withContext(Dispatchers.IO) {
+        val s = session ?: return@withContext null
+        try {
+            val effectiveUserId = nakamaUserId ?: s.userId
+            val objectId = StorageObjectId("user_data")
+            objectId.setKey("wall_skins")
+            if (!effectiveUserId.isNullOrBlank()) {
+                objectId.setUserId(effectiveUserId)
+            }
+            val result = client.readStorageObjects(s, objectId).await()
+            if (result.objectsCount > 0) {
+                val obj = JSONObject(result.getObjects(0).value)
+                val array = obj.optJSONArray("unlocked_walls")
+                val selected = obj.optString("selected_wall_id", "").ifBlank { null }
+                val set = mutableSetOf<String>()
+                if (array != null) {
+                    for (i in 0 until array.length()) {
+                        set.add(array.getString(i))
+                    }
+                }
+                Log.d("NakamaRepository", "Successfully fetched ${set.size} wall skins from server (selected: $selected)")
+                return@withContext Pair(set, selected)
+            }
+        } catch (e: Exception) {
+            Log.w("NakamaRepository", "Error reading wall skins from Nakama: ${e.message}")
+        }
+        return@withContext null
+    }
+
     suspend fun syncDailySpinnerToNakama(lastSpinDate: String, totalSpins: Int, lastWonItem: String) = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext
         try {

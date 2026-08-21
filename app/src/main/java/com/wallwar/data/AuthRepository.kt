@@ -83,6 +83,12 @@ class AuthRepository @Inject constructor(
     private val _equippedBallSkinId = MutableStateFlow(loadEquippedBallSkin())
     val equippedBallSkinId: StateFlow<String> = _equippedBallSkinId.asStateFlow()
 
+    private val _unlockedWallSkinIds = MutableStateFlow(loadUnlockedWallSkins())
+    val unlockedWallSkinIds: StateFlow<Set<String>> = _unlockedWallSkinIds.asStateFlow()
+
+    private val _equippedWallSkinId = MutableStateFlow(loadEquippedWallSkin())
+    val equippedWallSkinId: StateFlow<String> = _equippedWallSkinId.asStateFlow()
+
     private val _abandonedMatchNotice = MutableStateFlow<String?>(null)
     val abandonedMatchNotice: StateFlow<String?> = _abandonedMatchNotice.asStateFlow()
 
@@ -322,6 +328,52 @@ class AuthRepository @Inject constructor(
             .apply()
     }
 
+    private fun getWallSkinPrefsKey(email: String?, userId: String?): String {
+        val sanitizedEmail = email?.takeIf { it.isNotBlank() && it != "guest@wallwar.app" }?.replace("@", "_")?.replace(".", "_")
+        val sanitizedUser = userId?.takeIf { it.isNotBlank() }
+        val id = sanitizedEmail ?: sanitizedUser ?: "guest"
+        return "unlocked_wall_skins_set_$id"
+    }
+
+    private fun getEquippedWallPrefsKey(email: String?, userId: String?): String {
+        val sanitizedEmail = email?.takeIf { it.isNotBlank() && it != "guest@wallwar.app" }?.replace("@", "_")?.replace(".", "_")
+        val sanitizedUser = userId?.takeIf { it.isNotBlank() }
+        val id = sanitizedEmail ?: sanitizedUser ?: "guest"
+        return "equipped_wall_skin_id_$id"
+    }
+
+    private fun loadUnlockedWallSkins(email: String? = null, userId: String? = null): Set<String> {
+        val key = getWallSkinPrefsKey(email, userId)
+        val stored = prefs.getStringSet(key, null) ?: prefs.getStringSet("unlocked_wall_skins_set", null)
+        val defaultSet = com.wallwar.data.WallSkinCatalog.DEFAULT_UNLOCKED_WALL_IDS
+        return if (stored.isNullOrEmpty()) {
+            defaultSet
+        } else {
+            stored.toSet() + defaultSet
+        }
+    }
+
+    private fun saveUnlockedWallSkins(skins: Set<String>, email: String? = null, userId: String? = null) {
+        val key = getWallSkinPrefsKey(email, userId)
+        prefs.edit()
+            .putStringSet(key, skins)
+            .putStringSet("unlocked_wall_skins_set", skins)
+            .apply()
+    }
+
+    private fun loadEquippedWallSkin(email: String? = null, userId: String? = null): String {
+        val key = getEquippedWallPrefsKey(email, userId)
+        return prefs.getString(key, null) ?: prefs.getString("equipped_wall_skin_id", com.wallwar.data.WallSkinCatalog.DEFAULT_EQUIPPED_WALL_ID) ?: com.wallwar.data.WallSkinCatalog.DEFAULT_EQUIPPED_WALL_ID
+    }
+
+    private fun saveEquippedWallSkin(skinId: String, email: String? = null, userId: String? = null) {
+        val key = getEquippedWallPrefsKey(email, userId)
+        prefs.edit()
+            .putString(key, skinId)
+            .putString("equipped_wall_skin_id", skinId)
+            .apply()
+    }
+
     suspend fun syncFromNakamaServer() {
         val stats = nakamaRepository.fetchUserProfileFromNakama()
         if (stats != null) {
@@ -439,6 +491,68 @@ class AuthRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.w("AuthRepository", "Could not restore server ball skins: ${e.message}")
+        }
+
+        // Sync unlocked wall skins from Nakama server for this specific account
+        try {
+            val currentProfile = _userProfile.value
+            val wallResult = nakamaRepository.fetchWallSkinsFromNakama()
+            val defaultWallSet = com.wallwar.data.WallSkinCatalog.DEFAULT_UNLOCKED_WALL_IDS
+            if (wallResult != null) {
+                val (serverWalls, selectedWall) = wallResult
+                val accountWalls = (serverWalls + defaultWallSet).toSet()
+                _unlockedWallSkinIds.value = accountWalls
+                saveUnlockedWallSkins(accountWalls, currentProfile.email, currentProfile.nakamaUserId)
+
+                if (!selectedWall.isNullOrBlank()) {
+                    _equippedWallSkinId.value = selectedWall
+                    saveEquippedWallSkin(selectedWall, currentProfile.email, currentProfile.nakamaUserId)
+                }
+                Log.d("AuthRepository", "Restored ${accountWalls.size} wall skins from server for ${currentProfile.displayName} (selected: $selectedWall)")
+            } else {
+                val localWalls = loadUnlockedWallSkins(currentProfile.email, currentProfile.nakamaUserId)
+                _unlockedWallSkinIds.value = localWalls
+                val equipped = loadEquippedWallSkin(currentProfile.email, currentProfile.nakamaUserId)
+                _equippedWallSkinId.value = equipped
+                nakamaRepository.syncWallSkinsToNakama(localWalls, equipped)
+                Log.d("AuthRepository", "Initialized server wall skins for ${currentProfile.displayName}: $localWalls")
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Could not restore server wall skins: ${e.message}")
+        }
+    }
+
+    fun unlockWallSkin(skinId: String, priceCoins: Int): Boolean {
+        val currentSet = _unlockedWallSkinIds.value
+        if (currentSet.contains(skinId)) {
+            return true
+        }
+
+        val profile = _userProfile.value
+        if (profile.coins < priceCoins) {
+            return false
+        }
+
+        val successDeduct = deductCoins(priceCoins)
+        if (!successDeduct) return false
+
+        val newSet = currentSet + skinId
+        _unlockedWallSkinIds.value = newSet
+        saveUnlockedWallSkins(newSet, profile.email, profile.nakamaUserId)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncWallSkinsToNakama(newSet, _equippedWallSkinId.value)
+        }
+        return true
+    }
+
+    fun equipWallSkin(skinId: String) {
+        val profile = _userProfile.value
+        _equippedWallSkinId.value = skinId
+        saveEquippedWallSkin(skinId, profile.email, profile.nakamaUserId)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncWallSkinsToNakama(_unlockedWallSkinIds.value, skinId)
         }
     }
 

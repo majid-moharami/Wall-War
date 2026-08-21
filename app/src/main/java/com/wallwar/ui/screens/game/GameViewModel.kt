@@ -143,6 +143,9 @@ class GameViewModel @Inject constructor(
     // Equipped Ball Skin for Custom Pawn Rendering
     val equippedBallSkinId: StateFlow<String> = authRepository.equippedBallSkinId
 
+    // Equipped Wall Skin for Custom Wall Rendering
+    val equippedWallSkinId: StateFlow<String> = authRepository.equippedWallSkinId
+
     private val _playerEmote = MutableStateFlow<com.wallwar.data.EmojiSkin?>(null)
     val playerEmote: StateFlow<com.wallwar.data.EmojiSkin?> = _playerEmote.asStateFlow()
 

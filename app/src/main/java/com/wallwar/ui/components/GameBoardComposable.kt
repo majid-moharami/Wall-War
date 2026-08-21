@@ -73,6 +73,8 @@ fun GameBoardComposable(
     externalIsValidDrag: Boolean = false,
     player0BallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
     player1BallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID,
+    player0WallSkinId: String = com.wallwar.data.WallSkinCatalog.DEFAULT_EQUIPPED_WALL_ID,
+    player1WallSkinId: String = com.wallwar.data.WallSkinCatalog.DEFAULT_OPPONENT_WALL_ID,
     modifier: Modifier = Modifier
 ) {
     val cols = gameState.cols
@@ -131,6 +133,12 @@ fun GameBoardComposable(
     val blueBallBitmap = ImageBitmap.imageResource(id = p0DrawableId)
     val redBallBitmap = ImageBitmap.imageResource(id = p1DrawableId)
 
+    // Load custom wall drawables from catalog
+    val p0WallDrawableId = com.wallwar.data.WallSkinCatalog.getWallDrawableRes(player0WallSkinId, R.drawable.ic_blue_wall)
+    val p1WallDrawableId = com.wallwar.data.WallSkinCatalog.getWallDrawableRes(player1WallSkinId, R.drawable.ic_red_wall)
+    val p0WallBitmap = ImageBitmap.imageResource(id = p0WallDrawableId)
+    val p1WallBitmap = ImageBitmap.imageResource(id = p1WallDrawableId)
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -142,8 +150,8 @@ fun GameBoardComposable(
         val width = constraints.maxWidth.toFloat()
         val height = constraints.maxHeight.toFloat()
 
-        // Cell dimensions accounting for wall spacing
-        val gapRatio = 0.18f
+        // Cell dimensions accounting for wall spacing with generous corridor room for walls
+        val gapRatio = 0.22f
         val cellW = width / (cols + (cols - 1) * gapRatio)
         val cellH = height / (rows + (rows - 1) * gapRatio)
         val gapW = cellW * gapRatio
@@ -804,9 +812,7 @@ fun GameBoardComposable(
                 }
             }
 
-            // 8. Draw Placed Walls
-            val wallShadow = Color.Black.copy(alpha = 0.5f)
-
+            // 8. Draw Placed Walls (Clean skin image view)
             for (wall in gameState.walls) {
                 val drawR = if (shouldFlip) (rows - 2 - wall.r) else wall.r
                 val drawC = if (shouldFlip) (cols - 2 - wall.c) else wall.c
@@ -815,175 +821,123 @@ fun GameBoardComposable(
                 val animProgress = wallAnimMap[wallKey]?.value ?: 1f
                 val scale = 0.15f + 0.85f * animProgress
 
-                val wallGradients = if (wall.playerOwner == 0) {
-                    listOf(Color(0xFF2563EB), Color(0xFF3B82F6), Color(0xFF60A5FA), Color(0xFF2563EB))
-                } else {
-                    listOf(Color(0xFFDC2626), Color(0xFFEF4444), Color(0xFFFCA5A5), Color(0xFFDC2626))
-                }
+                val wallBitmap = if (wall.playerOwner == 0) p0WallBitmap else p1WallBitmap
 
                 if (wall.isHorizontal) {
+                    val wallThickness = gapH * 1.8f
                     val x = drawC * stepX
-                    val y = drawR * stepY + cellH + (gapH * 0.05f)
+                    val y = drawR * stepY + cellH + (gapH - wallThickness) / 2f
                     val wallWidth = cellW * 2 + gapW
-                    val wallHeight = gapH * 0.9f
+                    val wallHeight = wallThickness
                     val centerX = x + wallWidth / 2f
                     val centerY = y + wallHeight / 2f
-
-                    if (animProgress < 0.99f) {
-                        val wallGlowColor = if (wall.playerOwner == 0) Color(0xFF60A5FA) else Color(0xFFFCA5A5)
-                        val auraAlpha = (1f - animProgress).coerceIn(0f, 0.85f)
-                        val auraSpread = (1f - animProgress) * 16f
-                        drawRoundRect(
-                            color = wallGlowColor.copy(alpha = auraAlpha * 0.7f),
-                            topLeft = Offset(x - auraSpread, y - auraSpread),
-                            size = Size(wallWidth + auraSpread * 2f, wallHeight + auraSpread * 2f),
-                            cornerRadius = CornerRadius(14f, 14f)
-                        )
-                    }
 
                     withTransform({
                         scale(scaleX = scale, scaleY = scale, pivot = Offset(centerX, centerY))
                     }) {
-                        drawRoundRect(
-                            color = wallShadow,
-                            topLeft = Offset(x, y + 3f),
-                            size = Size(wallWidth, wallHeight),
-                            cornerRadius = CornerRadius(10f, 10f)
-                        )
-
-                        drawRoundRect(
-                            brush = Brush.horizontalGradient(colors = wallGradients),
-                            topLeft = Offset(x, y),
-                            size = Size(wallWidth, wallHeight),
-                            cornerRadius = CornerRadius(10f, 10f)
-                        )
-
-                        drawRoundRect(
-                            color = Color.White.copy(alpha = 0.4f),
-                            topLeft = Offset(x + 4f, y + 2f),
-                            size = Size(wallWidth - 8f, wallHeight * 0.3f),
-                            cornerRadius = CornerRadius(5f, 5f)
+                        drawImage(
+                            image = wallBitmap,
+                            srcOffset = IntOffset.Zero,
+                            srcSize = IntSize(wallBitmap.width, wallBitmap.height),
+                            dstOffset = IntOffset(x.roundToInt(), y.roundToInt()),
+                            dstSize = IntSize(wallWidth.roundToInt(), wallHeight.roundToInt())
                         )
                     }
                 } else {
-                    val x = drawC * stepX + cellW + (gapW * 0.05f)
+                    val wallThickness = gapW * 1.8f
+                    val x = drawC * stepX + cellW + (gapW - wallThickness) / 2f
                     val y = drawR * stepY
-                    val wallWidth = gapW * 0.9f
+                    val wallWidth = wallThickness
                     val wallHeight = cellH * 2 + gapH
                     val centerX = x + wallWidth / 2f
                     val centerY = y + wallHeight / 2f
 
-                    if (animProgress < 0.99f) {
-                        val wallGlowColor = if (wall.playerOwner == 0) Color(0xFF60A5FA) else Color(0xFFFCA5A5)
-                        val auraAlpha = (1f - animProgress).coerceIn(0f, 0.85f)
-                        val auraSpread = (1f - animProgress) * 16f
-                        drawRoundRect(
-                            color = wallGlowColor.copy(alpha = auraAlpha * 0.7f),
-                            topLeft = Offset(x - auraSpread, y - auraSpread),
-                            size = Size(wallWidth + auraSpread * 2f, wallHeight + auraSpread * 2f),
-                            cornerRadius = CornerRadius(14f, 14f)
-                        )
-                    }
-
                     withTransform({
                         scale(scaleX = scale, scaleY = scale, pivot = Offset(centerX, centerY))
+                        rotate(90f, pivot = Offset(centerX, centerY))
                     }) {
-                        drawRoundRect(
-                            color = wallShadow,
-                            topLeft = Offset(x + 3f, y),
-                            size = Size(wallWidth, wallHeight),
-                            cornerRadius = CornerRadius(10f, 10f)
-                        )
+                        val hWidth = wallHeight
+                        val hHeight = wallWidth
+                        val hX = centerX - hWidth / 2f
+                        val hY = centerY - hHeight / 2f
 
-                        drawRoundRect(
-                            brush = Brush.verticalGradient(colors = wallGradients),
-                            topLeft = Offset(x, y),
-                            size = Size(wallWidth, wallHeight),
-                            cornerRadius = CornerRadius(10f, 10f)
-                        )
-
-                        drawRoundRect(
-                            color = Color.White.copy(alpha = 0.4f),
-                            topLeft = Offset(x + 2f, y + 4f),
-                            size = Size(wallWidth * 0.3f, wallHeight - 8f),
-                            cornerRadius = CornerRadius(5f, 5f)
+                        drawImage(
+                            image = wallBitmap,
+                            srcOffset = IntOffset.Zero,
+                            srcSize = IntSize(wallBitmap.width, wallBitmap.height),
+                            dstOffset = IntOffset(hX.roundToInt(), hY.roundToInt()),
+                            dstSize = IntSize(hWidth.roundToInt(), hHeight.roundToInt())
                         )
                     }
                 }
             }
 
-            // 9. Live Drag Hover Preview Wall
+            // 9. Live Drag Hover Preview Wall (Clean skin preview)
             val hover = effectiveHoverWall
             if (hover != null) {
                 val drawR = if (shouldFlip) (rows - 2 - hover.r) else hover.r
                 val drawC = if (shouldFlip) (cols - 2 - hover.c) else hover.c
 
                 val isP1 = hover.playerOwner == 0
-                val previewFill = if (effectiveIsValidHover) {
-                    if (isP1) Color(0xFF3B82F6) else Color(0xFFEF4444)
-                } else {
-                    Color(0xFFDC2626)
-                }
-                val previewBorder = if (effectiveIsValidHover) {
-                    if (isP1) Color(0xFF60A5FA) else Color(0xFFFCA5A5)
-                } else {
-                    Color(0xFFF87171)
-                }
+                val hoverBitmap = if (isP1) p0WallBitmap else p1WallBitmap
 
                 if (hover.isHorizontal) {
+                    val wallThickness = gapH * 1.8f
                     val x = drawC * stepX
-                    val y = drawR * stepY + cellH + (gapH * 0.05f)
+                    val y = drawR * stepY + cellH + (gapH - wallThickness) / 2f
                     val wallWidth = cellW * 2 + gapW
-                    val wallHeight = gapH * 0.9f
+                    val wallHeight = wallThickness
 
-                    drawRoundRect(
-                        color = previewFill.copy(alpha = 0.35f),
-                        topLeft = Offset(x - 4f, y - 4f),
-                        size = Size(wallWidth + 8f, wallHeight + 8f),
-                        cornerRadius = CornerRadius(14f, 14f)
+                    drawImage(
+                        image = hoverBitmap,
+                        srcOffset = IntOffset.Zero,
+                        srcSize = IntSize(hoverBitmap.width, hoverBitmap.height),
+                        dstOffset = IntOffset(x.roundToInt(), y.roundToInt()),
+                        dstSize = IntSize(wallWidth.roundToInt(), wallHeight.roundToInt()),
+                        alpha = if (effectiveIsValidHover) 0.95f else 0.45f
                     )
 
-                    drawRoundRect(
-                        color = previewFill.copy(alpha = 0.85f),
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f)
-                    )
-
-                    drawRoundRect(
-                        color = previewBorder,
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f),
-                        style = Stroke(width = 3.5f)
-                    )
+                    if (!effectiveIsValidHover) {
+                        drawRect(
+                            color = Color(0xFFEF4444).copy(alpha = 0.5f),
+                            topLeft = Offset(x, y),
+                            size = Size(wallWidth, wallHeight)
+                        )
+                    }
                 } else {
-                    val x = drawC * stepX + cellW + (gapW * 0.05f)
+                    val wallThickness = gapW * 1.8f
+                    val x = drawC * stepX + cellW + (gapW - wallThickness) / 2f
                     val y = drawR * stepY
-                    val wallWidth = gapW * 0.9f
+                    val wallWidth = wallThickness
                     val wallHeight = cellH * 2 + gapH
+                    val centerX = x + wallWidth / 2f
+                    val centerY = y + wallHeight / 2f
 
-                    drawRoundRect(
-                        color = previewFill.copy(alpha = 0.35f),
-                        topLeft = Offset(x - 4f, y - 4f),
-                        size = Size(wallWidth + 8f, wallHeight + 8f),
-                        cornerRadius = CornerRadius(14f, 14f)
-                    )
+                    withTransform({
+                        rotate(90f, pivot = Offset(centerX, centerY))
+                    }) {
+                        val hWidth = wallHeight
+                        val hHeight = wallWidth
+                        val hX = centerX - hWidth / 2f
+                        val hY = centerY - hHeight / 2f
 
-                    drawRoundRect(
-                        color = previewFill.copy(alpha = 0.85f),
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f)
-                    )
+                        drawImage(
+                            image = hoverBitmap,
+                            srcOffset = IntOffset.Zero,
+                            srcSize = IntSize(hoverBitmap.width, hoverBitmap.height),
+                            dstOffset = IntOffset(hX.roundToInt(), hY.roundToInt()),
+                            dstSize = IntSize(hWidth.roundToInt(), hHeight.roundToInt()),
+                            alpha = if (effectiveIsValidHover) 0.95f else 0.45f
+                        )
 
-                    drawRoundRect(
-                        color = previewBorder,
-                        topLeft = Offset(x, y),
-                        size = Size(wallWidth, wallHeight),
-                        cornerRadius = CornerRadius(10f, 10f),
-                        style = Stroke(width = 3.5f)
-                    )
+                        if (!effectiveIsValidHover) {
+                            drawRect(
+                                color = Color(0xFFEF4444).copy(alpha = 0.5f),
+                                topLeft = Offset(hX, hY),
+                                size = Size(hWidth, hHeight)
+                            )
+                        }
+                    }
                 }
             }
 

@@ -85,6 +85,7 @@ import com.wallwar.data.BallSkin
 import com.wallwar.data.EmojiSkin
 import com.wallwar.data.ProfileSkin
 import com.wallwar.data.UserProfile
+import com.wallwar.data.WallSkin
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
@@ -101,6 +102,9 @@ import java.util.Locale
 @Composable
 fun SkinShopScreen(
     userProfile: UserProfile,
+    allWallSkins: List<WallSkin>,
+    unlockedWallSkinIds: Set<String>,
+    equippedWallSkinId: String,
     allBallSkins: List<BallSkin>,
     unlockedBallSkinIds: Set<String>,
     equippedBallSkinId: String,
@@ -109,6 +113,7 @@ fun SkinShopScreen(
     allProfileSkins: List<ProfileSkin>,
     unlockedAvatarSkinIds: Set<String>,
     selectedTab: Int,
+    previewWallSkin: WallSkin?,
     previewBallSkin: BallSkin?,
     previewEmoji: EmojiSkin?,
     previewProfileSkin: ProfileSkin?,
@@ -116,6 +121,10 @@ fun SkinShopScreen(
     insufficientCoinsInfo: SkinShopViewModel.InsufficientCoinsInfo? = null,
     onDismissInsufficientCoinsDialog: () -> Unit = {},
     onSelectTab: (Int) -> Unit,
+    onPreviewWallSkin: (WallSkin) -> Unit,
+    onClearWallPreview: () -> Unit,
+    onBuyWallSkin: (WallSkin) -> Unit,
+    onEquipWallSkin: (WallSkin) -> Unit,
     onPreviewBallSkin: (BallSkin) -> Unit,
     onClearBallPreview: () -> Unit,
     onBuyBallSkin: (BallSkin) -> Unit,
@@ -138,7 +147,7 @@ fun SkinShopScreen(
         }
     }
 
-    val tabs = listOf("⚽ Ball Skins", "😄 Emojis", "👤 Profile Skins")
+    val tabs = listOf("🧱 Wall Skins", "⚽ Ball Skins", "😄 Emojis", "👤 Profile Skins")
 
     // Insufficient Coins Dialog with direct link to Coin Shop
     if (insufficientCoinsInfo != null) {
@@ -197,6 +206,20 @@ fun SkinShopScreen(
                     Text("Cancel", color = Color.White)
                 }
             }
+        )
+    }
+
+    // Wall Preview Dialog
+    if (previewWallSkin != null) {
+        WallSkinDetailDialog(
+            skin = previewWallSkin,
+            isUnlocked = previewWallSkin.isFree || unlockedWallSkinIds.contains(previewWallSkin.id),
+            isEquipped = equippedWallSkinId == previewWallSkin.id,
+            userCoins = userProfile.coins,
+            userLevel = userProfile.level,
+            onBuy = { onBuyWallSkin(previewWallSkin) },
+            onEquip = { onEquipWallSkin(previewWallSkin) },
+            onDismiss = onClearWallPreview
         )
     }
 
@@ -385,6 +408,33 @@ fun SkinShopScreen(
         // 4. Content Grids based on Selected Tab
         when (selectedTab) {
             0 -> {
+                // Wall Skins Grid
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("wall_skins_grid"),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(allWallSkins, key = { it.id }) { wall ->
+                        val isUnlocked = wall.isFree || unlockedWallSkinIds.contains(wall.id)
+                        val isEquipped = equippedWallSkinId == wall.id
+
+                        WallSkinCard(
+                            skin = wall,
+                            isUnlocked = isUnlocked,
+                            isEquipped = isEquipped,
+                            userLevel = userProfile.level,
+                            onPreview = { onPreviewWallSkin(wall) },
+                            onBuy = { onBuyWallSkin(wall) },
+                            onEquip = { onEquipWallSkin(wall) }
+                        )
+                    }
+                }
+            }
+            1 -> {
                 // Ball Skins Grid
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -411,7 +461,7 @@ fun SkinShopScreen(
                     }
                 }
             }
-            1 -> {
+            2 -> {
                 // Emoji Emotes Grid
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -434,7 +484,7 @@ fun SkinShopScreen(
                     }
                 }
             }
-            2 -> {
+            3 -> {
                 // Profile Skins Grid
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -458,6 +508,235 @@ fun SkinShopScreen(
                             onEquip = { onEquipProfileSkin(profileSkin) }
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+// -------------------------------------------------------------
+// Wall Skin Card Component
+// -------------------------------------------------------------
+@Composable
+fun WallSkinCard(
+    skin: WallSkin,
+    isUnlocked: Boolean,
+    isEquipped: Boolean,
+    userLevel: Int = 1,
+    onPreview: () -> Unit,
+    onBuy: () -> Unit,
+    onEquip: () -> Unit
+) {
+    val rarityColor = getRarityColor(skin.rarity)
+    val numberFormatter = NumberFormat.getNumberInstance(Locale.US)
+    val isLevelLocked = !isUnlocked && userLevel < skin.requiredLevel
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onPreview() }
+            .testTag("wall_card_${skin.id}"),
+        colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+        border = BorderStroke(
+            1.5.dp,
+            if (isEquipped) NeonCyan else if (isUnlocked) rarityColor.copy(alpha = 0.5f) else NeonBorder
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top Row: Rarity Tag & Level / Equipped Check
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(rarityColor.copy(alpha = 0.2f))
+                        .border(1.dp, rarityColor.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = skin.rarity.uppercase(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = rarityColor
+                    )
+                }
+
+                if (isEquipped) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(NeonCyan.copy(alpha = 0.2f))
+                            .border(1.dp, NeonCyan, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "EQUIPPED",
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeonCyan
+                        )
+                    }
+                } else if (isUnlocked) {
+                    Text(
+                        text = "OWNED",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeonEmerald
+                    )
+                } else if (isLevelLocked) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF3B1528))
+                            .border(1.dp, NeonMagenta.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "🔒 Lv.${skin.requiredLevel}",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeonMagenta
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Lv.${skin.requiredLevel}",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeonCyan
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Wall Visual Banner Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF0F1424))
+                    .border(1.dp, if (isLevelLocked) Color.Gray.copy(alpha = 0.3f) else rarityColor.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = skin.drawableResId),
+                    contentDescription = skin.name,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                        .alpha(if (isLevelLocked) 0.65f else 1f),
+                    contentScale = ContentScale.FillBounds
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Wall Name
+            Text(
+                text = skin.name,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center
+            )
+
+            // Tag or Short Description
+            Text(
+                text = skin.tag,
+                fontSize = 10.sp,
+                color = Color(0xFFA0ACCC),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Action Button
+            if (isEquipped) {
+                Button(
+                    onClick = {},
+                    enabled = false,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        disabledContainerColor = NeonCyan.copy(alpha = 0.25f),
+                        disabledContentColor = NeonCyan
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("ACTIVE", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            } else if (isUnlocked) {
+                Button(
+                    onClick = onEquip,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonDarkSurface,
+                        contentColor = NeonCyan
+                    ),
+                    border = BorderStroke(1.dp, NeonCyan),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
+                        .testTag("equip_wall_${skin.id}")
+                ) {
+                    Text("EQUIP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            } else if (isLevelLocked) {
+                Button(
+                    onClick = onBuy,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF261828),
+                        contentColor = NeonMagenta
+                    ),
+                    border = BorderStroke(1.dp, NeonMagenta.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
+                        .testTag("buy_wall_${skin.id}")
+                ) {
+                    Text(
+                        text = "🔒 Lv.${skin.requiredLevel} · 🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            } else {
+                Button(
+                    onClick = onBuy,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = NeonAmber,
+                        contentColor = Color.Black
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
+                        .testTag("buy_wall_${skin.id}")
+                ) {
+                    Text(
+                        text = "🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black
+                    )
                 }
             }
         }
@@ -1390,6 +1669,178 @@ fun ProfileSkinDetailDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Equip Profile Suit", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Button(
+                    onClick = {
+                        onBuy()
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Unlock for 🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+        },
+        dismissButton = {
+            OutlinedButton(
+                onClick = onDismiss,
+                border = BorderStroke(1.dp, NeonBorder),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Close", color = Color.White)
+            }
+        }
+    )
+}
+
+@Composable
+fun WallSkinDetailDialog(
+    skin: WallSkin,
+    isUnlocked: Boolean,
+    isEquipped: Boolean,
+    userCoins: Int,
+    userLevel: Int = 1,
+    onBuy: () -> Unit,
+    onEquip: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val rarityColor = getRarityColor(skin.rarity)
+    val numberFormatter = NumberFormat.getNumberInstance(Locale.US)
+    val isLevelLocked = !isUnlocked && userLevel < skin.requiredLevel
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = NeonDarkCard,
+        shape = RoundedCornerShape(20.dp),
+        title = null,
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Wall Preview Box
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(84.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF0F1424))
+                        .border(2.dp, rarityColor, RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = skin.drawableResId),
+                        contentDescription = skin.name,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 14.dp),
+                        contentScale = ContentScale.FillBounds
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = skin.name,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 19.sp,
+                    color = Color.White
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(rarityColor.copy(alpha = 0.2f))
+                            .border(1.dp, rarityColor.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = skin.rarity.uppercase(),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = rarityColor
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(1.dp, NeonBorder, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = skin.tag,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFA0ACCC)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = skin.description,
+                    fontSize = 13.sp,
+                    color = Color(0xFFA0ACCC),
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+
+                if (isLevelLocked) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "🔒 Requires Level ${skin.requiredLevel} (Your Level: $userLevel)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeonMagenta,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            if (isEquipped) {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Currently Equipped", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            } else if (isUnlocked) {
+                Button(
+                    onClick = {
+                        onEquip()
+                        onDismiss()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Equip Wall Skin", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            } else if (isLevelLocked) {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF261828)),
+                    border = BorderStroke(1.dp, NeonMagenta),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("🔒 Level ${skin.requiredLevel} Required", color = NeonMagenta, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
