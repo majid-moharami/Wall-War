@@ -154,7 +154,7 @@ fun WallWarNavGraph(
                         AppScreen.COIN_SHOP -> navController.navigate(CoinShopRoute)
                         AppScreen.DAILY_REWARDS -> navController.navigate(DailyRewardsRoute)
                         AppScreen.DAILY_QUESTS -> navController.navigate(DailyQuestsRoute)
-                        AppScreen.EMOJI_SHOP -> navController.navigate(SkinShopRoute(initialTab = 1))
+                        AppScreen.EMOJI_SHOP -> navController.navigate(SkinShopRoute(initialTab = 2))
                         AppScreen.SKIN_SHOP -> navController.navigate(SkinShopRoute(initialTab = 0))
                         AppScreen.PROFILE -> navController.navigate(ProfileRoute)
                         AppScreen.HOME -> navController.navigate(HomeRoute) {
@@ -186,18 +186,11 @@ fun WallWarNavGraph(
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val signInStatus by viewModel.signInStatus.collectAsStateWithLifecycle()
             val friends by viewModel.friends.collectAsStateWithLifecycle()
-            val unlockedAvatarSkinIds by viewModel.unlockedAvatarSkinIds.collectAsStateWithLifecycle()
 
             ProfileScreen(
                 userProfile = userProfile,
                 signInStatus = signInStatus,
                 friends = friends,
-                unlockedAvatarSkinIds = unlockedAvatarSkinIds,
-                allProfileSkins = viewModel.allProfileSkins,
-                savedGooglePhotoUrl = viewModel.savedGooglePhotoUrl,
-                onUnlockSkin = viewModel::unlockAvatarSkin,
-                onEquipSkin = viewModel::equipAvatarSkin,
-                onEquipGoogleAvatar = viewModel::equipGoogleAvatar,
                 onSignInWithGoogle = viewModel::signInWithGoogle,
                 onClearSignInStatus = viewModel::clearSignInStatus,
                 onSignOut = viewModel::signOut,
@@ -271,7 +264,7 @@ fun WallWarNavGraph(
                 unlockedEmojiIds = unlockedEmojiIds,
                 onSendEmote = viewModel::sendEmote,
                 onNavigateToEmojiShop = {
-                    navController.navigate(SkinShopRoute(initialTab = 1))
+                    navController.navigate(SkinShopRoute(initialTab = 2))
                 },
                 onRetryOnlineConnection = viewModel::startOnlineMatchmaking,
                 onCancelOnlineMatchmaking = viewModel::cancelOnlineMatchmaking,
@@ -429,12 +422,10 @@ fun WallWarNavGraph(
             val unlockedBallSkinIds by viewModel.unlockedBallSkinIds.collectAsStateWithLifecycle()
             val equippedBallSkinId by viewModel.equippedBallSkinId.collectAsStateWithLifecycle()
             val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
-            val unlockedAvatarSkinIds by viewModel.unlockedAvatarSkinIds.collectAsStateWithLifecycle()
             val selectedTab by viewModel.selectedTab.collectAsStateWithLifecycle()
             val previewWallSkin by viewModel.previewWallSkin.collectAsStateWithLifecycle()
             val previewBallSkin by viewModel.previewBallSkin.collectAsStateWithLifecycle()
             val previewEmoji by viewModel.previewEmoji.collectAsStateWithLifecycle()
-            val previewProfileSkin by viewModel.previewProfileSkin.collectAsStateWithLifecycle()
             val statusMessage by viewModel.statusMessage.collectAsStateWithLifecycle()
             val insufficientCoinsInfo by viewModel.insufficientCoinsInfo.collectAsStateWithLifecycle()
 
@@ -448,13 +439,10 @@ fun WallWarNavGraph(
                 equippedBallSkinId = equippedBallSkinId,
                 allEmojis = viewModel.allEmojis,
                 unlockedEmojiIds = unlockedEmojiIds,
-                allProfileSkins = viewModel.allProfileSkins,
-                unlockedAvatarSkinIds = unlockedAvatarSkinIds,
                 selectedTab = selectedTab,
                 previewWallSkin = previewWallSkin,
                 previewBallSkin = previewBallSkin,
                 previewEmoji = previewEmoji,
-                previewProfileSkin = previewProfileSkin,
                 statusMessage = statusMessage,
                 insufficientCoinsInfo = insufficientCoinsInfo,
                 onDismissInsufficientCoinsDialog = viewModel::dismissInsufficientCoinsDialog,
@@ -470,10 +458,6 @@ fun WallWarNavGraph(
                 onPreviewEmoji = viewModel::previewEmoji,
                 onClearEmojiPreview = viewModel::clearEmojiPreview,
                 onBuyEmoji = viewModel::buyEmoji,
-                onPreviewProfileSkin = viewModel::previewProfileSkin,
-                onClearProfileSkinPreview = viewModel::clearProfileSkinPreview,
-                onBuyProfileSkin = viewModel::buyProfileSkin,
-                onEquipProfileSkin = viewModel::equipProfileSkin,
                 onClearStatusMessage = viewModel::clearStatusMessage,
                 onOpenCoinShop = { navController.navigate(CoinShopRoute) },
                 onBack = {

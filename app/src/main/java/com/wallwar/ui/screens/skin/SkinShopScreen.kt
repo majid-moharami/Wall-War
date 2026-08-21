@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,15 +37,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.SportsEsports
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -57,7 +48,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
@@ -70,8 +60,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -83,9 +71,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wallwar.data.BallSkin
 import com.wallwar.data.EmojiSkin
-import com.wallwar.data.ProfileSkin
 import com.wallwar.data.UserProfile
 import com.wallwar.data.WallSkin
+import com.wallwar.ui.components.AvatarBadge
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
@@ -94,7 +82,6 @@ import com.wallwar.ui.theme.NeonDarkCard
 import com.wallwar.ui.theme.NeonDarkSurface
 import com.wallwar.ui.theme.NeonEmerald
 import com.wallwar.ui.theme.NeonMagenta
-import com.wallwar.ui.theme.NeonPurple
 import kotlinx.coroutines.delay
 import java.text.NumberFormat
 import java.util.Locale
@@ -110,13 +97,10 @@ fun SkinShopScreen(
     equippedBallSkinId: String,
     allEmojis: List<EmojiSkin>,
     unlockedEmojiIds: Set<String>,
-    allProfileSkins: List<ProfileSkin>,
-    unlockedAvatarSkinIds: Set<String>,
     selectedTab: Int,
     previewWallSkin: WallSkin?,
     previewBallSkin: BallSkin?,
     previewEmoji: EmojiSkin?,
-    previewProfileSkin: ProfileSkin?,
     statusMessage: String?,
     insufficientCoinsInfo: SkinShopViewModel.InsufficientCoinsInfo? = null,
     onDismissInsufficientCoinsDialog: () -> Unit = {},
@@ -132,10 +116,6 @@ fun SkinShopScreen(
     onPreviewEmoji: (EmojiSkin) -> Unit,
     onClearEmojiPreview: () -> Unit,
     onBuyEmoji: (EmojiSkin) -> Unit,
-    onPreviewProfileSkin: (ProfileSkin) -> Unit,
-    onClearProfileSkinPreview: () -> Unit,
-    onBuyProfileSkin: (ProfileSkin) -> Unit,
-    onEquipProfileSkin: (ProfileSkin) -> Unit,
     onClearStatusMessage: () -> Unit,
     onOpenCoinShop: () -> Unit,
     onBack: () -> Unit
@@ -147,7 +127,7 @@ fun SkinShopScreen(
         }
     }
 
-    val tabs = listOf("🧱 Wall Skins", "⚽ Ball Skins", "😄 Emojis", "👤 Profile Skins")
+    val tabs = listOf("⚽ Ball Skins", "🧱 Wall Skins", "😄 Emojis")
 
     // Insufficient Coins Dialog with direct link to Coin Shop
     if (insufficientCoinsInfo != null) {
@@ -248,26 +228,13 @@ fun SkinShopScreen(
         )
     }
 
-    // Profile Skin Preview Dialog
-    if (previewProfileSkin != null) {
-        ProfileSkinDetailDialog(
-            skin = previewProfileSkin,
-            isUnlocked = previewProfileSkin.isDefault || unlockedAvatarSkinIds.contains(previewProfileSkin.id),
-            isEquipped = userProfile.photoUrl == "skin:${previewProfileSkin.id}" || (previewProfileSkin.isDefault && (userProfile.photoUrl == null || userProfile.photoUrl == "skin:skin_default")),
-            userCoins = userProfile.coins,
-            onBuy = { onBuyProfileSkin(previewProfileSkin) },
-            onEquip = { onEquipProfileSkin(previewProfileSkin) },
-            onDismiss = onClearProfileSkinPreview
-        )
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(NeonDarkBg)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // 1. Top Header Row: Back Button + Title + Coins Pill
+        // 1. Top Header Row: Back Button + User Account Profile Image + Title + Coins Pill
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -286,7 +253,14 @@ fun SkinShopScreen(
                         tint = Color.White
                     )
                 }
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(2.dp))
+                // User Account Profile Image (fallback to default user icon if no image)
+                AvatarBadge(
+                    photoUrl = userProfile.photoUrl,
+                    size = 38.dp,
+                    borderWidth = 1.5.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
                         text = "Skin Vault & Armory",
@@ -334,7 +308,7 @@ fun SkinShopScreen(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // 3. Category Tabs
+        // 2. Category Tabs: Balls, Walls, Emojis
         ScrollableTabRow(
             selectedTabIndex = selectedTab,
             containerColor = NeonDarkSurface,
@@ -405,36 +379,9 @@ fun SkinShopScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 4. Content Grids based on Selected Tab
+        // 3. Content Grids based on Selected Tab: 0 -> Balls, 1 -> Walls, 2 -> Emojis
         when (selectedTab) {
             0 -> {
-                // Wall Skins Grid
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("wall_skins_grid"),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(allWallSkins, key = { it.id }) { wall ->
-                        val isUnlocked = wall.isFree || unlockedWallSkinIds.contains(wall.id)
-                        val isEquipped = equippedWallSkinId == wall.id
-
-                        WallSkinCard(
-                            skin = wall,
-                            isUnlocked = isUnlocked,
-                            isEquipped = isEquipped,
-                            userLevel = userProfile.level,
-                            onPreview = { onPreviewWallSkin(wall) },
-                            onBuy = { onBuyWallSkin(wall) },
-                            onEquip = { onEquipWallSkin(wall) }
-                        )
-                    }
-                }
-            }
-            1 -> {
                 // Ball Skins Grid
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(2),
@@ -461,6 +408,33 @@ fun SkinShopScreen(
                     }
                 }
             }
+            1 -> {
+                // Wall Skins Grid
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .testTag("wall_skins_grid"),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(allWallSkins, key = { it.id }) { wall ->
+                        val isUnlocked = wall.isFree || unlockedWallSkinIds.contains(wall.id)
+                        val isEquipped = equippedWallSkinId == wall.id
+
+                        WallSkinCard(
+                            skin = wall,
+                            isUnlocked = isUnlocked,
+                            isEquipped = isEquipped,
+                            userLevel = userProfile.level,
+                            onPreview = { onPreviewWallSkin(wall) },
+                            onBuy = { onBuyWallSkin(wall) },
+                            onEquip = { onEquipWallSkin(wall) }
+                        )
+                    }
+                }
+            }
             2 -> {
                 // Emoji Emotes Grid
                 LazyVerticalGrid(
@@ -480,32 +454,6 @@ fun SkinShopScreen(
                             isUnlocked = isUnlocked,
                             onPreview = { onPreviewEmoji(emoji) },
                             onBuy = { onBuyEmoji(emoji) }
-                        )
-                    }
-                }
-            }
-            3 -> {
-                // Profile Skins Grid
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .testTag("profile_skins_grid"),
-                    contentPadding = PaddingValues(bottom = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(allProfileSkins, key = { it.id }) { profileSkin ->
-                        val isUnlocked = profileSkin.isDefault || unlockedAvatarSkinIds.contains(profileSkin.id)
-                        val isEquipped = userProfile.photoUrl == "skin:${profileSkin.id}" || (profileSkin.isDefault && (userProfile.photoUrl == null || userProfile.photoUrl == "skin:skin_default"))
-
-                        ProfileSkinCard(
-                            skin = profileSkin,
-                            isUnlocked = isUnlocked,
-                            isEquipped = isEquipped,
-                            onPreview = { onPreviewProfileSkin(profileSkin) },
-                            onBuy = { onBuyProfileSkin(profileSkin) },
-                            onEquip = { onEquipProfileSkin(profileSkin) }
                         )
                     }
                 }
@@ -1098,174 +1046,6 @@ fun EmojiSkinCard(
 }
 
 // -------------------------------------------------------------
-// Profile Skin Card Component
-// -------------------------------------------------------------
-@Composable
-fun ProfileSkinCard(
-    skin: ProfileSkin,
-    isUnlocked: Boolean,
-    isEquipped: Boolean,
-    onPreview: () -> Unit,
-    onBuy: () -> Unit,
-    onEquip: () -> Unit
-) {
-    val numberFormatter = NumberFormat.getNumberInstance(Locale.US)
-    val primaryColor = Color(skin.primaryColorHex)
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onPreview() }
-            .testTag("profile_card_${skin.id}"),
-        colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-        border = BorderStroke(
-            1.5.dp,
-            if (isEquipped) NeonCyan else if (isUnlocked) primaryColor.copy(alpha = 0.6f) else NeonBorder
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Top Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(primaryColor.copy(alpha = 0.2f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = skin.symbol,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black,
-                        color = primaryColor
-                    )
-                }
-
-                if (isEquipped) {
-                    Text(
-                        text = "EQUIPPED",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Black,
-                        color = NeonCyan
-                    )
-                } else if (isUnlocked) {
-                    Text(
-                        text = "OWNED",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = NeonEmerald
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Avatar Preview Badge
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(Color(skin.secondaryColorHex))
-                    .border(2.dp, primaryColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.WorkspacePremium,
-                    contentDescription = null,
-                    tint = primaryColor,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = skin.name,
-                fontWeight = FontWeight.Bold,
-                fontSize = 13.sp,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = skin.title,
-                fontSize = 10.sp,
-                color = Color(0xFFA0ACCC),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            if (isEquipped) {
-                Button(
-                    onClick = {},
-                    enabled = false,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = NeonCyan.copy(alpha = 0.25f),
-                        disabledContentColor = NeonCyan
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp)
-                ) {
-                    Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("ACTIVE", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            } else if (isUnlocked) {
-                Button(
-                    onClick = onEquip,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonDarkSurface,
-                        contentColor = NeonCyan
-                    ),
-                    border = BorderStroke(1.dp, NeonCyan),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp)
-                        .testTag("equip_profile_${skin.id}")
-                ) {
-                    Text("EQUIP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Button(
-                    onClick = onBuy,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = NeonAmber,
-                        contentColor = Color.Black
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp)
-                        .testTag("buy_profile_${skin.id}")
-                ) {
-                    Text(
-                        text = "🪙 ${numberFormatter.format(skin.priceCoins)}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
-            }
-        }
-    }
-}
-
-// -------------------------------------------------------------
 // Detail Inspection Dialogs
 // -------------------------------------------------------------
 @Composable
@@ -1305,80 +1085,72 @@ fun BallSkinDetailDialog(
                     .padding(top = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Rarity & Level Tag Row
+                // Ball Preview Circle with subtle breathing animation
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .scale(scaleAnim)
+                        .clip(CircleShape)
+                        .background(Color(0xFF0F1424))
+                        .border(2.5.dp, rarityColor, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = skin.drawableResId),
+                        contentDescription = skin.name,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .padding(2.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = skin.name,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 19.sp,
+                    color = Color.White
+                )
+
                 Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.padding(top = 4.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(6.dp))
                             .background(rarityColor.copy(alpha = 0.2f))
-                            .border(1.dp, rarityColor, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .border(1.dp, rarityColor.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "${skin.rarity.uppercase()} · ${skin.tag}",
+                            text = skin.rarity.uppercase(),
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
                             color = rarityColor
                         )
                     }
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isLevelLocked) Color(0xFF3B1528) else NeonCyan.copy(alpha = 0.2f))
-                            .border(1.dp, if (isLevelLocked) NeonMagenta else NeonCyan, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF1E293B))
+                            .border(1.dp, NeonBorder, RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = if (isLevelLocked) "🔒 Requires Lv.${skin.requiredLevel}" else "⚡ Lv.${skin.requiredLevel}",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
-                            color = if (isLevelLocked) NeonMagenta else NeonCyan
+                            text = skin.tag,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFA0ACCC)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Hero Ball Visual Preview
-                Box(
-                    modifier = Modifier
-                        .size(120.dp)
-                        .scale(scaleAnim)
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(
-                                    rarityColor.copy(alpha = 0.35f),
-                                    Color(0xFF0C101F)
-                                )
-                            )
-                        )
-                        .border(2.5.dp, if (isLevelLocked) NeonMagenta.copy(alpha = 0.8f) else rarityColor, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(id = skin.drawableResId),
-                        contentDescription = skin.name,
-                        modifier = Modifier.size(90.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = skin.name,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 20.sp,
-                    color = Color.White,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
                     text = skin.description,
@@ -1388,7 +1160,18 @@ fun BallSkinDetailDialog(
                     lineHeight = 18.sp
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                if (isLevelLocked) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "🔒 Requires Level ${skin.requiredLevel} (Your Level: $userLevel)",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = NeonMagenta,
+                        textAlign = TextAlign.Center
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 if (!isUnlocked) {
                     Row(
@@ -1565,122 +1348,6 @@ fun EmojiDetailDialog(
                 ) {
                     Text(
                         text = "Unlock for 🪙 ${numberFormatter.format(emoji.priceCoins)}",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Black
-                    )
-                }
-            }
-        },
-        dismissButton = {
-            OutlinedButton(
-                onClick = onDismiss,
-                border = BorderStroke(1.dp, NeonBorder),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Close", color = Color.White)
-            }
-        }
-    )
-}
-
-@Composable
-fun ProfileSkinDetailDialog(
-    skin: ProfileSkin,
-    isUnlocked: Boolean,
-    isEquipped: Boolean,
-    userCoins: Int,
-    onBuy: () -> Unit,
-    onEquip: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val primaryColor = Color(skin.primaryColorHex)
-    val numberFormatter = NumberFormat.getNumberInstance(Locale.US)
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = NeonDarkCard,
-        shape = RoundedCornerShape(20.dp),
-        title = null,
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(86.dp)
-                        .clip(CircleShape)
-                        .background(Color(skin.secondaryColorHex))
-                        .border(3.dp, primaryColor, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.WorkspacePremium,
-                        contentDescription = null,
-                        tint = primaryColor,
-                        modifier = Modifier.size(44.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = skin.name,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 19.sp,
-                    color = Color.White
-                )
-
-                Text(
-                    text = skin.title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = primaryColor
-                )
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text(
-                    text = skin.description,
-                    fontSize = 13.sp,
-                    color = Color(0xFFA0ACCC),
-                    textAlign = TextAlign.Center
-                )
-            }
-        },
-        confirmButton = {
-            if (isEquipped) {
-                Button(
-                    onClick = onDismiss,
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Currently Equipped", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            } else if (isUnlocked) {
-                Button(
-                    onClick = {
-                        onEquip()
-                        onDismiss()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Equip Profile Suit", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            } else {
-                Button(
-                    onClick = {
-                        onBuy()
-                        onDismiss()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Unlock for 🪙 ${numberFormatter.format(skin.priceCoins)}",
                         color = Color.Black,
                         fontWeight = FontWeight.Black
                     )

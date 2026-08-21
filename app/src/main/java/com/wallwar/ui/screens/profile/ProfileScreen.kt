@@ -70,8 +70,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.wallwar.data.ProfileSkin
-import com.wallwar.data.ProfileSkinCatalog
 import com.wallwar.data.UserProfile
 import com.wallwar.data.nakama.NakamaFriend
 import com.wallwar.ui.components.AvatarBadge
@@ -89,12 +87,6 @@ fun ProfileScreen(
     userProfile: UserProfile,
     signInStatus: String?,
     friends: List<NakamaFriend> = emptyList(),
-    unlockedAvatarSkinIds: Set<String> = ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS,
-    allProfileSkins: List<ProfileSkin> = ProfileSkinCatalog.ALL_SKINS,
-    savedGooglePhotoUrl: String? = null,
-    onUnlockSkin: (ProfileSkin, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
-    onEquipSkin: (ProfileSkin) -> Unit = {},
-    onEquipGoogleAvatar: () -> Unit = {},
     onSignInWithGoogle: (Context) -> Unit,
     onClearSignInStatus: () -> Unit,
     onSignOut: (Context) -> Unit,
@@ -110,11 +102,6 @@ fun ProfileScreen(
     val context = LocalContext.current
     var friendSearchQuery by remember { mutableStateOf("") }
     var addFriendStatus by remember { mutableStateOf<String?>(null) }
-    var skinActionFeedback by remember { mutableStateOf<String?>(null) }
-
-    val activeSkin = ProfileSkinCatalog.getSkinById(userProfile.photoUrl)
-    val isGoogleAvatarEquipped = !userProfile.photoUrl.isNullOrBlank() &&
-            (userProfile.photoUrl.startsWith("http://") || userProfile.photoUrl.startsWith("https://"))
 
     Column(
         modifier = modifier
@@ -126,7 +113,7 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // Status / Banner Feedback
-        val bannerMessage = skinActionFeedback ?: signInStatus
+        val bannerMessage = signInStatus
         if (!bannerMessage.isNullOrBlank()) {
             Card(
                 modifier = Modifier
@@ -172,7 +159,6 @@ fun ProfileScreen(
                     )
                     IconButton(
                         onClick = {
-                            skinActionFeedback = null
                             onClearSignInStatus()
                         },
                         modifier = Modifier.size(24.dp)
@@ -203,7 +189,7 @@ fun ProfileScreen(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Avatar with Universal AvatarBadge
+                // Avatar with Universal AvatarBadge (Account image or fallback user icon)
                 AvatarBadge(
                     photoUrl = userProfile.photoUrl,
                     size = 88.dp,
@@ -224,43 +210,6 @@ fun ProfileScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFFA0ACCC)
                 )
-
-                // Currently Equipped Avatar Pill
-                if (activeSkin != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(activeSkin.primaryColorHex).copy(alpha = 0.15f))
-                            .border(1.dp, Color(activeSkin.primaryColorHex).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = "${activeSkin.symbol} ${activeSkin.name} (${activeSkin.tag})",
-                            color = Color(activeSkin.primaryColorHex),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                } else if (isGoogleAvatarEquipped) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF4285F4).copy(alpha = 0.15f))
-                            .border(1.dp, Color(0xFF4285F4).copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = "🌐 Google Account Photo Equipped",
-                            color = Color(0xFF8AB4F8),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
