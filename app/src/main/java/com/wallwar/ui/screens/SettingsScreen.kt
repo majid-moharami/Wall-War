@@ -51,17 +51,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wallwar.audio.SoundManager
+import com.wallwar.data.UserProfile
 import com.wallwar.data.nakama.NakamaConfig
 import com.wallwar.model.BoardTheme
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonPurple
+import java.text.NumberFormat
+import java.util.Locale
 
 import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.TextButton
@@ -76,6 +83,7 @@ fun SettingsScreen(
     soundManager: SoundManager,
     selectedTheme: BoardTheme,
     nakamaConfig: NakamaConfig = NakamaConfig(),
+    userProfile: UserProfile = UserProfile(),
     onSelectTheme: (BoardTheme) -> Unit,
     onUpdateNakamaConfig: (host: String, port: Int, key: String, ssl: Boolean) -> Unit = { _, _, _, _ -> },
     onTestConnection: ((Boolean) -> Unit) -> Unit = {},
@@ -83,10 +91,12 @@ fun SettingsScreen(
     onExportDataBackup: ((String) -> Unit) -> Unit = { _ -> },
     onRestoreDataFromBackup: (String, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
     onRestoreDefaultSettings: () -> Unit = {},
+    onBoostLevelAndCoins: (targetLevel: Int, targetCoins: Int, (Boolean, String) -> Unit) -> Unit = { _, _, _ -> },
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val clipboardManager = LocalClipboardManager.current
+    val numberFormatter = NumberFormat.getNumberInstance(Locale.US)
 
     var serverHost by remember(nakamaConfig) { mutableStateOf(nakamaConfig.host) }
     var serverPort by remember(nakamaConfig) { mutableStateOf(nakamaConfig.port.toString()) }
@@ -95,6 +105,12 @@ fun SettingsScreen(
 
     var restoreStatusMessage by remember { mutableStateOf<String?>(null) }
     var restoreStatusIsSuccess by remember { mutableStateOf(true) }
+
+    var devBoostStatusMessage by remember { mutableStateOf<String?>(null) }
+    var devBoostIsSuccess by remember { mutableStateOf(true) }
+    var isBoosting by remember { mutableStateOf(false) }
+    var devTargetLevel by remember { mutableStateOf("30") }
+    var devTargetCoins by remember { mutableStateOf("2000000") }
 
     var showExportDialog by remember { mutableStateOf(false) }
     var exportedJsonText by remember { mutableStateOf("") }
@@ -265,6 +281,228 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // -------------------------------------------------------------
+        // TEMPORARY DEVELOPER / ADMIN VIEW: Boost Level & Coins to Server
+        // -------------------------------------------------------------
+        Card(
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF181B2C)),
+            border = BorderStroke(1.5.dp, NeonAmber),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("dev_tools_card")
+        ) {
+            Column(modifier = Modifier.padding(18.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(NeonAmber.copy(alpha = 0.2f))
+                                .border(1.dp, NeonAmber, RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Bolt,
+                                contentDescription = null,
+                                tint = NeonAmber,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Admin Dev Boost (Temporary)",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Black,
+                                color = NeonAmber
+                            )
+                            Text(
+                                text = "Instantly set Level 30 & 2,000,000 Coins in Server",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFA0ACCC)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(NeonAmber.copy(alpha = 0.15f))
+                            .border(1.dp, NeonAmber.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "DEV ONLY",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeonAmber
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Current Profile Stats Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFF0F1424))
+                        .border(1.dp, Color(0xFF26324D), RoundedCornerShape(12.dp))
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "CURRENT LEVEL", fontSize = 9.sp, color = Color(0xFF8E9CBF), fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.Star, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Lv. ${userProfile.level}",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                color = NeonCyan
+                            )
+                        }
+                    }
+
+                    Box(modifier = Modifier.width(1.dp).height(30.dp).background(Color(0xFF26324D)))
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(text = "SERVER COINS", fontSize = 9.sp, color = Color(0xFF8E9CBF), fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "🪙", fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = numberFormatter.format(userProfile.coins),
+                                fontWeight = FontWeight.Black,
+                                fontSize = 16.sp,
+                                color = NeonAmber
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Primary 1-Tap Boost Button for Level 30 & 2,000,000 Coins
+                Button(
+                    onClick = {
+                        isBoosting = true
+                        devBoostStatusMessage = "Syncing Level 30 & 2,000,000 Coins with Server..."
+                        onBoostLevelAndCoins(30, 2000000) { success, msg ->
+                            isBoosting = false
+                            devBoostIsSuccess = success
+                            devBoostStatusMessage = msg
+                        }
+                    },
+                    enabled = !isBoosting,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("btn_instant_boost_30_2m")
+                ) {
+                    Icon(imageVector = Icons.Default.Bolt, contentDescription = null, tint = Color.Black)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isBoosting) "Boosting & Syncing..." else "⚡ Set Level 30 & 2,000,000 Coins",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Custom Values Row (for flexibility)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = devTargetLevel,
+                        onValueChange = { devTargetLevel = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Level", fontSize = 11.sp) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = Color(0xFF374151),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+
+                    OutlinedTextField(
+                        value = devTargetCoins,
+                        onValueChange = { devTargetCoins = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Coins", fontSize = 11.sp) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1.5f),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonAmber,
+                            unfocusedBorderColor = Color(0xFF374151),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        )
+                    )
+
+                    Button(
+                        onClick = {
+                            val levelInt = devTargetLevel.toIntOrNull() ?: 30
+                            val coinsInt = devTargetCoins.toIntOrNull() ?: 2000000
+                            isBoosting = true
+                            devBoostStatusMessage = "Applying custom stats & syncing to server..."
+                            onBoostLevelAndCoins(levelInt, coinsInt) { success, msg ->
+                                isBoosting = false
+                                devBoostIsSuccess = success
+                                devBoostStatusMessage = msg
+                            }
+                        },
+                        enabled = !isBoosting,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
+                        modifier = Modifier.height(54.dp)
+                    ) {
+                        Text("Apply", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                }
+
+                devBoostStatusMessage?.let { status ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (devBoostIsSuccess) NeonEmerald.copy(alpha = 0.15f) else NeonMagenta.copy(alpha = 0.15f))
+                            .border(1.dp, if (devBoostIsSuccess) NeonEmerald else NeonMagenta, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = status,
+                            fontSize = 12.sp,
+                            color = if (devBoostIsSuccess) NeonEmerald else NeonMagenta,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))

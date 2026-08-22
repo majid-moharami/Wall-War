@@ -1066,4 +1066,34 @@ class AuthRepository @Inject constructor(
             longestWinStreak = newLongestStreak
         )
     }
+
+    suspend fun setUserDevLevelAndCoins(targetLevel: Int = 30, targetCoins: Int = 2000000) {
+        val current = _userProfile.value
+        val targetXp = maxOf(current.xp, (targetLevel - 1) * 500 + 250)
+        val targetRank = when {
+            targetLevel >= 25 -> "Apex Cybermaster"
+            targetLevel >= 15 -> "Neon Grandmaster"
+            targetLevel >= 5 -> "Neon Knight"
+            else -> current.rankTitle
+        }
+
+        val updated = current.copy(
+            level = targetLevel,
+            xp = targetXp,
+            coins = targetCoins,
+            rankTitle = targetRank
+        )
+        saveProfile(updated)
+
+        // Sync directly to Nakama server
+        try {
+            nakamaRepository.syncUserProfileToNakama(updated)
+            val coinDiff = targetCoins - current.coins
+            if (coinDiff != 0) {
+                nakamaRepository.rpcProcessCoinTransaction(coinDiff, "dev_admin_boost")
+            }
+        } catch (e: Exception) {
+            Log.w("AuthRepository", "Dev boost server sync notice: ${e.message}")
+        }
+    }
 }

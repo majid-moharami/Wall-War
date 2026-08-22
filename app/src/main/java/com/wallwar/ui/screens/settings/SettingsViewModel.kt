@@ -31,6 +31,18 @@ class SettingsViewModel @Inject constructor(
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
     val nakamaConfig: StateFlow<NakamaConfig> = nakamaRepository.config
+    val userProfile: StateFlow<UserProfile> = authRepository.userProfile
+
+    fun boostLevelAndCoins(targetLevel: Int = 30, targetCoins: Int = 2000000, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                authRepository.setUserDevLevelAndCoins(targetLevel, targetCoins)
+                onResult(true, "Boost applied! Level set to $targetLevel, Coins set to 2,000,000 & synced to Server.")
+            } catch (e: Exception) {
+                onResult(false, "Server sync error: ${e.localizedMessage ?: e.message}")
+            }
+        }
+    }
 
     fun setBoardTheme(theme: BoardTheme) {
         settingsRepository.setBoardTheme(theme)
