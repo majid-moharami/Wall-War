@@ -90,7 +90,7 @@ fun RulesScreen(
 
         RuleCard(
             title = "3. Jumping over Opponents",
-            description = "When adjacent to your opponent, you can jump directly over them! If a wall is behind them, you can jump diagonally.",
+            description = "When adjacent to your opponent without a wall in between, you can jump directly over them in that straight direction (top, bottom, left, or right) if the space behind is unblocked.",
             icon = Icons.Default.SwapCalls,
             iconTint = WallWarPurple
         )

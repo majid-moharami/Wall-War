@@ -93,8 +93,15 @@ object GameEngine {
             // Check if step in this direction is within board bounds and not blocked by a wall
             if (!inBounds(r1, c1) || isBlocked(state.walls, me.r, me.c, r1, c1)) continue
 
-            // If the opponent is occupying this cell, this side is banned/blocked (no jumping, no sidestepping)
-            if (r1 == opp.r && c1 == opp.c) continue
+            // If the opponent is occupying this cell, straight jump over them (top, bottom, left, or right) if in bounds and not blocked by a wall
+            if (r1 == opp.r && c1 == opp.c) {
+                val r2 = opp.r + dr
+                val c2 = opp.c + dc
+                if (inBounds(r2, c2) && !isBlocked(state.walls, opp.r, opp.c, r2, c2)) {
+                    moves.add(Position(r2, c2))
+                }
+                continue
+            }
 
             // Valid orthogonal 1-step move (top, bottom, left, or right)
             moves.add(Position(r1, c1))

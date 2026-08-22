@@ -26,7 +26,7 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun testOpponentBlocking_NoJumpNoSideStep() {
+    fun testOpponentStraightJump_TopUnblocked() {
         // Player 0 at (5, 4), Player 1 at (4, 4) - directly above
         val state = GameState(
             mode = GameMode.DUEL,
@@ -37,17 +37,74 @@ class ExampleUnitTest {
         )
 
         val moves = GameEngine.pawnMoves(state, 0)
-        // Top is occupied by opponent (4, 4) -> top is banned.
-        // No jump to (3, 4) and no diagonal sidesteps to (4, 3) or (4, 5).
-        // Legal moves must ONLY be bottom (6, 4), left (5, 3), right (5, 5).
-        assertEquals(3, moves.size)
-        assertTrue(moves.contains(Position(6, 4)))
-        assertTrue(moves.contains(Position(5, 3)))
-        assertTrue(moves.contains(Position(5, 5)))
-        assertFalse(moves.contains(Position(4, 4))) // cannot move onto opponent
-        assertFalse(moves.contains(Position(3, 4))) // cannot jump over opponent
-        assertFalse(moves.contains(Position(4, 3))) // cannot diagonal step
-        assertFalse(moves.contains(Position(4, 5))) // cannot diagonal step
+        // Top opponent at (4, 4) allows straight jump to (3, 4).
+        // Legal moves: jump top (3, 4), bottom (6, 4), left (5, 3), right (5, 5).
+        assertEquals(4, moves.size)
+        assertTrue(moves.contains(Position(3, 4))) // straight jump over opponent
+        assertTrue(moves.contains(Position(6, 4))) // bottom
+        assertTrue(moves.contains(Position(5, 3))) // left
+        assertTrue(moves.contains(Position(5, 5))) // right
+        assertFalse(moves.contains(Position(4, 4))) // cannot move onto opponent square
+    }
+
+    @Test
+    fun testOpponentStraightJump_LeftAndRightAndBottom() {
+        // Player 0 at (5, 4), Player 1 at (5, 3) - to the left
+        val stateLeft = GameState(
+            mode = GameMode.DUEL,
+            cols = 9,
+            rows = 11,
+            pawns = listOf(Position(5, 4), Position(5, 3)),
+            walls = emptyList()
+        )
+        val leftMoves = GameEngine.pawnMoves(stateLeft, 0)
+        assertTrue(leftMoves.contains(Position(5, 2))) // straight jump left to (5, 2)
+        assertTrue(leftMoves.contains(Position(4, 4))) // top
+        assertTrue(leftMoves.contains(Position(6, 4))) // bottom
+        assertTrue(leftMoves.contains(Position(5, 5))) // right
+
+        // Player 0 at (5, 4), Player 1 at (5, 5) - to the right
+        val stateRight = GameState(
+            mode = GameMode.DUEL,
+            cols = 9,
+            rows = 11,
+            pawns = listOf(Position(5, 4), Position(5, 5)),
+            walls = emptyList()
+        )
+        val rightMoves = GameEngine.pawnMoves(stateRight, 0)
+        assertTrue(rightMoves.contains(Position(5, 6))) // straight jump right to (5, 6)
+
+        // Player 0 at (5, 4), Player 1 at (6, 4) - to the bottom
+        val stateBottom = GameState(
+            mode = GameMode.DUEL,
+            cols = 9,
+            rows = 11,
+            pawns = listOf(Position(5, 4), Position(6, 4)),
+            walls = emptyList()
+        )
+        val bottomMoves = GameEngine.pawnMoves(stateBottom, 0)
+        assertTrue(bottomMoves.contains(Position(7, 4))) // straight jump bottom to (7, 4)
+    }
+
+    @Test
+    fun testOpponentJump_BlockedByWallBehindOpponent() {
+        // Player 0 at (5, 4), Player 1 at (4, 4). Horizontal wall at (3, 4) blocks jump from (4, 4) to (3, 4).
+        val wall = Wall(r = 3, c = 4, isHorizontal = true)
+        val state = GameState(
+            mode = GameMode.DUEL,
+            cols = 9,
+            rows = 11,
+            pawns = listOf(Position(5, 4), Position(4, 4)),
+            walls = listOf(wall)
+        )
+
+        val moves = GameEngine.pawnMoves(state, 0)
+        // Jump to (3, 4) is blocked by wall.
+        assertFalse(moves.contains(Position(3, 4)))
+        assertFalse(moves.contains(Position(4, 4)))
+        assertTrue(moves.contains(Position(6, 4))) // bottom
+        assertTrue(moves.contains(Position(5, 3))) // left
+        assertTrue(moves.contains(Position(5, 5))) // right
     }
 
     @Test
