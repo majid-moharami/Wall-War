@@ -327,13 +327,11 @@ fun WallWarNavGraph(
             val viewModel: SettingsViewModel = hiltViewModel()
             val selectedTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
             val nakamaConfig by viewModel.nakamaConfig.collectAsStateWithLifecycle()
-            val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
 
             SettingsScreen(
                 soundManager = viewModel.soundManager,
                 selectedTheme = selectedTheme,
                 nakamaConfig = nakamaConfig,
-                userProfile = userProfile,
                 onSelectTheme = viewModel::setBoardTheme,
                 onUpdateNakamaConfig = viewModel::updateNakamaConfig,
                 onTestConnection = viewModel::testNakamaConnection,
@@ -341,7 +339,6 @@ fun WallWarNavGraph(
                 onExportDataBackup = viewModel::exportDataBackup,
                 onRestoreDataFromBackup = viewModel::restoreDataFromBackup,
                 onRestoreDefaultSettings = viewModel::restoreDefaultSettings,
-                onBoostLevelAndCoins = viewModel::boostLevelAndCoins,
                 onBack = {
                     if (!navController.popBackStack()) {
                         navController.navigate(HomeRoute)
