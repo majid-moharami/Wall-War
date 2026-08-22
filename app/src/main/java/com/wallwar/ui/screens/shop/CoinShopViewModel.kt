@@ -3,6 +3,7 @@ package com.wallwar.ui.screens.shop
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wallwar.audio.SoundManager
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.UserProfile
 import com.wallwar.data.ad.AdManager
@@ -31,7 +32,8 @@ class CoinShopViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val nakamaRepository: NakamaRepository,
     private val adManager: AdManager,
-    private val billingManager: BillingManager
+    private val billingManager: BillingManager,
+    val soundManager: SoundManager
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
@@ -107,6 +109,7 @@ class CoinShopViewModel @Inject constructor(
             billingManager.purchaseResult.collect { result ->
                 when (result) {
                     is BillingPurchaseResult.Success -> {
+                        soundManager.playCoinSound()
                         _purchaseMessage.value = "🎉 +${result.coinsAwarded} Coins added! Transaction synced with Nakama Server."
                     }
                     is BillingPurchaseResult.Purchasing -> {
@@ -179,6 +182,7 @@ class CoinShopViewModel @Inject constructor(
             activity = activity,
             rewardCoins = 50,
             onSuccess = { coins ->
+                soundManager.playCoinSound()
                 _purchaseMessage.value = "🎉 +$coins Coins Earned from Watching Rewarded Ad!"
             }
         )

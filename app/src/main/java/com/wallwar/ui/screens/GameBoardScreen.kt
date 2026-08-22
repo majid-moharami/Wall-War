@@ -116,6 +116,7 @@ fun GameBoardScreen(
     isLocalDisconnected: Boolean = false,
     localDisconnectSeconds: Int = 15,
     arenaTitle: String = "Pro Arena",
+    winningPrize: Int = 0,
     onlineErrorMessage: String? = null,
     matchResultDelta: com.wallwar.data.MatchResultDelta? = null,
     equippedBallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID,
@@ -339,7 +340,7 @@ fun GameBoardScreen(
                 }
             }
 
-            // Center: Title & Subtitle
+            // Center: Title & Subtitle / Winner Reward
             Column(
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -351,12 +352,50 @@ fun GameBoardScreen(
                     color = Color.White,
                     letterSpacing = 1.sp
                 )
-                Text(
-                    text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = themePrimary,
-                    fontWeight = FontWeight.Bold
-                )
+                Spacer(modifier = Modifier.height(2.dp))
+                if (winningPrize > 0) {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1D1407),
+                        border = BorderStroke(
+                            1.dp,
+                            Brush.horizontalGradient(
+                                listOf(
+                                    NeonAmber.copy(alpha = 0.5f),
+                                    NeonAmber,
+                                    NeonAmber.copy(alpha = 0.5f)
+                                )
+                            )
+                        ),
+                        shadowElevation = 3.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                text = "🏆 Reward: ",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFE082)
+                            )
+                            Text(
+                                text = "🪙 $winningPrize",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Black,
+                                color = NeonAmber
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = themePrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             // Right: Timer + Sound Toggle Button

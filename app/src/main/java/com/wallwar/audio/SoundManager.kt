@@ -197,8 +197,56 @@ class SoundManager(private val context: Context) {
     }
 
     fun playRewardSound() {
-        playVictoryFanfare()
-        vibrateSuccess()
+        playCoinSound()
+    }
+
+    /**
+     * Synthesizes a bright, crisp cascading coin claim chime sound effect (arcade style coin clink).
+     * Plays a sparkling ascending arpeggio with rich harmonics and metallic bell ring.
+     */
+    fun playCoinSound() {
+        if (!isSoundEnabled) return
+        scope.launch {
+            try {
+                // High-pitch sparkling coin tones: B5 (987.77 Hz), E6 (1318.51 Hz), G#6 (1661.22 Hz), B6 (1975.53 Hz)
+                val notes = listOf(987.77, 1318.51, 1661.22, 1975.53)
+                for (freq in notes) {
+                    val durationMs = 80
+                    val numSamples = (sampleRate * durationMs) / 1000
+                    val buffer = ShortArray(numSamples)
+
+                    for (i in 0 until numSamples) {
+                        val t = i.toDouble() / sampleRate
+                        val progress = i.toDouble() / numSamples
+                        // Fast attack, exponential metallic decay
+                        val envelope = kotlin.math.exp(-progress * 5.5)
+
+                        // Fundamental sine + secondary harmonic for sparkling coin chime
+                        val wave = 0.7 * sin(2.0 * Math.PI * freq * t) +
+                                   0.3 * sin(2.0 * Math.PI * (freq * 2.0) * t)
+
+                        buffer[i] = (wave * envelope * Short.MAX_VALUE * 0.42).toInt().toShort()
+                    }
+
+                    playPcmBuffer(buffer, durationMs)
+                    kotlinx.coroutines.delay(50)
+                }
+            } catch (_: Throwable) {}
+        }
+        vibrateCoinReward()
+    }
+
+    fun vibrateCoinReward() {
+        if (!isVibrationEnabled || vibrator == null) return
+        try {
+            if (!vibrator.hasVibrator()) return
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 25, 35, 30, 35, 40), -1))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator.vibrate(60)
+            }
+        } catch (_: Exception) {}
     }
 
     fun playEmoteSound(emoteId: String = "") {

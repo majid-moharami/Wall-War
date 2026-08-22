@@ -162,5 +162,12 @@ class ExampleUnitTest {
         assertEquals("ball_blue", p0)
         assertEquals("ball_red", p1)
     }
+
+    @Test
+    fun testArenaWinnerRewards_ExactDoubleEntryFee() {
+        for (arena in com.wallwar.data.ArenaConfig.onlineArenas) {
+            assertEquals(arena.entryFee * 2, arena.winningPrize)
+        }
+    }
 }
 

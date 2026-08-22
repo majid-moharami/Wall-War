@@ -495,6 +495,7 @@ class GameViewModel @Inject constructor(
             timerJob?.cancel()
             if (nextState.winner == _myPlayerIndex.value) {
                 soundManager.playVictoryFanfare()
+                soundManager.playCoinSound()
                 soundManager.vibrateSuccess()
             } else {
                 soundManager.playErrorSound()
@@ -548,8 +549,13 @@ class GameViewModel @Inject constructor(
         updateHighlightsForState(state)
 
         if (state.winner != null) {
-            soundManager.playVictoryFanfare()
-            soundManager.vibrateSuccess()
+            if (state.winner == _myPlayerIndex.value) {
+                soundManager.playVictoryFanfare()
+                soundManager.playCoinSound()
+                soundManager.vibrateSuccess()
+            } else {
+                soundManager.playErrorSound()
+            }
             saveMatchToHistory(state)
             return
         }
@@ -570,6 +576,7 @@ class GameViewModel @Inject constructor(
                     if (afterAiState.winner != null) {
                         if (afterAiState.winner == 0) {
                             soundManager.playVictoryFanfare()
+                            soundManager.playCoinSound()
                             soundManager.vibrateSuccess()
                         } else {
                             soundManager.playErrorSound()

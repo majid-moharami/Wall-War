@@ -27,7 +27,7 @@ object ArenaConfig {
             title = "Starter Table",
             subtitle = "Low-risk starter duel with classic neon styling",
             entryFee = 25,
-            winningPrize = 45,
+            winningPrize = 50,
             colorHex = 0xFF3B82F6, // Classic Blue
             boardTheme = BoardTheme.STARTER
         ),
@@ -36,7 +36,7 @@ object ArenaConfig {
             title = "Novice Arena",
             subtitle = "Clean subtle metallic grid for aspiring tacticians",
             entryFee = 50,
-            winningPrize = 90,
+            winningPrize = 100,
             colorHex = 0xFF00E5FF, // Cyan / Orange
             boardTheme = BoardTheme.NOVICE
         ),
@@ -45,7 +45,7 @@ object ArenaConfig {
             title = "Amateur Club",
             subtitle = "Carbon fiber battlefield for competitive duelists",
             entryFee = 100,
-            winningPrize = 180,
+            winningPrize = 200,
             colorHex = 0xFFE056FD, // Hot Pink & Electric Violet
             boardTheme = BoardTheme.AMATEUR
         ),
@@ -54,7 +54,7 @@ object ArenaConfig {
             title = "Pro Arena",
             subtitle = "High-tech matrix circuit tiles for strategy masters",
             entryFee = 250,
-            winningPrize = 450,
+            winningPrize = 500,
             colorHex = 0xFF00FF87, // Emerald & Neon Mint
             boardTheme = BoardTheme.PRO,
             isPopular = true
@@ -64,7 +64,7 @@ object ArenaConfig {
             title = "High Roller",
             subtitle = "Volcanic rock arena with glowing molten seams",
             entryFee = 500,
-            winningPrize = 900,
+            winningPrize = 1000,
             colorHex = 0xFFFF5500, // Amber Flame & Crimson
             boardTheme = BoardTheme.HIGH_ROLLER
         ),
@@ -73,7 +73,7 @@ object ArenaConfig {
             title = "Master Duel",
             subtitle = "Apex dark crystal tiles with pulsing purple grid lines",
             entryFee = 1000,
-            winningPrize = 1800,
+            winningPrize = 2000,
             colorHex = 0xFF9D4EDD, // Deep Indigo & Plasma Violet
             boardTheme = BoardTheme.MASTER
         ),
@@ -82,7 +82,7 @@ object ArenaConfig {
             title = "Grand Champion",
             subtitle = "Ultimate Royal Gold & Cosmic White glow with obsidian tiles",
             entryFee = 5000,
-            winningPrize = 9000,
+            winningPrize = 10000,
             colorHex = 0xFFFFD700, // Royal Gold
             boardTheme = BoardTheme.GRAND_CHAMPION,
             isBestValue = true

@@ -3,6 +3,7 @@ package com.wallwar.ui.screens.home
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wallwar.audio.SoundManager
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
 import com.wallwar.data.AuthRepository
@@ -33,6 +34,7 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     gameRepository: GameRepository,
+    val soundManager: SoundManager,
     private val authRepository: AuthRepository,
     private val settingsRepository: SettingsRepository,
     private val adManager: AdManager,
@@ -139,6 +141,7 @@ class HomeViewModel @Inject constructor(
         val result = dailyStreakManager.claimDailyBonus()
         if (result.coinsAwarded > 0) {
             authRepository.addCoins(result.coinsAwarded)
+            soundManager.playCoinSound()
             val resetNote = if (result.wasReset) " (Streak Reset)" else ""
             _bonusMessage.value = "Day ${result.newStreakDay} Streak Claimed! +${result.coinsAwarded} Coins awarded! 🪙$resetNote"
         } else {
@@ -151,6 +154,7 @@ class HomeViewModel @Inject constructor(
         if (reward != null) {
             val (coins, xp) = reward
             authRepository.addCoins(coins)
+            soundManager.playCoinSound()
             _bonusMessage.value = "Mission Complete! +$coins Coins & +$xp XP received! 🎯"
         }
     }
@@ -161,10 +165,12 @@ class HomeViewModel @Inject constructor(
         when (val r = outcome.winningSegment.reward) {
             is SpinRewardType.Coins -> {
                 authRepository.addCoins(r.amount)
+                soundManager.playCoinSound()
             }
             is SpinRewardType.Cosmetic -> {
                 // Special rare skin fallback/reward coins added & synced to user profile
                 authRepository.addCoins(r.fallbackCoins)
+                soundManager.playCoinSound()
             }
         }
         return outcome

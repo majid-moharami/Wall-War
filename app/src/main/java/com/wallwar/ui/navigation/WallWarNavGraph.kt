@@ -254,6 +254,7 @@ fun WallWarNavGraph(
                 isLocalDisconnected = isLocalDisconnected,
                 localDisconnectSeconds = localDisconnectSeconds,
                 arenaTitle = viewModel.selectedArena.title,
+                winningPrize = viewModel.selectedArena.winningPrize,
                 onlineErrorMessage = onlineErrorMessage,
                 matchResultDelta = matchResultDelta,
                 equippedBallSkinId = equippedBallSkinId,
