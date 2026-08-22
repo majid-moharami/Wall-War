@@ -118,7 +118,7 @@ class GameViewModel @Inject constructor(
     private val _validMoveHighlights = MutableStateFlow<List<Position>>(emptyList())
     val validMoveHighlights: StateFlow<List<Position>> = _validMoveHighlights.asStateFlow()
 
-    private val _turnTimeLeft = MutableStateFlow(30)
+    private val _turnTimeLeft = MutableStateFlow(60)
     val turnTimeLeft: StateFlow<Int> = _turnTimeLeft.asStateFlow()
 
     private val _isOpponentDisconnected = MutableStateFlow(false)
@@ -509,7 +509,7 @@ class GameViewModel @Inject constructor(
         if (opponentType != OpponentType.ONLINE) {
             return
         }
-        _turnTimeLeft.value = 30
+        _turnTimeLeft.value = 60
         
         val isLocalTurn = _gameState.value.turn == _myPlayerIndex.value
 

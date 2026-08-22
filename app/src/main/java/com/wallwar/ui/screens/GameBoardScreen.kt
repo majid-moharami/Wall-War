@@ -398,7 +398,7 @@ fun GameBoardScreen(
                 }
             }
 
-            // Right: Timer + Sound Toggle Button
+            // Right: Timer + Resign + Sound Toggle Button
             Row(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 verticalAlignment = Alignment.CenterVertically,
@@ -428,6 +428,30 @@ fun GameBoardScreen(
                     }
                 }
 
+                // Resign Icon Button
+                if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(NeonDarkCard)
+                            .border(1.dp, NeonMagenta.copy(alpha = 0.6f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            onClick = { showResignConfirmation = true },
+                            modifier = Modifier.testTag("btn_resign")
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = "Resign Match",
+                                tint = NeonMagenta
+                            )
+                        }
+                    }
+                }
+
+                // Sound Toggle Button
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -691,23 +715,8 @@ fun GameBoardScreen(
             modifier = Modifier.fillMaxWidth(0.7f)
         )
 
-        // Action Button under own name view (Resign / Undo / Play Again)
-        if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
-            Spacer(modifier = Modifier.height(10.dp))
-            OutlinedButton(
-                onClick = { showResignConfirmation = true },
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, NeonMagenta),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonMagenta),
-                modifier = Modifier
-                    .fillMaxWidth(0.7f)
-                    .height(44.dp)
-            ) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Resign", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            }
-        } else if (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.winner == null) {
+        // Action Button under own name view (Undo / Play Again)
+        if (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.winner == null) {
             Spacer(modifier = Modifier.height(10.dp))
             OutlinedButton(
                 onClick = onUndoMove,
