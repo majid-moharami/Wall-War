@@ -443,11 +443,17 @@ class AuthRepository @Inject constructor(
             val currentProfile = _userProfile.value
             val avatarResult = nakamaRepository.fetchAvatarSkinsFromNakama()
             val defaultSkinSet = com.wallwar.data.ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS
+            val localSkins = loadUnlockedAvatarSkins(currentProfile.email, currentProfile.nakamaUserId)
             if (avatarResult != null) {
                 val (serverSkins, selectedSkin) = avatarResult
-                val accountSkins = (serverSkins + defaultSkinSet).toSet()
+                val accountSkins = (serverSkins + localSkins + defaultSkinSet).toSet()
                 _unlockedAvatarSkinIds.value = accountSkins
                 saveUnlockedAvatarSkins(accountSkins, currentProfile.email, currentProfile.nakamaUserId)
+
+                // If local had skins not yet recorded on server, update server cloud storage
+                if (accountSkins.size > serverSkins.size) {
+                    nakamaRepository.syncAvatarSkinsToNakama(accountSkins, selectedSkin ?: _userProfile.value.photoUrl)
+                }
 
                 // Restore equipped avatar if available on server
                 if (!selectedSkin.isNullOrBlank()) {
@@ -456,7 +462,6 @@ class AuthRepository @Inject constructor(
                 }
                 Log.d("AuthRepository", "Restored ${accountSkins.size} avatar skins from server for ${currentProfile.displayName}")
             } else {
-                val localSkins = loadUnlockedAvatarSkins(currentProfile.email, currentProfile.nakamaUserId)
                 _unlockedAvatarSkinIds.value = localSkins
                 nakamaRepository.syncAvatarSkinsToNakama(localSkins, _userProfile.value.photoUrl)
                 Log.d("AuthRepository", "Initialized server avatar skins for ${currentProfile.displayName}: $localSkins")
@@ -470,11 +475,17 @@ class AuthRepository @Inject constructor(
             val currentProfile = _userProfile.value
             val ballResult = nakamaRepository.fetchBallSkinsFromNakama()
             val defaultBallSet = com.wallwar.data.BallSkinCatalog.DEFAULT_UNLOCKED_BALL_IDS
+            val localBalls = loadUnlockedBallSkins(currentProfile.email, currentProfile.nakamaUserId)
             if (ballResult != null) {
                 val (serverBalls, selectedBall) = ballResult
-                val accountBalls = (serverBalls + defaultBallSet).toSet()
+                val accountBalls = (serverBalls + localBalls + defaultBallSet).toSet()
                 _unlockedBallSkinIds.value = accountBalls
                 saveUnlockedBallSkins(accountBalls, currentProfile.email, currentProfile.nakamaUserId)
+
+                // If local had skins (e.g. newly won in spinner) not yet on server, update server cloud storage
+                if (accountBalls.size > serverBalls.size) {
+                    nakamaRepository.syncBallSkinsToNakama(accountBalls, selectedBall ?: _equippedBallSkinId.value)
+                }
 
                 if (!selectedBall.isNullOrBlank()) {
                     _equippedBallSkinId.value = selectedBall
@@ -482,7 +493,6 @@ class AuthRepository @Inject constructor(
                 }
                 Log.d("AuthRepository", "Restored ${accountBalls.size} ball skins from server for ${currentProfile.displayName} (selected: $selectedBall)")
             } else {
-                val localBalls = loadUnlockedBallSkins(currentProfile.email, currentProfile.nakamaUserId)
                 _unlockedBallSkinIds.value = localBalls
                 val equipped = loadEquippedBallSkin(currentProfile.email, currentProfile.nakamaUserId)
                 _equippedBallSkinId.value = equipped
@@ -498,11 +508,17 @@ class AuthRepository @Inject constructor(
             val currentProfile = _userProfile.value
             val wallResult = nakamaRepository.fetchWallSkinsFromNakama()
             val defaultWallSet = com.wallwar.data.WallSkinCatalog.DEFAULT_UNLOCKED_WALL_IDS
+            val localWalls = loadUnlockedWallSkins(currentProfile.email, currentProfile.nakamaUserId)
             if (wallResult != null) {
                 val (serverWalls, selectedWall) = wallResult
-                val accountWalls = (serverWalls + defaultWallSet).toSet()
+                val accountWalls = (serverWalls + localWalls + defaultWallSet).toSet()
                 _unlockedWallSkinIds.value = accountWalls
                 saveUnlockedWallSkins(accountWalls, currentProfile.email, currentProfile.nakamaUserId)
+
+                // If local had wall skins not yet on server, update server cloud storage
+                if (accountWalls.size > serverWalls.size) {
+                    nakamaRepository.syncWallSkinsToNakama(accountWalls, selectedWall ?: _equippedWallSkinId.value)
+                }
 
                 if (!selectedWall.isNullOrBlank()) {
                     _equippedWallSkinId.value = selectedWall
@@ -510,7 +526,6 @@ class AuthRepository @Inject constructor(
                 }
                 Log.d("AuthRepository", "Restored ${accountWalls.size} wall skins from server for ${currentProfile.displayName} (selected: $selectedWall)")
             } else {
-                val localWalls = loadUnlockedWallSkins(currentProfile.email, currentProfile.nakamaUserId)
                 _unlockedWallSkinIds.value = localWalls
                 val equipped = loadEquippedWallSkin(currentProfile.email, currentProfile.nakamaUserId)
                 _equippedWallSkinId.value = equipped
