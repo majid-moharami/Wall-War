@@ -13,6 +13,10 @@ class WallWarApplication : Application() {
         MobileAds.initialize(this) {}
         try {
             Adivery.configure(this, AdiveryConstants.ADIVERY_APP_ID)
+            Adivery.setLoggingEnabled(true)
+            Adivery.prepareRewardedAd(this, AdiveryConstants.REWARDED_PLACEMENT_ID)
+            Adivery.prepareInterstitialAd(this, AdiveryConstants.INTERSTITIAL_PLACEMENT_ID)
+            android.util.Log.d("WallWarApplication", "Adivery configured and ads preloaded successfully.")
         } catch (e: Exception) {
             android.util.Log.e("WallWarApplication", "Failed to configure Adivery: ${e.message}")
         }

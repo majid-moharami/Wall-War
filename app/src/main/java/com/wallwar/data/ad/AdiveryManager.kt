@@ -50,89 +50,107 @@ class AdiveryManager @Inject constructor(
     private var onInterstitialDismissedCallback: (() -> Unit)? = null
 
     init {
-        Adivery.addGlobalListener(object : AdiveryListener() {
+        val listener = object : AdiveryListener() {
             override fun onRewardedAdLoaded(placementId: String) {
-                if (placementId == AdiveryConstants.REWARDED_PLACEMENT_ID) {
-                    Log.d("AdiveryManager", "Adivery Rewarded Ad Loaded successfully for: $placementId")
-                    _isRewardedAdReady.value = true
-                    _isRewardedAdLoading.value = false
-                }
+                Log.d("AdiveryManager", "Adivery Rewarded Ad Loaded successfully for: $placementId")
+                _isRewardedAdReady.value = true
+                _isRewardedAdLoading.value = false
             }
 
             override fun onRewardedAdShown(placementId: String) {
-                if (placementId == AdiveryConstants.REWARDED_PLACEMENT_ID) {
-                    Log.d("AdiveryManager", "Adivery Rewarded Ad Shown: $placementId")
-                    _isAdShowing.value = true
-                }
+                Log.d("AdiveryManager", "Adivery Rewarded Ad Shown: $placementId")
+                _isAdShowing.value = true
             }
 
             override fun onRewardedAdClosed(placementId: String, isRewarded: Boolean) {
-                if (placementId == AdiveryConstants.REWARDED_PLACEMENT_ID) {
-                    Log.d("AdiveryManager", "Adivery Rewarded Ad Closed: $placementId, isRewarded=$isRewarded")
-                    _isAdShowing.value = false
-                    _isRewardedAdReady.value = false
-                    _isRewardedAdLoading.value = false
-                    if (isRewarded) {
-                        onRewardEarnedCallback?.invoke()
-                    }
-                    onRewardedDismissedCallback?.invoke()
-                    onRewardEarnedCallback = null
-                    onRewardedDismissedCallback = null
-                    onRewardedFailedCallback = null
-                    // Pre-prepare next ad
-                    prepareRewardedAd()
+                Log.d("AdiveryManager", "Adivery Rewarded Ad Closed: $placementId, isRewarded=$isRewarded")
+                _isAdShowing.value = false
+                _isRewardedAdReady.value = false
+                _isRewardedAdLoading.value = false
+                if (isRewarded) {
+                    onRewardEarnedCallback?.invoke()
                 }
+                onRewardedDismissedCallback?.invoke()
+                onRewardEarnedCallback = null
+                onRewardedDismissedCallback = null
+                onRewardedFailedCallback = null
+                // Pre-prepare next ad
+                prepareRewardedAd()
             }
 
             override fun onInterstitialAdLoaded(placementId: String) {
-                if (placementId == AdiveryConstants.INTERSTITIAL_PLACEMENT_ID) {
-                    Log.d("AdiveryManager", "Adivery Interstitial Ad Loaded: $placementId")
-                    _isInterstitialAdReady.value = true
-                    _isInterstitialLoading.value = false
-                    interstitialRetryAttempt.set(0)
-                }
+                Log.d("AdiveryManager", "Adivery Interstitial Ad Loaded: $placementId")
+                _isInterstitialAdReady.value = true
+                _isInterstitialLoading.value = false
+                interstitialRetryAttempt.set(0)
             }
 
             override fun onInterstitialAdShown(placementId: String) {
-                if (placementId == AdiveryConstants.INTERSTITIAL_PLACEMENT_ID) {
-                    Log.d("AdiveryManager", "Adivery Interstitial Ad Shown: $placementId")
-                    _isAdShowing.value = true
-                }
+                Log.d("AdiveryManager", "Adivery Interstitial Ad Shown: $placementId")
+                _isAdShowing.value = true
             }
 
             override fun onInterstitialAdClosed(placementId: String) {
-                if (placementId == AdiveryConstants.INTERSTITIAL_PLACEMENT_ID) {
-                    Log.d("AdiveryManager", "Adivery Interstitial Ad Closed: $placementId")
-                    _isAdShowing.value = false
-                    _isInterstitialAdReady.value = false
-                    _isInterstitialLoading.value = false
-                    onInterstitialDismissedCallback?.invoke()
-                    onInterstitialDismissedCallback = null
-                    // Pre-prepare next ad
-                    prepareInterstitialAd()
-                }
+                Log.d("AdiveryManager", "Adivery Interstitial Ad Closed: $placementId")
+                _isAdShowing.value = false
+                _isInterstitialAdReady.value = false
+                _isInterstitialLoading.value = false
+                onInterstitialDismissedCallback?.invoke()
+                onInterstitialDismissedCallback = null
+                // Pre-prepare next ad
+                prepareInterstitialAd()
             }
-        })
+        }
+
+        try {
+            Adivery.addGlobalListener(listener)
+            Adivery.addPlacementListener(AdiveryConstants.REWARDED_PLACEMENT_ID, listener)
+            Adivery.addPlacementListener(AdiveryConstants.INTERSTITIAL_PLACEMENT_ID, listener)
+            prepareRewardedAd()
+            prepareInterstitialAd()
+        } catch (e: Exception) {
+            Log.e("AdiveryManager", "Error initializing listeners: ${e.message}")
+        }
     }
 
     fun prepareRewardedAd() {
         if (_isRewardedAdLoading.value || isRewardedLoaded()) return
         _isRewardedAdLoading.value = true
-        Adivery.prepareRewardedAd(context, AdiveryConstants.REWARDED_PLACEMENT_ID)
+        try {
+            Adivery.prepareRewardedAd(context, AdiveryConstants.REWARDED_PLACEMENT_ID)
+            Log.d("AdiveryManager", "Requested Adivery.prepareRewardedAd")
+        } catch (e: Exception) {
+            _isRewardedAdLoading.value = false
+            Log.e("AdiveryManager", "Failed to request prepareRewardedAd: ${e.message}")
+        }
     }
 
     fun prepareInterstitialAd() {
         if (_isInterstitialLoading.value || isInterstitialLoaded()) return
         _isInterstitialLoading.value = true
-        Adivery.prepareInterstitialAd(context, AdiveryConstants.INTERSTITIAL_PLACEMENT_ID)
+        try {
+            Adivery.prepareInterstitialAd(context, AdiveryConstants.INTERSTITIAL_PLACEMENT_ID)
+            Log.d("AdiveryManager", "Requested Adivery.prepareInterstitialAd")
+        } catch (e: Exception) {
+            _isInterstitialLoading.value = false
+            Log.e("AdiveryManager", "Failed to request prepareInterstitialAd: ${e.message}")
+        }
     }
 
     fun isRewardedLoaded(): Boolean {
-        return Adivery.isLoaded(AdiveryConstants.REWARDED_PLACEMENT_ID)
+        return try {
+            Adivery.isLoaded(AdiveryConstants.REWARDED_PLACEMENT_ID)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun isInterstitialLoaded(): Boolean {
-        return Adivery.isLoaded(AdiveryConstants.INTERSTITIAL_PLACEMENT_ID)
+        return try {
+            Adivery.isLoaded(AdiveryConstants.INTERSTITIAL_PLACEMENT_ID)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     fun loadAndShowRewardedAd(
@@ -153,16 +171,23 @@ class AdiveryManager @Inject constructor(
         if (isRewardedLoaded()) {
             Log.d("AdiveryManager", "Adivery Rewarded Ad is in memory, showing directly.")
             _isAdShowing.value = true
-            Adivery.showAd(AdiveryConstants.REWARDED_PLACEMENT_ID)
+            try {
+                Adivery.showAd(AdiveryConstants.REWARDED_PLACEMENT_ID)
+            } catch (e: Exception) {
+                _isAdShowing.value = false
+                Log.e("AdiveryManager", "Exception showing loaded ad: ${e.message}")
+                onFailed("Exception showing ad: ${e.message}")
+                onAdDismissed()
+            }
         } else {
             Log.d("AdiveryManager", "Adivery Rewarded Ad not loaded yet. Preparing and waiting to show...")
             _isRewardedAdLoading.value = true
             prepareRewardedAd()
 
             scope.launch {
-                // Poll briefly up to 3 seconds for ad to load
+                // Poll for ad to load (up to 6 seconds)
                 var waitCount = 0
-                while (waitCount < 6 && !isRewardedLoaded()) {
+                while (waitCount < 12 && !isRewardedLoaded()) {
                     delay(500)
                     waitCount++
                 }
@@ -170,10 +195,18 @@ class AdiveryManager @Inject constructor(
                 if (isRewardedLoaded()) {
                     Log.d("AdiveryManager", "Adivery Rewarded Ad ready after wait, showing now.")
                     _isAdShowing.value = true
-                    Adivery.showAd(AdiveryConstants.REWARDED_PLACEMENT_ID)
+                    _isRewardedAdLoading.value = false
+                    try {
+                        Adivery.showAd(AdiveryConstants.REWARDED_PLACEMENT_ID)
+                    } catch (e: Exception) {
+                        _isAdShowing.value = false
+                        Log.e("AdiveryManager", "Exception showing ad after wait: ${e.message}")
+                        onFailed("Exception showing ad: ${e.message}")
+                        onAdDismissed()
+                    }
                 } else {
                     _isRewardedAdLoading.value = false
-                    val errorMsg = "Unable to load Persian ad from Adivery."
+                    val errorMsg = "Unable to load Persian ad from Adivery (timeout)."
                     Log.w("AdiveryManager", errorMsg)
                     onFailed(errorMsg)
                     onAdDismissed()

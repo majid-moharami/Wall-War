@@ -31,7 +31,7 @@ class GeoLocationDetector @Inject constructor(
     private val _isIranUser = MutableStateFlow(determineInitialIranStatus())
     val isIranUser: StateFlow<Boolean> = _isIranUser.asStateFlow()
 
-    private val _detectedCountry = MutableStateFlow(prefs.getString("detected_country", null) ?: "UNKNOWN")
+    private val _detectedCountry = MutableStateFlow(prefs.getString("detected_country", null) ?: "IR")
     val detectedCountry: StateFlow<String> = _detectedCountry.asStateFlow()
 
     init {
@@ -41,7 +41,7 @@ class GeoLocationDetector @Inject constructor(
     private fun determineInitialIranStatus(): Boolean {
         // Check saved preference first
         if (prefs.contains("is_iran")) {
-            return prefs.getBoolean("is_iran", false)
+            return prefs.getBoolean("is_iran", true)
         }
 
         // Fast system heuristic: Locale, TimeZone, Language
@@ -51,11 +51,21 @@ class GeoLocationDetector @Inject constructor(
 
         val isIranBySystem = systemCountry.equals("IR", ignoreCase = true) ||
                 systemLanguage.equals("fa", ignoreCase = true) ||
+                systemLanguage.equals("fas", ignoreCase = true) ||
                 timeZoneId.contains("Tehran", ignoreCase = true) ||
                 timeZoneId.contains("Iran", ignoreCase = true)
 
         Log.d("GeoLocationDetector", "Initial system heuristic: isIran=$isIranBySystem (country=$systemCountry, lang=$systemLanguage, tz=$timeZoneId)")
         return isIranBySystem
+    }
+
+    fun setIranUserMode(isIran: Boolean) {
+        _isIranUser.value = isIran
+        prefs.edit()
+            .putBoolean("is_iran", isIran)
+            .putString("detected_country", if (isIran) "IR" else "GLOBAL")
+            .apply()
+        Log.d("GeoLocationDetector", "Manual Iran user mode set to: $isIran")
     }
 
     fun detectCountryFromIp() {
@@ -71,7 +81,7 @@ class GeoLocationDetector @Inject constructor(
                     .apply()
                 Log.d("GeoLocationDetector", "IP Detection complete: country=$country, isIran=$isIran")
             } else {
-                Log.d("GeoLocationDetector", "IP Detection failed, retaining heuristic: ${_isIranUser.value}")
+                Log.d("GeoLocationDetector", "IP Detection unavailable, retaining state: ${_isIranUser.value}")
             }
         }
     }

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -43,11 +44,9 @@ class AdManager @Inject constructor(
 
     val isIranUser: StateFlow<Boolean> = geoLocationDetector.isIranUser
 
-    val activeNetwork: StateFlow<AdNetwork> = combine(
-        geoLocationDetector.isIranUser
-    ) { isIran ->
-        if (isIran[0]) AdNetwork.ADIVERY else AdNetwork.ADMOB
-    }.stateIn(scope, SharingStarted.Eagerly, if (geoLocationDetector.isIranUser.value) AdNetwork.ADIVERY else AdNetwork.ADMOB)
+    val activeNetwork: StateFlow<AdNetwork> = geoLocationDetector.isIranUser
+        .map { isIran -> if (isIran) AdNetwork.ADIVERY else AdNetwork.ADMOB }
+        .stateIn(scope, SharingStarted.Eagerly, if (geoLocationDetector.isIranUser.value) AdNetwork.ADIVERY else AdNetwork.ADMOB)
 
     val isRewardedAdLoading: StateFlow<Boolean> = combine(
         activeNetwork,
