@@ -770,6 +770,21 @@ fun BallSkinCard(
                         fontWeight = FontWeight.Bold,
                         color = NeonEmerald
                     )
+                } else if (skin.isSpinnerReward) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFF261D3A))
+                            .border(1.dp, NeonAmber.copy(alpha = 0.8f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "🎰 SPINNER",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black,
+                            color = NeonAmber
+                        )
+                    }
                 } else if (isLevelLocked) {
                     Box(
                         modifier = Modifier
@@ -812,7 +827,7 @@ fun BallSkinCard(
                     modifier = Modifier
                         .size(58.dp)
                         .padding(2.dp)
-                        .alpha(if (isLevelLocked) 0.65f else 1f),
+                        .alpha(if (isLevelLocked || (skin.isSpinnerReward && !isUnlocked)) 0.85f else 1f),
                     contentScale = ContentScale.Fit
                 )
             }
@@ -874,6 +889,26 @@ fun BallSkinCard(
                         .testTag("equip_ball_${skin.id}")
                 ) {
                     Text("EQUIP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+            } else if (skin.isSpinnerReward) {
+                Button(
+                    onClick = onPreview,
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF261D3A),
+                        contentColor = NeonAmber
+                    ),
+                    border = BorderStroke(1.dp, NeonAmber.copy(alpha = 0.7f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(34.dp)
+                        .testTag("buy_ball_${skin.id}")
+                ) {
+                    Text(
+                        text = "🎰 Spin to Win",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black
+                    )
                 }
             } else if (isLevelLocked) {
                 Button(
@@ -1173,7 +1208,27 @@ fun BallSkinDetailDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (!isUnlocked) {
+                if (skin.isSpinnerReward && !isUnlocked) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF231638))
+                            .border(1.dp, NeonAmber.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🎰 Exclusive Lucky Spinner Reward!\nSpin the Wheel on the Home screen to win this skin.",
+                            color = NeonAmber,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 16.sp
+                        )
+                    }
+                } else if (!isUnlocked) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1213,6 +1268,14 @@ fun BallSkinDetailDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Equip Ball Skin", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            } else if (skin.isSpinnerReward) {
+                Button(
+                    onClick = onDismiss,
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("🎰 Win in Lucky Spinner", color = Color.Black, fontWeight = FontWeight.Black)
                 }
             } else if (isLevelLocked) {
                 Button(

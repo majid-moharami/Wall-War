@@ -284,7 +284,7 @@ fun LuckySpinnerDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "⚠️ Notice: Special skins (Void, Shield, Apex) have ultra-rare drop chance (~1%).",
+                        text = "⚠️ Notice: Exclusive Ball Skins (Cyber Core, Quantum Energy, Micro Blackhole) have rare drop chance in the Wheel.",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF93C5FD),

@@ -168,9 +168,10 @@ class HomeViewModel @Inject constructor(
                 soundManager.playCoinSound()
             }
             is SpinRewardType.Cosmetic -> {
-                // Special rare skin fallback/reward coins added & synced to user profile
+                // Unlock the exclusive ball skin and grant bonus coins
+                authRepository.grantRewardBallSkin(r.id)
                 authRepository.addCoins(r.fallbackCoins)
-                soundManager.playCoinSound()
+                soundManager.playRewardSound()
             }
         }
         return outcome

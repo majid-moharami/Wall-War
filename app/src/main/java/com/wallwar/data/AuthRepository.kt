@@ -580,6 +580,22 @@ class AuthRepository @Inject constructor(
         return true
     }
 
+    fun grantRewardBallSkin(skinId: String) {
+        val currentSet = _unlockedBallSkinIds.value
+        if (currentSet.contains(skinId)) {
+            return
+        }
+
+        val newSet = currentSet + skinId
+        _unlockedBallSkinIds.value = newSet
+        val profile = _userProfile.value
+        saveUnlockedBallSkins(newSet, profile.email, profile.nakamaUserId)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncBallSkinsToNakama(newSet, _equippedBallSkinId.value)
+        }
+    }
+
     fun equipBallSkin(skinId: String) {
         val profile = _userProfile.value
         _equippedBallSkinId.value = skinId

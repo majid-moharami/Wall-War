@@ -12,9 +12,10 @@ data class BallSkin(
     val rarity: String,
     val tag: String,
     val isDefaultUnlocked: Boolean = false,
-    val requiredLevel: Int = 1
+    val requiredLevel: Int = 1,
+    val isSpinnerReward: Boolean = false
 ) {
-    val isFree: Boolean get() = priceCoins == 0 || isDefaultUnlocked
+    val isFree: Boolean get() = (priceCoins == 0 && !isSpinnerReward) || isDefaultUnlocked
 }
 
 object BallSkinCatalog {
@@ -43,10 +44,53 @@ object BallSkinCatalog {
         requiredLevel = 1
     )
 
+    // Lucky Spinner Exclusive Balls
+    val SPINNER_QUANTUM_ENERGY = BallSkin(
+        id = "ball_quantum_energy",
+        name = "Quantum Energy",
+        drawableResId = R.drawable.ic_quantum_energy,
+        priceCoins = 0,
+        description = "Concentrated quantum surge sphere radiating cosmic lightning. Exclusive to the Lucky Spinner.",
+        rarity = "Legendary",
+        tag = "Lucky Wheel",
+        isDefaultUnlocked = false,
+        requiredLevel = 1,
+        isSpinnerReward = true
+    )
+
+    val SPINNER_MICRO_BLACKHOLE = BallSkin(
+        id = "ball_micro_blackhole",
+        name = "Micro Blackhole",
+        drawableResId = R.drawable.ic_micro_blackhole,
+        priceCoins = 0,
+        description = "A miniature gravitational vortex sphere warping reality. Exclusive to the Lucky Spinner.",
+        rarity = "Mythic",
+        tag = "Lucky Wheel",
+        isDefaultUnlocked = false,
+        requiredLevel = 1,
+        isSpinnerReward = true
+    )
+
+    val SPINNER_CYBERNETIC_CORE = BallSkin(
+        id = "ball_cybernetic_core",
+        name = "Cybernetic Core",
+        drawableResId = R.drawable.ic_cybernetic_core,
+        priceCoins = 0,
+        description = "Advanced cyber-matrix reactor core pulsing with synthetic power. Exclusive to the Lucky Spinner.",
+        rarity = "Epic",
+        tag = "Lucky Wheel",
+        isDefaultUnlocked = false,
+        requiredLevel = 1,
+        isSpinnerReward = true
+    )
+
     // 18 Paid Ball Skins (Levels 5 to 20)
     val ALL_BALL_SKINS: List<BallSkin> = listOf(
         DEFAULT_BLUE,
         DEFAULT_RED,
+        SPINNER_QUANTUM_ENERGY,
+        SPINNER_MICRO_BLACKHOLE,
+        SPINNER_CYBERNETIC_CORE,
         // 1) 2,500 coins - Level 5
         BallSkin(
             id = "ball_tennis",
@@ -245,7 +289,11 @@ object BallSkinCatalog {
             tag = "Imperial King",
             requiredLevel = 20
         )
-    ).sortedWith(compareBy<BallSkin> { it.requiredLevel }.thenBy { it.priceCoins })
+    ).sortedWith(
+        compareBy<BallSkin> { if (it.isDefaultUnlocked) 0 else if (it.isSpinnerReward) 2 else 1 }
+            .thenBy { it.requiredLevel }
+            .thenBy { it.priceCoins }
+    )
 
     val DEFAULT_UNLOCKED_BALL_IDS: Set<String> = setOf("ball_blue", "ball_red")
     const val DEFAULT_EQUIPPED_BALL_ID = "ball_blue"

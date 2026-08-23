@@ -90,13 +90,13 @@ class DailySpinnerManager @Inject constructor(
             ),
             WheelSegment(
                 index = 2,
-                label = "VOID",
-                subLabel = "Mythic Pawn",
+                label = "CYBER",
+                subLabel = "Cyber Core",
                 icon = "🔮",
-                reward = SpinRewardType.Cosmetic("void_chronos", "Void Chronos Pawn", "🔮", "MYTHIC", 1000),
-                weight = 1,
+                reward = SpinRewardType.Cosmetic("ball_cybernetic_core", "Cybernetic Core Ball", "🔮", "EPIC", 1000),
+                weight = 2,
                 colorHex = 0xFF7C3AED,
-                badge = "MYTHIC"
+                badge = "EPIC"
             ),
             WheelSegment(
                 index = 3,
@@ -110,11 +110,11 @@ class DailySpinnerManager @Inject constructor(
             ),
             WheelSegment(
                 index = 4,
-                label = "SHIELD",
-                subLabel = "Legend Wall",
-                icon = "🌀",
-                reward = SpinRewardType.Cosmetic("quantum_shield", "Quantum Shield Wall", "🌀", "LEGEND", 1500),
-                weight = 1,
+                label = "QUANTUM",
+                subLabel = "Quantum Energy",
+                icon = "⚡",
+                reward = SpinRewardType.Cosmetic("ball_quantum_energy", "Quantum Energy Ball", "⚡", "LEGEND", 1500),
+                weight = 2,
                 colorHex = 0xFFDB2777,
                 badge = "LEGEND"
             ),
@@ -130,13 +130,13 @@ class DailySpinnerManager @Inject constructor(
             ),
             WheelSegment(
                 index = 6,
-                label = "APEX",
-                subLabel = "Apex Avatar",
-                icon = "👑",
-                reward = SpinRewardType.Cosmetic("imperial_apex", "Imperial Apex Avatar", "👑", "ULTRA", 2000),
+                label = "BLACKHOLE",
+                subLabel = "Micro Void",
+                icon = "🕳️",
+                reward = SpinRewardType.Cosmetic("ball_micro_blackhole", "Micro Blackhole Ball", "🕳️", "MYTHIC", 2000),
                 weight = 1,
                 colorHex = 0xFFC026D3,
-                badge = "APEX"
+                badge = "MYTHIC"
             ),
             WheelSegment(
                 index = 7,

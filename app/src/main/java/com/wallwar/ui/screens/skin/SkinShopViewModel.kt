@@ -138,6 +138,12 @@ class SkinShopViewModel @Inject constructor(
             return
         }
 
+        if (skin.isSpinnerReward) {
+            soundManager.playErrorSound()
+            _statusMessage.value = "🎰 '${skin.name}' is exclusive to Lucky Spinner! Spin the Wheel on Home to win it."
+            return
+        }
+
         val currentLevel = userProfile.value.level
         if (currentLevel < skin.requiredLevel) {
             soundManager.playErrorSound()
