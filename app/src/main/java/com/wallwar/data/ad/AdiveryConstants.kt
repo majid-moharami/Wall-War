@@ -2,7 +2,7 @@ package com.wallwar.data.ad
 
 object AdiveryConstants {
     // Adivery App Key configured for WallWar
-    const val ADIVERY_APP_ID = "965e945e-6755-46d7-8938-20cbeea31b01"
+    const val ADIVERY_APP_ID = "f4197cb0-a8a4-4202-849c-84a7e23cff80"
 
     // Adivery Placement IDs configured for WallWar
     const val REWARDED_PLACEMENT_ID = "0a5bec31-a2f9-49fb-85c0-43d5bdab700e"
