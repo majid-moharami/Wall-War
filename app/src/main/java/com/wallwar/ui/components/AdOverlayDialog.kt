@@ -183,7 +183,7 @@ fun AdOverlayDialog(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "Playing 2D Arcade Video...",
+                                text = if (network == AdNetwork.ADIVERY) "Playing Persian Sponsored Video (Adivery)..." else "Playing 2D Arcade Video...",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = Color(0xFFA0ACCC),
                                 fontWeight = FontWeight.Medium

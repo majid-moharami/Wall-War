@@ -146,6 +146,7 @@ dependencies {
   implementation(libs.moshi.kotlin)
   implementation(libs.okhttp)
   implementation(libs.nakama.java)
+  implementation(libs.adivery)
   implementation(libs.play.services.ads)
   implementation(libs.play.billing)
   implementation("com.google.protobuf:protobuf-java:3.25.1")

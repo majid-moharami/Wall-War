@@ -11,15 +11,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
 enum class AdNetwork(val displayName: String) {
-    ADMOB("AdMob Network"),
-    TAPSELL("Tapsell Network")
+    ADMOB("Google AdMob Network"),
+    ADIVERY("Adivery Ads (Iran / Persian)")
 }
 
 enum class AdType(val title: String) {
@@ -32,22 +35,56 @@ class AdManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
     private val nakamaRepository: NakamaRepository,
-    private val adMobManager: AdMobManager
+    private val adMobManager: AdMobManager,
+    private val adiveryManager: AdiveryManager,
+    private val geoLocationDetector: GeoLocationDetector
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
-    val isRewardedAdLoading: StateFlow<Boolean> = adMobManager.isRewardedAdLoading
-    val isRewardedAdReady: StateFlow<Boolean> = adMobManager.isRewardedAdReady
+    val isIranUser: StateFlow<Boolean> = geoLocationDetector.isIranUser
 
-    val isInterstitialLoading: StateFlow<Boolean> = adMobManager.isInterstitialLoading
-    val isInterstitialAdReady: StateFlow<Boolean> = adMobManager.isInterstitialAdReady
-    val isInterstitialReady: StateFlow<Boolean> = adMobManager.isInterstitialReady
+    val activeNetwork: StateFlow<AdNetwork> = combine(
+        geoLocationDetector.isIranUser
+    ) { isIran ->
+        if (isIran[0]) AdNetwork.ADIVERY else AdNetwork.ADMOB
+    }.stateIn(scope, SharingStarted.Eagerly, if (geoLocationDetector.isIranUser.value) AdNetwork.ADIVERY else AdNetwork.ADMOB)
+
+    val isRewardedAdLoading: StateFlow<Boolean> = combine(
+        activeNetwork,
+        adMobManager.isRewardedAdLoading,
+        adiveryManager.isRewardedAdLoading
+    ) { network, admobLoading, adiveryLoading ->
+        if (network == AdNetwork.ADIVERY) adiveryLoading else admobLoading
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    val isRewardedAdReady: StateFlow<Boolean> = combine(
+        activeNetwork,
+        adMobManager.isRewardedAdReady,
+        adiveryManager.isRewardedAdReady
+    ) { network, admobReady, adiveryReady ->
+        if (network == AdNetwork.ADIVERY) adiveryReady else admobReady
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    val isInterstitialLoading: StateFlow<Boolean> = combine(
+        activeNetwork,
+        adMobManager.isInterstitialLoading,
+        adiveryManager.isInterstitialLoading
+    ) { network, admobLoading, adiveryLoading ->
+        if (network == AdNetwork.ADIVERY) adiveryLoading else admobLoading
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    val isInterstitialAdReady: StateFlow<Boolean> = combine(
+        activeNetwork,
+        adMobManager.isInterstitialAdReady,
+        adiveryManager.isInterstitialAdReady
+    ) { network, admobReady, adiveryReady ->
+        if (network == AdNetwork.ADIVERY) adiveryReady else admobReady
+    }.stateIn(scope, SharingStarted.Eagerly, false)
+
+    val isInterstitialReady: StateFlow<Boolean> get() = isInterstitialAdReady
 
     private val _isAdPlaying = MutableStateFlow(false)
     val isAdPlaying: StateFlow<Boolean> = _isAdPlaying.asStateFlow()
-
-    private val _activeNetwork = MutableStateFlow(AdNetwork.ADMOB)
-    val activeNetwork: StateFlow<AdNetwork> = _activeNetwork.asStateFlow()
 
     private val _currentAdType = MutableStateFlow<AdType?>(null)
     val currentAdType: StateFlow<AdType?> = _currentAdType.asStateFlow()
@@ -65,11 +102,25 @@ class AdManager @Inject constructor(
     val rewardToast: StateFlow<String?> = _rewardToast.asStateFlow()
 
     init {
-        // Interstitials will be loaded on demand or when a game is in progress; rewarded ads only on user button click
+        scope.launch {
+            geoLocationDetector.isIranUser.collect { isIran ->
+                Log.d("AdManager", "Active ad routing configured: isIranUser=$isIran -> Network=${if (isIran) "Adivery (Persian Ads)" else "Google AdMob"}")
+                if (isIran) {
+                    adiveryManager.prepareInterstitialAd()
+                    adiveryManager.prepareRewardedAd()
+                } else {
+                    adMobManager.loadInterstitialAd(context)
+                }
+            }
+        }
     }
 
     fun preloadInterstitialAd() {
-        adMobManager.loadInterstitialAd(context)
+        if (geoLocationDetector.isIranUser.value) {
+            adiveryManager.prepareInterstitialAd()
+        } else {
+            adMobManager.loadInterstitialAd(context)
+        }
     }
 
     /**
@@ -97,28 +148,94 @@ class AdManager @Inject constructor(
         _rewardDescription.value = "Reward: +$rewardCoins Coins 🪙"
 
         if (activity != null) {
-            adMobManager.loadAndShowRewardedAd(
-                activity = activity,
-                onRewardEarned = {
-                    scope.launch {
-                        nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
-                        authRepository.addCoins(rewardCoins)
-                        val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Ad!"
-                        _rewardToast.value = successMsg
-                        onSuccess(rewardCoins)
-                    }
-                },
-                onAdDismissed = {
-                    onClosed()
-                },
-                onFailed = { errorMsg ->
-                    scope.launch {
-                        _rewardToast.value = errorMsg
-                        onError?.invoke(errorMsg)
+            val useAdivery = geoLocationDetector.isIranUser.value
+            Log.d("AdManager", "Serving Rewarded Ad: useAdivery=$useAdivery")
+
+            if (useAdivery) {
+                adiveryManager.loadAndShowRewardedAd(
+                    activity = activity,
+                    onRewardEarned = {
+                        scope.launch {
+                            nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad_adivery")
+                            authRepository.addCoins(rewardCoins)
+                            val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Persian Ad (Adivery)!"
+                            _rewardToast.value = successMsg
+                            onSuccess(rewardCoins)
+                        }
+                    },
+                    onAdDismissed = {
                         onClosed()
+                    },
+                    onFailed = { adiveryError ->
+                        Log.w("AdManager", "Adivery failed, falling back to AdMob: $adiveryError")
+                        adMobManager.loadAndShowRewardedAd(
+                            activity = activity,
+                            onRewardEarned = {
+                                scope.launch {
+                                    nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
+                                    authRepository.addCoins(rewardCoins)
+                                    val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Ad!"
+                                    _rewardToast.value = successMsg
+                                    onSuccess(rewardCoins)
+                                }
+                            },
+                            onAdDismissed = {
+                                onClosed()
+                            },
+                            onFailed = { admobError ->
+                                scope.launch {
+                                    val finalError = "Ad could not be loaded ($adiveryError / $admobError)"
+                                    _rewardToast.value = finalError
+                                    onError?.invoke(finalError)
+                                    onClosed()
+                                }
+                            }
+                        )
                     }
-                }
-            )
+                )
+            } else {
+                adMobManager.loadAndShowRewardedAd(
+                    activity = activity,
+                    onRewardEarned = {
+                        scope.launch {
+                            nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
+                            authRepository.addCoins(rewardCoins)
+                            val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Ad!"
+                            _rewardToast.value = successMsg
+                            onSuccess(rewardCoins)
+                        }
+                    },
+                    onAdDismissed = {
+                        onClosed()
+                    },
+                    onFailed = { errorMsg ->
+                        Log.w("AdManager", "AdMob failed, falling back to Adivery: $errorMsg")
+                        adiveryManager.loadAndShowRewardedAd(
+                            activity = activity,
+                            onRewardEarned = {
+                                scope.launch {
+                                    nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad_adivery")
+                                    authRepository.addCoins(rewardCoins)
+                                    val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Persian Ad!"
+                                    _rewardToast.value = successMsg
+                                    onSuccess(rewardCoins)
+                                }
+                            },
+                            onAdDismissed = {
+                                onClosed()
+                            },
+                            onFailed = { secondaryError ->
+                                scope.launch {
+                                    val msg = "Ad failed to load ($errorMsg)"
+                                    _rewardToast.value = msg
+                                    onError?.invoke(msg)
+                                    onClosed()
+                                }
+                            }
+                        )
+                    }
+                )
+            }
             return
         }
 
@@ -126,7 +243,6 @@ class AdManager @Inject constructor(
         scope.launch {
             _isAdPlaying.value = true
             _currentAdType.value = AdType.REWARDED
-            _activeNetwork.value = AdNetwork.ADMOB
             _adCountdown.value = 5
 
             for (i in 5 downTo 1) {
@@ -137,7 +253,6 @@ class AdManager @Inject constructor(
             _isAdPlaying.value = false
             _currentAdType.value = null
 
-            // Award coins via Nakama Server RPC & AuthRepository local state
             nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
             authRepository.addCoins(rewardCoins)
 
@@ -162,26 +277,82 @@ class AdManager @Inject constructor(
         _rewardDescription.value = "Reward: Free Match Entry 🎮"
 
         if (activity != null) {
-            adMobManager.loadAndShowRewardedAd(
-                activity = activity,
-                onRewardEarned = {
-                    scope.launch {
-                        val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
-                        _rewardToast.value = successMsg
-                        onSuccess()
-                    }
-                },
-                onAdDismissed = {
-                    onClosed()
-                },
-                onFailed = { errorMsg ->
-                    scope.launch {
-                        _rewardToast.value = errorMsg
-                        onError?.invoke(errorMsg)
+            val useAdivery = geoLocationDetector.isIranUser.value
+
+            if (useAdivery) {
+                adiveryManager.loadAndShowRewardedAd(
+                    activity = activity,
+                    onRewardEarned = {
+                        scope.launch {
+                            val successMsg = "🎉 Free Entry Unlocked via Persian Ad! Starting Match..."
+                            _rewardToast.value = successMsg
+                            onSuccess()
+                        }
+                    },
+                    onAdDismissed = {
                         onClosed()
+                    },
+                    onFailed = { adiveryError ->
+                        adMobManager.loadAndShowRewardedAd(
+                            activity = activity,
+                            onRewardEarned = {
+                                scope.launch {
+                                    val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
+                                    _rewardToast.value = successMsg
+                                    onSuccess()
+                                }
+                            },
+                            onAdDismissed = {
+                                onClosed()
+                            },
+                            onFailed = { admobError ->
+                                scope.launch {
+                                    val errorMsg = "Unable to load ad: $admobError"
+                                    _rewardToast.value = errorMsg
+                                    onError?.invoke(errorMsg)
+                                    onClosed()
+                                }
+                            }
+                        )
                     }
-                }
-            )
+                )
+            } else {
+                adMobManager.loadAndShowRewardedAd(
+                    activity = activity,
+                    onRewardEarned = {
+                        scope.launch {
+                            val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
+                            _rewardToast.value = successMsg
+                            onSuccess()
+                        }
+                    },
+                    onAdDismissed = {
+                        onClosed()
+                    },
+                    onFailed = { errorMsg ->
+                        adiveryManager.loadAndShowRewardedAd(
+                            activity = activity,
+                            onRewardEarned = {
+                                scope.launch {
+                                    val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
+                                    _rewardToast.value = successMsg
+                                    onSuccess()
+                                }
+                            },
+                            onAdDismissed = {
+                                onClosed()
+                            },
+                            onFailed = {
+                                scope.launch {
+                                    _rewardToast.value = errorMsg
+                                    onError?.invoke(errorMsg)
+                                    onClosed()
+                                }
+                            }
+                        )
+                    }
+                )
+            }
             return
         }
 
@@ -189,7 +360,6 @@ class AdManager @Inject constructor(
         scope.launch {
             _isAdPlaying.value = true
             _currentAdType.value = AdType.REWARDED
-            _activeNetwork.value = AdNetwork.ADMOB
             _adCountdown.value = 5
 
             for (i in 5 downTo 1) {
@@ -223,20 +393,38 @@ class AdManager @Inject constructor(
         }
 
         if (activity != null) {
-            adMobManager.loadAndShowInterstitialAd(
-                activity = activity,
-                onAdDismissed = onAdClosed,
-                onFailed = {
-                    onAdClosed()
-                }
-            )
+            val useAdivery = geoLocationDetector.isIranUser.value
+            if (useAdivery) {
+                adiveryManager.loadAndShowInterstitialAd(
+                    activity = activity,
+                    onAdDismissed = onAdClosed,
+                    onFailed = {
+                        adMobManager.loadAndShowInterstitialAd(
+                            activity = activity,
+                            onAdDismissed = onAdClosed,
+                            onFailed = { onAdClosed() }
+                        )
+                    }
+                )
+            } else {
+                adMobManager.loadAndShowInterstitialAd(
+                    activity = activity,
+                    onAdDismissed = onAdClosed,
+                    onFailed = {
+                        adiveryManager.loadAndShowInterstitialAd(
+                            activity = activity,
+                            onAdDismissed = onAdClosed,
+                            onFailed = { onAdClosed() }
+                        )
+                    }
+                )
+            }
             return
         }
 
         scope.launch {
             _isAdPlaying.value = true
             _currentAdType.value = AdType.INTERSTITIAL
-            _activeNetwork.value = AdNetwork.ADMOB
             _adCountdown.value = 3
 
             for (i in 3 downTo 1) {
@@ -249,7 +437,7 @@ class AdManager @Inject constructor(
 
             onAdClosed()
 
-            adMobManager.loadInterstitialAd(context)
+            preloadInterstitialAd()
         }
     }
 
