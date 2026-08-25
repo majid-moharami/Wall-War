@@ -4,9 +4,12 @@ import android.app.Activity
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 
 private val NeonColorScheme = darkColorScheme(
@@ -47,9 +50,19 @@ fun WallWarTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = NeonColorScheme,
-        typography = Typography,
-        content = content
+    val currentDensity = LocalDensity.current
+    val nonScaledDensity = Density(
+        density = currentDensity.density,
+        fontScale = 1.0f
     )
+
+    CompositionLocalProvider(
+        LocalDensity provides nonScaledDensity
+    ) {
+        MaterialTheme(
+            colorScheme = NeonColorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

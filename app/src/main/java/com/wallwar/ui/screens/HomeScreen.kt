@@ -757,7 +757,7 @@ fun HeroRatingCard(
             // Return back Win Rate, Total Wins, and Win Streak tags directly inside the Global Ranking Tier View
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Win Rate Tag
                 Surface(
@@ -767,15 +767,16 @@ fun HeroRatingCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "🎯 $winRate% Win Rate",
+                            text = "🎯 $winRate% Win",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = NeonEmerald
+                            color = NeonEmerald,
+                            maxLines = 1
                         )
                     }
                 }
@@ -788,7 +789,7 @@ fun HeroRatingCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -796,7 +797,8 @@ fun HeroRatingCard(
                             text = "🏆 $actualWins Wins",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = NeonCyan
+                            color = NeonCyan,
+                            maxLines = 1
                         )
                     }
                 }
@@ -809,7 +811,7 @@ fun HeroRatingCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
@@ -817,7 +819,8 @@ fun HeroRatingCard(
                             text = "🔥 ${userProfile.currentWinStreak} Streak",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = NeonAmber
+                            color = NeonAmber,
+                            maxLines = 1
                         )
                     }
                 }
@@ -859,32 +862,34 @@ fun QuickDailyAccessSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(Brush.radialGradient(listOf(NeonAmber, Color(0xFFB45309)))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🎁", fontSize = 20.sp)
+                        Text(text = "🎁", fontSize = 18.sp)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "DAILY REWARD",
                             fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
-                            color = Color.White
+                            fontSize = 10.5.sp,
+                            color = Color.White,
+                            maxLines = 1
                         )
                         Text(
                             text = if (dailyStreakState.canClaim) "Day ${dailyStreakState.currentDay} • Ready!" else "Day ${dailyStreakState.currentDay}/7 Streak",
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             fontWeight = if (dailyStreakState.canClaim) FontWeight.Bold else FontWeight.Normal,
-                            color = if (dailyStreakState.canClaim) NeonAmber else Color(0xFFA0ACCC)
+                            color = if (dailyStreakState.canClaim) NeonAmber else Color(0xFFA0ACCC),
+                            maxLines = 1
                         )
                     }
                 }
@@ -907,32 +912,34 @@ fun QuickDailyAccessSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(Brush.radialGradient(listOf(NeonMagenta, NeonCyan))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "🎡", fontSize = 20.sp)
+                        Text(text = "🎡", fontSize = 18.sp)
                     }
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "LUCKY WHEEL",
                             fontWeight = FontWeight.Black,
-                            fontSize = 11.sp,
-                            color = Color.White
+                            fontSize = 10.5.sp,
+                            color = Color.White,
+                            maxLines = 1
                         )
                         Text(
                             text = if (spinnerState.canSpinToday) "🪙 500 • 1/Day" else "Spun Today ✓",
-                            fontSize = 10.sp,
+                            fontSize = 9.5.sp,
                             fontWeight = if (spinnerState.canSpinToday) FontWeight.Bold else FontWeight.Normal,
-                            color = if (spinnerState.canSpinToday) NeonCyan else Color(0xFFA0ACCC)
+                            color = if (spinnerState.canSpinToday) NeonCyan else Color(0xFFA0ACCC),
+                            maxLines = 1
                         )
                     }
                 }
