@@ -3,6 +3,7 @@ package com.wallwar.ui.screens.auth
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.SignInResult
 import com.wallwar.data.UserProfile
@@ -24,7 +25,8 @@ sealed class AuthUiState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val nakamaRepository: NakamaRepository
+    private val nakamaRepository: NakamaRepository,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -81,6 +83,7 @@ class AuthViewModel @Inject constructor(
             )
             when (result) {
                 is SignInResult.Success -> {
+                    analyticsManager.logLogin("email")
                     _authUiState.value = AuthUiState.Success(result.name, result.email)
                 }
                 is SignInResult.Error -> {
@@ -113,6 +116,7 @@ class AuthViewModel @Inject constructor(
             )
             when (result) {
                 is SignInResult.Success -> {
+                    analyticsManager.logSignUp("email")
                     _authUiState.value = AuthUiState.Success(result.name, result.email)
                 }
                 is SignInResult.Error -> {
@@ -131,6 +135,7 @@ class AuthViewModel @Inject constructor(
             val result = authRepository.signInWithGoogle(context)
             when (result) {
                 is SignInResult.Success -> {
+                    analyticsManager.logLogin("google")
                     _authUiState.value = AuthUiState.Success(result.name, result.email)
                 }
                 is SignInResult.Error -> {
@@ -160,6 +165,7 @@ class AuthViewModel @Inject constructor(
             val result = authRepository.authenticateWithDevice(deviceId, userProfile.value.displayName)
             when (result) {
                 is SignInResult.Success -> {
+                    analyticsManager.logLogin("device_guest")
                     _authUiState.value = AuthUiState.Success(result.name, result.email)
                 }
                 is SignInResult.Error -> {
@@ -177,6 +183,7 @@ class AuthViewModel @Inject constructor(
             _authUiState.value = AuthUiState.Loading
             val success = nakamaRepository.ensureAuthenticatedGuest(userProfile.value.displayName)
             if (success) {
+                analyticsManager.logLogin("guest")
                 _authUiState.value = AuthUiState.Success(userProfile.value.displayName, "guest@wallwar.app")
             } else {
                 _authUiState.value = AuthUiState.Error("Guest login failed. Please check server connection.")
@@ -196,3 +203,4 @@ class AuthViewModel @Inject constructor(
         _authUiState.value = AuthUiState.Idle
     }
 }
+

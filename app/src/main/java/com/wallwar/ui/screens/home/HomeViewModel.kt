@@ -3,6 +3,7 @@ package com.wallwar.ui.screens.home
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
@@ -13,16 +14,16 @@ import com.wallwar.data.DailySpinnerManager
 import com.wallwar.data.DailyStreakManager
 import com.wallwar.data.DailyStreakState
 import com.wallwar.data.GameRepository
+import com.wallwar.data.SettingsRepository
 import com.wallwar.data.SpinOutcome
 import com.wallwar.data.SpinRewardType
 import com.wallwar.data.SpinnerState
 import com.wallwar.data.UserProfile
 import com.wallwar.data.ad.AdManager
 import com.wallwar.model.AiDifficulty
+import com.wallwar.model.BoardTheme
 import com.wallwar.model.GameMode
 import com.wallwar.model.OpponentType
-import com.wallwar.data.SettingsRepository
-import com.wallwar.model.BoardTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,7 +41,8 @@ class HomeViewModel @Inject constructor(
     private val adManager: AdManager,
     private val dailyStreakManager: DailyStreakManager,
     private val dailyMissionManager: DailyMissionManager,
-    private val dailySpinnerManager: DailySpinnerManager
+    private val dailySpinnerManager: DailySpinnerManager,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
@@ -87,6 +89,8 @@ class HomeViewModel @Inject constructor(
             return
         }
 
+        analyticsManager.logMatchmakingStarted(arena.id, arena.title, arena.entryFee)
+
         // Do not deduct coins before successful matchmaking.
         // The entry fee will be deducted only once an opponent is found in GameViewModel.
         _arenaErrorMessage.value = null
@@ -111,6 +115,7 @@ class HomeViewModel @Inject constructor(
             }
             val success = authRepository.deductCoins(entryFee)
             if (success) {
+                analyticsManager.logCoinsSpent(entryFee, "offline_match_entry", "game_entry")
                 _arenaErrorMessage.value = null
                 onSuccess(GameMode.DUEL, opponentType, difficulty, offlineArena)
             } else {
@@ -141,6 +146,11 @@ class HomeViewModel @Inject constructor(
         val result = dailyStreakManager.claimDailyBonus()
         if (result.coinsAwarded > 0) {
             authRepository.addCoins(result.coinsAwarded)
+            analyticsManager.logDailyStreakClaimed(
+                day = result.newStreakDay,
+                coinsAwarded = result.coinsAwarded,
+                wasReset = result.wasReset
+            )
             soundManager.playCoinSound()
             val resetNote = if (result.wasReset) " (Streak Reset)" else ""
             _bonusMessage.value = "Day ${result.newStreakDay} Streak Claimed! +${result.coinsAwarded} Coins awarded! 🪙$resetNote"
@@ -150,27 +160,39 @@ class HomeViewModel @Inject constructor(
     }
 
     fun claimMissionReward(missionId: String) {
+        val mission = dailyMissions.value.find { it.id == missionId }
         val reward = dailyMissionManager.claimMissionReward(missionId)
         if (reward != null) {
             val (coins, xp) = reward
             authRepository.addCoins(coins)
+            analyticsManager.logDailyQuestClaimed(
+                questId = missionId,
+                questTitle = mission?.title ?: missionId,
+                coinsAwarded = coins,
+                xpAwarded = xp
+            )
             soundManager.playCoinSound()
             _bonusMessage.value = "Mission Complete! +$coins Coins & +$xp XP received! 🎯"
         }
     }
 
     fun spinWheel(isFree: Boolean = false): SpinOutcome {
-        authRepository.deductCoins(DailySpinnerManager.SPIN_FEE_COINS)
-        val outcome = dailySpinnerManager.performSpin(false)
+        if (!isFree) {
+            authRepository.deductCoins(DailySpinnerManager.SPIN_FEE_COINS)
+            analyticsManager.logCoinsSpent(DailySpinnerManager.SPIN_FEE_COINS, "lucky_spin", "spinner")
+        }
+        val outcome = dailySpinnerManager.performSpin(isFree)
         when (val r = outcome.winningSegment.reward) {
             is SpinRewardType.Coins -> {
                 authRepository.addCoins(r.amount)
+                analyticsManager.logDailySpinnerSpun("coins", r.amount, isFree)
                 soundManager.playCoinSound()
             }
             is SpinRewardType.Cosmetic -> {
                 // Unlock the exclusive ball skin and grant bonus coins
                 authRepository.grantRewardBallSkin(r.id)
                 authRepository.addCoins(r.fallbackCoins)
+                analyticsManager.logDailySpinnerSpun("cosmetic_${r.id}", r.fallbackCoins, isFree)
                 soundManager.playRewardSound()
             }
         }
@@ -185,4 +207,5 @@ class HomeViewModel @Inject constructor(
         _bonusMessage.value = null
     }
 }
+
 

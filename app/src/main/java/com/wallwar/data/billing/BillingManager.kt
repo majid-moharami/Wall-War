@@ -18,6 +18,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.nakama.NakamaRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -51,7 +52,8 @@ sealed class BillingPurchaseResult {
 class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
-    private val nakamaRepository: NakamaRepository
+    private val nakamaRepository: NakamaRepository,
+    private val analyticsManager: AnalyticsManager
 ) : PurchasesUpdatedListener, BillingClientStateListener {
 
     private val tag = "BillingManager"
@@ -186,6 +188,7 @@ class BillingManager @Inject constructor(
      */
     fun launchBillingFlow(activity: Activity, productId: String): Boolean {
         val canonicalId = BillingConstants.getCanonicalProductId(productId)
+        val expectedCoins = BillingConstants.getCoinsForProductId(canonicalId)
 
         if (!billingClient.isReady) {
             Log.w(tag, "launchBillingFlow: BillingClient not ready. Reconnecting...")
@@ -204,6 +207,14 @@ class BillingManager @Inject constructor(
             // Allow fallback direct simulation if running outside production Play Console environment
             return false
         }
+
+        // Log initiation in Analytics
+        val priceFormatted = productDetails.oneTimePurchaseOfferDetails?.formattedPrice
+        analyticsManager.logPurchaseInitiated(
+            productId = canonicalId,
+            expectedCoins = expectedCoins,
+            priceString = priceFormatted
+        )
 
         val productDetailsParamsList = listOf(
             BillingFlowParams.ProductDetailsParams.newBuilder()
@@ -224,10 +235,16 @@ class BillingManager @Inject constructor(
         if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
             Log.e(tag, "Failed to launch billing flow: ${billingResult.debugMessage}")
             _isPurchasing.value = false
+            val errorMsg = billingResult.debugMessage.ifBlank { "Could not initiate Google Play purchase." }
+            analyticsManager.logPurchaseFailed(
+                productId = canonicalId,
+                responseCode = billingResult.responseCode,
+                errorMessage = errorMsg
+            )
             scope.launch {
                 _purchaseResult.emit(
                     BillingPurchaseResult.Error(
-                        billingResult.debugMessage.ifBlank { "Could not initiate Google Play purchase." },
+                        errorMsg,
                         billingResult.responseCode
                     )
                 )
@@ -254,6 +271,8 @@ class BillingManager @Inject constructor(
             }
             BillingClient.BillingResponseCode.USER_CANCELED -> {
                 Log.d(tag, "Purchase was cancelled by user.")
+                val productId = purchases?.firstOrNull()?.products?.firstOrNull() ?: "unknown_product"
+                analyticsManager.logPurchaseCancelled(productId)
                 scope.launch {
                     _purchaseResult.emit(BillingPurchaseResult.Cancelled)
                 }
@@ -263,11 +282,18 @@ class BillingManager @Inject constructor(
                 processPendingPurchases()
             }
             else -> {
-                Log.e(tag, "Purchase error: ${billingResult.responseCode} - ${billingResult.debugMessage}")
+                val errorMsg = billingResult.debugMessage.ifBlank { "Google Play Purchase failed (${billingResult.responseCode})" }
+                Log.e(tag, "Purchase error: ${billingResult.responseCode} - $errorMsg")
+                val productId = purchases?.firstOrNull()?.products?.firstOrNull() ?: "unknown_product"
+                analyticsManager.logPurchaseFailed(
+                    productId = productId,
+                    responseCode = billingResult.responseCode,
+                    errorMessage = errorMsg
+                )
                 scope.launch {
                     _purchaseResult.emit(
                         BillingPurchaseResult.Error(
-                            billingResult.debugMessage.ifBlank { "Google Play Purchase failed (${billingResult.responseCode})" },
+                            errorMsg,
                             billingResult.responseCode
                         )
                     )
@@ -286,6 +312,7 @@ class BillingManager @Inject constructor(
         } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
             Log.i(tag, "Purchase is pending approval or transaction completion.")
             val productId = purchase.products.firstOrNull() ?: "coin_pack"
+            analyticsManager.logPurchasePending(productId)
             scope.launch {
                 _purchaseResult.emit(BillingPurchaseResult.Pending(productId))
             }
@@ -301,13 +328,13 @@ class BillingManager @Inject constructor(
             .build()
 
         billingClient.consumeAsync(consumeParams) { billingResult, purchaseToken ->
+            val productId = purchase.products.firstOrNull() ?: BillingConstants.COINS_PACK_100
+            val canonicalId = BillingConstants.getCanonicalProductId(productId)
+            val coinAmount = BillingConstants.getCoinsForProductId(canonicalId)
+            val orderId = purchase.orderId ?: "ORDER_${System.currentTimeMillis()}"
+
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 Log.i(tag, "Purchase successfully consumed: $purchaseToken")
-
-                val productId = purchase.products.firstOrNull() ?: BillingConstants.COINS_PACK_100
-                val canonicalId = BillingConstants.getCanonicalProductId(productId)
-                val coinAmount = BillingConstants.getCoinsForProductId(canonicalId)
-                val orderId = purchase.orderId ?: "ORDER_${System.currentTimeMillis()}"
 
                 // Save processed token locally to prevent duplicate credits
                 val alreadyCredited = prefs.getBoolean("credited_$purchaseToken", false)
@@ -320,6 +347,14 @@ class BillingManager @Inject constructor(
                         amount = coinAmount,
                         purchaseToken = purchaseToken,
                         orderId = orderId
+                    )
+
+                    // Log purchase completion to Firebase Analytics
+                    analyticsManager.logPurchaseSuccess(
+                        productId = canonicalId,
+                        coinsAwarded = coinAmount,
+                        orderId = orderId,
+                        isSandbox = false
                     )
                 }
 
@@ -334,6 +369,11 @@ class BillingManager @Inject constructor(
                 }
             } else {
                 Log.e(tag, "Failed to consume purchase: ${billingResult.debugMessage}")
+                analyticsManager.logPurchaseFailed(
+                    productId = canonicalId,
+                    responseCode = billingResult.responseCode,
+                    errorMessage = "Failed to consume: ${billingResult.debugMessage}"
+                )
                 scope.launch {
                     _purchaseResult.emit(
                         BillingPurchaseResult.Error(
@@ -382,11 +422,24 @@ class BillingManager @Inject constructor(
         val dummyToken = "sandbox_token_${System.currentTimeMillis()}"
         val dummyOrder = "GPA.TEST-${(1000..9999).random()}-${(10000..99999).random()}"
 
+        analyticsManager.logPurchaseInitiated(
+            productId = canonicalId,
+            expectedCoins = coins,
+            priceString = "Sandbox $0.00"
+        )
+
         authRepository.processGooglePlayCoinPurchase(
             productId = canonicalId,
             amount = coins,
             purchaseToken = dummyToken,
             orderId = dummyOrder
+        )
+
+        analyticsManager.logPurchaseSuccess(
+            productId = canonicalId,
+            coinsAwarded = coins,
+            orderId = dummyOrder,
+            isSandbox = true
         )
 
         scope.launch {
@@ -406,3 +459,4 @@ class BillingManager @Inject constructor(
         }
     }
 }
+

@@ -3,6 +3,7 @@ package com.wallwar.data.ad
 import android.app.Activity
 import android.content.Context
 import android.util.Log
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.nakama.NakamaRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -38,7 +39,8 @@ class AdManager @Inject constructor(
     private val nakamaRepository: NakamaRepository,
     private val adMobManager: AdMobManager,
     private val adiveryManager: AdiveryManager,
-    private val geoLocationDetector: GeoLocationDetector
+    private val geoLocationDetector: GeoLocationDetector,
+    private val analyticsManager: AnalyticsManager
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
@@ -146,6 +148,13 @@ class AdManager @Inject constructor(
 
         _rewardDescription.value = "Reward: +$rewardCoins Coins 🪙"
 
+        val networkName = if (geoLocationDetector.isIranUser.value) "adivery" else "admob"
+        analyticsManager.logAdRequested(
+            adType = "rewarded",
+            adNetwork = networkName,
+            triggerLocation = "coin_shop"
+        )
+
         if (activity != null) {
             val useAdivery = geoLocationDetector.isIranUser.value
             Log.d("AdManager", "Serving Rewarded Ad: useAdivery=$useAdivery")
@@ -155,6 +164,11 @@ class AdManager @Inject constructor(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
+                            analyticsManager.logRewardedAdWatchedForCoins(
+                                adNetwork = "adivery",
+                                rewardCoins = rewardCoins,
+                                triggerLocation = "coin_shop"
+                            )
                             nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad_adivery")
                             authRepository.addCoins(rewardCoins)
                             val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Persian Ad (Adivery)!"
@@ -163,14 +177,26 @@ class AdManager @Inject constructor(
                         }
                     },
                     onAdDismissed = {
+                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
                         onClosed()
                     },
                     onFailed = { adiveryError ->
                         Log.w("AdManager", "Adivery failed, falling back to AdMob: $adiveryError")
+                        analyticsManager.logAdFailed(
+                            adType = "rewarded",
+                            adNetwork = "adivery",
+                            errorMessage = adiveryError,
+                            triggerLocation = "coin_shop"
+                        )
                         adMobManager.loadAndShowRewardedAd(
                             activity = activity,
                             onRewardEarned = {
                                 scope.launch {
+                                    analyticsManager.logRewardedAdWatchedForCoins(
+                                        adNetwork = "admob",
+                                        rewardCoins = rewardCoins,
+                                        triggerLocation = "coin_shop"
+                                    )
                                     nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
                                     authRepository.addCoins(rewardCoins)
                                     val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Ad!"
@@ -179,10 +205,17 @@ class AdManager @Inject constructor(
                                 }
                             },
                             onAdDismissed = {
+                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
                                 onClosed()
                             },
                             onFailed = { admobError ->
                                 scope.launch {
+                                    analyticsManager.logAdFailed(
+                                        adType = "rewarded",
+                                        adNetwork = "admob",
+                                        errorMessage = admobError,
+                                        triggerLocation = "coin_shop"
+                                    )
                                     val finalError = "Ad could not be loaded ($adiveryError / $admobError)"
                                     _rewardToast.value = finalError
                                     onError?.invoke(finalError)
@@ -197,6 +230,11 @@ class AdManager @Inject constructor(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
+                            analyticsManager.logRewardedAdWatchedForCoins(
+                                adNetwork = "admob",
+                                rewardCoins = rewardCoins,
+                                triggerLocation = "coin_shop"
+                            )
                             nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
                             authRepository.addCoins(rewardCoins)
                             val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Ad!"
@@ -205,14 +243,26 @@ class AdManager @Inject constructor(
                         }
                     },
                     onAdDismissed = {
+                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
                         onClosed()
                     },
                     onFailed = { errorMsg ->
                         Log.w("AdManager", "AdMob failed, falling back to Adivery: $errorMsg")
+                        analyticsManager.logAdFailed(
+                            adType = "rewarded",
+                            adNetwork = "admob",
+                            errorMessage = errorMsg,
+                            triggerLocation = "coin_shop"
+                        )
                         adiveryManager.loadAndShowRewardedAd(
                             activity = activity,
                             onRewardEarned = {
                                 scope.launch {
+                                    analyticsManager.logRewardedAdWatchedForCoins(
+                                        adNetwork = "adivery",
+                                        rewardCoins = rewardCoins,
+                                        triggerLocation = "coin_shop"
+                                    )
                                     nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad_adivery")
                                     authRepository.addCoins(rewardCoins)
                                     val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Persian Ad!"
@@ -221,10 +271,17 @@ class AdManager @Inject constructor(
                                 }
                             },
                             onAdDismissed = {
+                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
                                 onClosed()
                             },
                             onFailed = { secondaryError ->
                                 scope.launch {
+                                    analyticsManager.logAdFailed(
+                                        adType = "rewarded",
+                                        adNetwork = "adivery",
+                                        errorMessage = secondaryError,
+                                        triggerLocation = "coin_shop"
+                                    )
                                     val msg = "Ad failed to load ($errorMsg)"
                                     _rewardToast.value = msg
                                     onError?.invoke(msg)
@@ -252,6 +309,12 @@ class AdManager @Inject constructor(
             _isAdPlaying.value = false
             _currentAdType.value = null
 
+            analyticsManager.logRewardedAdWatchedForCoins(
+                adNetwork = "simulated",
+                rewardCoins = rewardCoins,
+                triggerLocation = "coin_shop_simulated"
+            )
+
             nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
             authRepository.addCoins(rewardCoins)
 
@@ -275,6 +338,13 @@ class AdManager @Inject constructor(
 
         _rewardDescription.value = "Reward: Free Match Entry 🎮"
 
+        val networkName = if (geoLocationDetector.isIranUser.value) "adivery" else "admob"
+        analyticsManager.logAdRequested(
+            adType = "rewarded",
+            adNetwork = networkName,
+            triggerLocation = "free_match_entry"
+        )
+
         if (activity != null) {
             val useAdivery = geoLocationDetector.isIranUser.value
 
@@ -283,29 +353,51 @@ class AdManager @Inject constructor(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
+                            analyticsManager.logRewardedAdWatchedForFreeEntry(
+                                adNetwork = "adivery",
+                                triggerLocation = "offline_entry"
+                            )
                             val successMsg = "🎉 Free Entry Unlocked via Persian Ad! Starting Match..."
                             _rewardToast.value = successMsg
                             onSuccess()
                         }
                     },
                     onAdDismissed = {
+                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
                         onClosed()
                     },
                     onFailed = { adiveryError ->
+                        analyticsManager.logAdFailed(
+                            adType = "rewarded",
+                            adNetwork = "adivery",
+                            errorMessage = adiveryError,
+                            triggerLocation = "free_match_entry"
+                        )
                         adMobManager.loadAndShowRewardedAd(
                             activity = activity,
                             onRewardEarned = {
                                 scope.launch {
+                                    analyticsManager.logRewardedAdWatchedForFreeEntry(
+                                        adNetwork = "admob",
+                                        triggerLocation = "offline_entry"
+                                    )
                                     val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
                                     _rewardToast.value = successMsg
                                     onSuccess()
                                 }
                             },
                             onAdDismissed = {
+                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
                                 onClosed()
                             },
                             onFailed = { admobError ->
                                 scope.launch {
+                                    analyticsManager.logAdFailed(
+                                        adType = "rewarded",
+                                        adNetwork = "admob",
+                                        errorMessage = admobError,
+                                        triggerLocation = "free_match_entry"
+                                    )
                                     val errorMsg = "Unable to load ad: $admobError"
                                     _rewardToast.value = errorMsg
                                     onError?.invoke(errorMsg)
@@ -320,29 +412,51 @@ class AdManager @Inject constructor(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
+                            analyticsManager.logRewardedAdWatchedForFreeEntry(
+                                adNetwork = "admob",
+                                triggerLocation = "offline_entry"
+                            )
                             val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
                             _rewardToast.value = successMsg
                             onSuccess()
                         }
                     },
                     onAdDismissed = {
+                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
                         onClosed()
                     },
                     onFailed = { errorMsg ->
+                        analyticsManager.logAdFailed(
+                            adType = "rewarded",
+                            adNetwork = "admob",
+                            errorMessage = errorMsg,
+                            triggerLocation = "free_match_entry"
+                        )
                         adiveryManager.loadAndShowRewardedAd(
                             activity = activity,
                             onRewardEarned = {
                                 scope.launch {
+                                    analyticsManager.logRewardedAdWatchedForFreeEntry(
+                                        adNetwork = "adivery",
+                                        triggerLocation = "offline_entry"
+                                    )
                                     val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
                                     _rewardToast.value = successMsg
                                     onSuccess()
                                 }
                             },
                             onAdDismissed = {
+                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
                                 onClosed()
                             },
                             onFailed = {
                                 scope.launch {
+                                    analyticsManager.logAdFailed(
+                                        adType = "rewarded",
+                                        adNetwork = "adivery",
+                                        errorMessage = errorMsg,
+                                        triggerLocation = "free_match_entry"
+                                    )
                                     _rewardToast.value = errorMsg
                                     onError?.invoke(errorMsg)
                                     onClosed()
@@ -369,6 +483,11 @@ class AdManager @Inject constructor(
             _isAdPlaying.value = false
             _currentAdType.value = null
 
+            analyticsManager.logRewardedAdWatchedForFreeEntry(
+                adNetwork = "simulated",
+                triggerLocation = "offline_entry_simulated"
+            )
+
             val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
             _rewardToast.value = successMsg
             onSuccess()
@@ -380,7 +499,8 @@ class AdManager @Inject constructor(
         activity: Activity? = null,
         onAdClosed: () -> Unit
     ) {
-        val shouldShow = _completedMatchCount.value > 0 && _completedMatchCount.value % 2 == 0
+        val count = _completedMatchCount.value
+        val shouldShow = count > 0 && count % 2 == 0
         if (!shouldShow) {
             onAdClosed()
             return
@@ -391,29 +511,92 @@ class AdManager @Inject constructor(
             return
         }
 
+        val network = if (geoLocationDetector.isIranUser.value) "adivery" else "admob"
+        analyticsManager.logAdRequested(
+            adType = "interstitial",
+            adNetwork = network,
+            triggerLocation = "post_match"
+        )
+
         if (activity != null) {
             val useAdivery = geoLocationDetector.isIranUser.value
             if (useAdivery) {
                 adiveryManager.loadAndShowInterstitialAd(
                     activity = activity,
-                    onAdDismissed = onAdClosed,
+                    onAdDismissed = {
+                        analyticsManager.logInterstitialAdShownAfterGame(
+                            adNetwork = "adivery",
+                            completedMatchCount = count
+                        )
+                        analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "adivery")
+                        onAdClosed()
+                    },
                     onFailed = {
+                        analyticsManager.logAdFailed(
+                            adType = "interstitial",
+                            adNetwork = "adivery",
+                            errorMessage = "Adivery interstitial skipped",
+                            triggerLocation = "post_match"
+                        )
                         adMobManager.loadAndShowInterstitialAd(
                             activity = activity,
-                            onAdDismissed = onAdClosed,
-                            onFailed = { onAdClosed() }
+                            onAdDismissed = {
+                                analyticsManager.logInterstitialAdShownAfterGame(
+                                    adNetwork = "admob",
+                                    completedMatchCount = count
+                                )
+                                analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "admob")
+                                onAdClosed()
+                            },
+                            onFailed = {
+                                analyticsManager.logAdFailed(
+                                    adType = "interstitial",
+                                    adNetwork = "admob",
+                                    errorMessage = "AdMob interstitial skipped",
+                                    triggerLocation = "post_match"
+                                )
+                                onAdClosed()
+                            }
                         )
                     }
                 )
             } else {
                 adMobManager.loadAndShowInterstitialAd(
                     activity = activity,
-                    onAdDismissed = onAdClosed,
+                    onAdDismissed = {
+                        analyticsManager.logInterstitialAdShownAfterGame(
+                            adNetwork = "admob",
+                            completedMatchCount = count
+                        )
+                        analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "admob")
+                        onAdClosed()
+                    },
                     onFailed = {
+                        analyticsManager.logAdFailed(
+                            adType = "interstitial",
+                            adNetwork = "admob",
+                            errorMessage = "AdMob interstitial skipped",
+                            triggerLocation = "post_match"
+                        )
                         adiveryManager.loadAndShowInterstitialAd(
                             activity = activity,
-                            onAdDismissed = onAdClosed,
-                            onFailed = { onAdClosed() }
+                            onAdDismissed = {
+                                analyticsManager.logInterstitialAdShownAfterGame(
+                                    adNetwork = "adivery",
+                                    completedMatchCount = count
+                                )
+                                analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "adivery")
+                                onAdClosed()
+                            },
+                            onFailed = {
+                                analyticsManager.logAdFailed(
+                                    adType = "interstitial",
+                                    adNetwork = "adivery",
+                                    errorMessage = "Adivery interstitial skipped",
+                                    triggerLocation = "post_match"
+                                )
+                                onAdClosed()
+                            }
                         )
                     }
                 )
@@ -434,6 +617,11 @@ class AdManager @Inject constructor(
             _isAdPlaying.value = false
             _currentAdType.value = null
 
+            analyticsManager.logInterstitialAdShownAfterGame(
+                adNetwork = "simulated",
+                completedMatchCount = count
+            )
+
             onAdClosed()
 
             preloadInterstitialAd()
@@ -444,3 +632,4 @@ class AdManager @Inject constructor(
         _rewardToast.value = null
     }
 }
+

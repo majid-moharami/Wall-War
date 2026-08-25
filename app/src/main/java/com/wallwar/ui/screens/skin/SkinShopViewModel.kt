@@ -2,6 +2,7 @@ package com.wallwar.ui.screens.skin
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.BallSkin
@@ -21,7 +22,8 @@ import javax.inject.Inject
 class SkinShopViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val authRepository: AuthRepository,
-    val soundManager: SoundManager
+    val soundManager: SoundManager,
+    private val analyticsManager: AnalyticsManager
 ) : ViewModel() {
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
@@ -113,7 +115,9 @@ class SkinShopViewModel @Inject constructor(
 
         val success = authRepository.unlockWallSkin(skin.id, skin.priceCoins)
         if (success) {
+            analyticsManager.logSkinPurchased(skin.id, "wall", skin.priceCoins)
             authRepository.equipWallSkin(skin.id)
+            analyticsManager.logSkinEquipped(skin.id, "wall")
             soundManager.playRewardSound()
             _statusMessage.value = "Unlocked & Equipped '${skin.name}'! 🧱"
         } else {
@@ -128,6 +132,7 @@ class SkinShopViewModel @Inject constructor(
 
     fun equipWall(skin: WallSkin) {
         authRepository.equipWallSkin(skin.id)
+        analyticsManager.logSkinEquipped(skin.id, "wall")
         soundManager.playButtonClick()
         _statusMessage.value = "Equipped '${skin.name}' wall skin! 🧱"
     }
@@ -164,7 +169,9 @@ class SkinShopViewModel @Inject constructor(
 
         val success = authRepository.unlockBallSkin(skin.id, skin.priceCoins)
         if (success) {
+            analyticsManager.logSkinPurchased(skin.id, "ball", skin.priceCoins)
             authRepository.equipBallSkin(skin.id)
+            analyticsManager.logSkinEquipped(skin.id, "ball")
             soundManager.playRewardSound()
             _statusMessage.value = "Unlocked & Equipped '${skin.name}'! 🌟"
         } else {
@@ -179,6 +186,7 @@ class SkinShopViewModel @Inject constructor(
 
     fun equipBall(skin: BallSkin) {
         authRepository.equipBallSkin(skin.id)
+        analyticsManager.logSkinEquipped(skin.id, "ball")
         soundManager.playButtonClick()
         _statusMessage.value = "Equipped '${skin.name}' ball skin! ⚽"
     }
@@ -211,6 +219,7 @@ class SkinShopViewModel @Inject constructor(
 
         val success = authRepository.unlockEmojiSkin(emoji.id, emoji.priceCoins)
         if (success) {
+            analyticsManager.logEmojiPurchased(emoji.id, emoji.priceCoins)
             soundManager.playRewardSound()
             _statusMessage.value = "Unlocked '${emoji.name}' ${emoji.symbol}! 🥳"
         } else {
@@ -227,3 +236,4 @@ class SkinShopViewModel @Inject constructor(
         _statusMessage.value = null
     }
 }
+
