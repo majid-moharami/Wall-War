@@ -16,43 +16,31 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class HistoryFilter(val title: String) {
-    ALL("All Matches"),
-    ONLINE("Online Arena"),
-    AI("AI Duels"),
-    VICTORIES("Victories Only")
-}
-
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val repository: GameRepository,
     private val nakamaRepository: NakamaRepository,
-    private val authRepository: AuthRepository
+    authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _nakamaHistory = MutableStateFlow<List<MatchRecord>>(emptyList())
-    val selectedFilter = MutableStateFlow(HistoryFilter.ALL)
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserProfile())
 
-    val rawMatchHistory: StateFlow<List<MatchRecord>> = combine(
+    val onlineMatchHistory: StateFlow<List<MatchRecord>> = combine(
         repository.allMatches,
         _nakamaHistory
     ) { localList, nakamaList ->
-        (nakamaList + localList).distinctBy { "${it.modeName}_${it.timestamp}" }.sortedByDescending { it.timestamp }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val filteredMatchHistory: StateFlow<List<MatchRecord>> = combine(
-        rawMatchHistory,
-        selectedFilter
-    ) { list, filter ->
-        when (filter) {
-            HistoryFilter.ALL -> list
-            HistoryFilter.ONLINE -> list.filter { it.opponentName.contains("Online", ignoreCase = true) || (!it.modeName.contains("AI", ignoreCase = true) && !it.opponentName.contains("Bot", ignoreCase = true) && !it.opponentName.contains("Player 2", ignoreCase = true)) }
-            HistoryFilter.AI -> list.filter { it.modeName.contains("AI", ignoreCase = true) || it.opponentName.contains("Bot", ignoreCase = true) }
-            HistoryFilter.VICTORIES -> list.filter { it.winnerPlayer == 0 }
-        }
+        (nakamaList + localList)
+            .distinctBy { "${it.modeName}_${it.timestamp}" }
+            .filter {
+                it.opponentName.contains("Online", ignoreCase = true) ||
+                        (!it.modeName.contains("AI", ignoreCase = true) &&
+                                !it.opponentName.contains("Bot", ignoreCase = true) &&
+                                !it.opponentName.contains("Player 2", ignoreCase = true))
+            }
+            .sortedByDescending { it.timestamp }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val totalWins: StateFlow<Int> = repository.playerWins
@@ -74,10 +62,6 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    fun setFilter(filter: HistoryFilter) {
-        selectedFilter.value = filter
-    }
-
     fun clearHistory() {
         viewModelScope.launch {
             repository.clearAllHistory()
@@ -85,3 +69,4 @@ class HistoryViewModel @Inject constructor(
         }
     }
 }
+

@@ -64,13 +64,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wallwar.data.MatchRecord
 import com.wallwar.data.UserProfile
-import com.wallwar.ui.screens.history.HistoryFilter
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
@@ -94,21 +95,15 @@ enum class ChartType(val title: String) {
 @Composable
 fun HistoryScreen(
     userProfile: UserProfile,
-    allMatches: List<MatchRecord>,
-    filteredMatches: List<MatchRecord>,
-    selectedFilter: HistoryFilter,
+    matches: List<MatchRecord>,
     totalWins: Int,
     totalMatches: Int,
-    onFilterSelected: (HistoryFilter) -> Unit,
     onClearHistory: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val winRate = if (totalMatches > 0) ((totalWins.toFloat() / totalMatches) * 100).toInt() else 0
-    val avgWalls = if (allMatches.isNotEmpty()) allMatches.map { it.totalWallsPlaced }.average().toInt() else 0
-    val avgMoves = if (allMatches.isNotEmpty()) allMatches.map { it.totalMoves }.average().toInt() else 0
 
-    var selectedChartType by remember { mutableStateOf(ChartType.RATING_TREND) }
     var selectedMatchForDetails by remember { mutableStateOf<MatchRecord?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -122,6 +117,7 @@ fun HistoryScreen(
                 TextButton(
                     onClick = {
                         onClearHistory()
+                        selectedMatchForDetails = null
                         showClearDialog = false
                     }
                 ) {
@@ -175,13 +171,13 @@ fun HistoryScreen(
                         letterSpacing = 1.2.sp
                     )
                     Text(
-                        text = "Match History & Charts",
+                        text = "Online Match History",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
                 }
-                if (allMatches.isNotEmpty()) {
+                if (matches.isNotEmpty()) {
                     IconButton(
                         onClick = { showClearDialog = true },
                         modifier = Modifier
@@ -262,7 +258,7 @@ fun HistoryScreen(
                     Spacer(modifier = Modifier.height(14.dp))
 
                     // Canvas Chart Render
-                    if (filteredMatches.isEmpty()) {
+                    if (matches.isEmpty()) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -273,7 +269,7 @@ fun HistoryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No match history available.\nPlay matches to populate analytics!",
+                                text = "No online match history available.\nPlay online matches to populate analytics!",
                                 color = Color(0xFFA0ACCC),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -281,7 +277,7 @@ fun HistoryScreen(
                             )
                         }
                     } else {
-                        val displayMatches = filteredMatches.reversed().takeLast(12)
+                        val displayMatches = matches.reversed().takeLast(12)
 
                         Box(
                             modifier = Modifier
@@ -302,45 +298,112 @@ fun HistoryScreen(
                     // Selected match popover detail
                     AnimatedVisibility(visible = selectedMatchForDetails != null) {
                         selectedMatchForDetails?.let { match ->
+                            val isWin = match.winnerPlayer == 0
                             Card(
                                 colors = CardDefaults.cardColors(containerColor = NeonDarkSurface),
-                                shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, NeonCyan),
+                                shape = RoundedCornerShape(14.dp),
+                                border = BorderStroke(1.dp, if (isWin) NeonEmerald.copy(alpha = 0.6f) else NeonMagenta.copy(alpha = 0.6f)),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(top = 12.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp)
                                 ) {
-                                    Column {
-                                        Text(
-                                            text = "Match: ${match.modeName} vs ${match.opponentName}",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                        Text(
-                                            text = "${match.totalMoves} moves • ${match.totalWallsPlaced} walls placed",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFA0ACCC)
-                                        )
+                                    // Header: Arena & Opponent with clean truncation on left, Badge and Close button on right
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(end = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = match.modeName,
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color.White,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Text(
+                                                text = "vs ${match.opponentName}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = NeonCyan,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isWin) NeonEmerald.copy(alpha = 0.2f) else NeonMagenta.copy(alpha = 0.2f))
+                                                    .border(1.dp, if (isWin) NeonEmerald else NeonMagenta, RoundedCornerShape(8.dp))
+                                                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                                            ) {
+                                                Text(
+                                                    text = if (isWin) "VICTORY (+25)" else "DEFEAT (-18)",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = if (isWin) NeonEmerald else NeonMagenta
+                                                )
+                                            }
+
+                                            IconButton(
+                                                onClick = { selectedMatchForDetails = null },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Close",
+                                                    tint = Color(0xFFA0ACCC),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
                                     }
 
-                                    val isWin = match.winnerPlayer == 0
-                                    Box(
+                                    Spacer(modifier = Modifier.height(10.dp))
+
+                                    // Match Stats Row
+                                    Row(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(if (isWin) NeonEmerald.copy(alpha = 0.2f) else NeonMagenta.copy(alpha = 0.2f))
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFF0F1420))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = if (isWin) "VICTORY (+25 ELO)" else "DEFEAT (-18 ELO)",
+                                            text = "⚡ ${match.totalMoves} Moves",
                                             fontSize = 11.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = if (isWin) NeonEmerald else NeonMagenta
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFA0ACCC)
+                                        )
+                                        Text(
+                                            text = "🧱 ${match.totalWallsPlaced} Walls",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFA0ACCC)
+                                        )
+                                        Text(
+                                            text = if (match.durationSeconds > 0) "⏱️ ${match.durationSeconds}s" else "Online Arena",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFFA0ACCC)
                                         )
                                     }
                                 }
@@ -351,75 +414,40 @@ fun HistoryScreen(
             }
         }
 
-        // Match Filter Row
+        // Online Match Logs Header
         item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.FilterList,
-                            contentDescription = null,
-                            tint = Color(0xFFA0ACCC),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "MATCH LOGS",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFFA0ACCC),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
-                        )
-                    }
-
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = null,
+                        tint = Color(0xFFA0ACCC),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "${filteredMatches.size} record(s)",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeonCyan,
-                        fontWeight = FontWeight.Bold
+                        text = "ONLINE MATCH LOGS",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color(0xFFA0ACCC),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(HistoryFilter.values()) { filter ->
-                        FilterChip(
-                            selected = selectedFilter == filter,
-                            onClick = { onFilterSelected(filter) },
-                            label = {
-                                Text(
-                                    text = filter.title,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = NeonCyan,
-                                selectedLabelColor = Color.Black,
-                                containerColor = NeonDarkCard,
-                                labelColor = Color(0xFFA0ACCC)
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = selectedFilter == filter,
-                                borderColor = NeonBorder,
-                                selectedBorderColor = NeonCyan
-                            )
-                        )
-                    }
-                }
+                Text(
+                    text = "${matches.size} record(s)",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = NeonCyan,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
 
-        if (filteredMatches.isEmpty()) {
+        if (matches.isEmpty()) {
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
@@ -434,7 +462,7 @@ fun HistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No recorded matches found for the selected filter.",
+                            text = "No online match history available.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFFA0ACCC),
                             fontWeight = FontWeight.Medium,
@@ -444,7 +472,7 @@ fun HistoryScreen(
                 }
             }
         } else {
-            items(filteredMatches) { match ->
+            items(matches) { match ->
                 NeonMatchHistoryCard(match)
             }
         }
@@ -1040,18 +1068,26 @@ private fun NeonMatchHistoryCard(match: MatchRecord) {
 
             Spacer(modifier = Modifier.width(14.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
                 Text(
                     text = "${match.modeName} vs ${match.opponentName}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = "${match.totalMoves} moves • ${match.totalWallsPlaced} walls • ${match.durationSeconds}s",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFA0ACCC)
+                    color = Color(0xFFA0ACCC),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     text = formattedDate,

@@ -941,27 +941,36 @@ class AuthRepository @Inject constructor(
         isOnline: Boolean = true
     ): MatchResultDelta {
         val current = _userProfile.value
-        val newWins = if (isOnline && didWin) current.wins + 1 else current.wins
-        val newMatches = if (isOnline) current.totalMatches + 1 else current.totalMatches
+        if (!isOnline) {
+            // For AI or offline practice games, no XP, coins, trophies, or rewards are given
+            return MatchResultDelta(
+                didWin = didWin,
+                trophyDelta = 0,
+                xpGained = 0,
+                prizeCoins = 0,
+                streakBonusCoins = 0,
+                totalCoinsGained = 0,
+                oldLevel = current.level,
+                newLevel = current.level,
+                leveledUp = false,
+                currentWinStreak = current.currentWinStreak,
+                longestWinStreak = current.longestWinStreak
+            )
+        }
+
+        val newWins = if (didWin) current.wins + 1 else current.wins
+        val newMatches = current.totalMatches + 1
         val newWalls = current.wallsPlaced + wallsPlaced
         val xpGain = if (didWin) 150 else 50
         val newXp = current.xp + xpGain
 
         // Trophies and competitive streak only apply to real online matches
-        val trophyDelta = if (isOnline) {
-            if (didWin) 25 else if (current.trophies >= 10) -10 else -current.trophies
-        } else {
-            0
-        }
+        val trophyDelta = if (didWin) 25 else if (current.trophies >= 10) -10 else -current.trophies
         val newTrophies = (current.trophies + trophyDelta).coerceAtLeast(0)
 
-        val newStreak = if (isOnline) {
-            if (didWin) current.currentWinStreak + 1 else 0
-        } else {
-            current.currentWinStreak
-        }
+        val newStreak = if (didWin) current.currentWinStreak + 1 else 0
         val newLongestStreak = maxOf(current.longestWinStreak, newStreak)
-        val streakBonus = if (isOnline && didWin && newStreak >= 2) (newStreak * 10).coerceAtMost(100) else 0
+        val streakBonus = if (didWin && newStreak >= 2) (newStreak * 10).coerceAtMost(100) else 0
         
         // Payout winning prize if player won + streak bonus
         val prizeAmount = if (didWin) winningPrize else 0
@@ -996,18 +1005,16 @@ class AuthRepository @Inject constructor(
             if (totalCoinsAdded > 0) {
                 nakamaRepository.rpcProcessCoinTransaction(totalCoinsAdded, "arena_win_payout")
             }
-            if (isOnline) {
-                nakamaRepository.recordMatchHistoryToNakama(
-                    MatchRecord(
-                        modeName = "Arena Match",
-                        opponentName = "Opponent",
-                        winnerPlayer = if (didWin) 0 else 1,
-                        totalMoves = 10,
-                        totalWallsPlaced = wallsPlaced,
-                        durationSeconds = 60L
-                    )
+            nakamaRepository.recordMatchHistoryToNakama(
+                MatchRecord(
+                    modeName = "Arena Match",
+                    opponentName = "Opponent",
+                    winnerPlayer = if (didWin) 0 else 1,
+                    totalMoves = 10,
+                    totalWallsPlaced = wallsPlaced,
+                    durationSeconds = 60L
                 )
-            }
+            )
         }
 
         return MatchResultDelta(

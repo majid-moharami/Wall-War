@@ -301,20 +301,15 @@ fun WallWarNavGraph(
         composable<HistoryRoute> {
             val viewModel: HistoryViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
-            val allMatches by viewModel.rawMatchHistory.collectAsStateWithLifecycle()
-            val filteredMatches by viewModel.filteredMatchHistory.collectAsStateWithLifecycle()
-            val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+            val onlineMatches by viewModel.onlineMatchHistory.collectAsStateWithLifecycle()
             val totalWins by viewModel.totalWins.collectAsStateWithLifecycle()
             val totalMatches by viewModel.totalMatches.collectAsStateWithLifecycle()
 
             HistoryScreen(
                 userProfile = userProfile,
-                allMatches = allMatches,
-                filteredMatches = filteredMatches,
-                selectedFilter = selectedFilter,
+                matches = onlineMatches,
                 totalWins = totalWins,
                 totalMatches = totalMatches,
-                onFilterSelected = viewModel::setFilter,
                 onClearHistory = viewModel::clearHistory,
                 onBack = {
                     if (!navController.popBackStack()) {
