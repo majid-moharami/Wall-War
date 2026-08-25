@@ -659,13 +659,14 @@ fun HeroRatingCard(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(NeonEmerald.copy(alpha = 0.2f))
-                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
                                 text = "📋 DAILY QUESTS",
                                 color = NeonEmerald,
-                                fontSize = 8.5.sp,
-                                fontWeight = FontWeight.Black
+                                fontSize = 7.sp,
+                                fontWeight = FontWeight.Black,
+                                letterSpacing = 0.3.sp
                             )
                         }
                     }
@@ -679,18 +680,18 @@ fun HeroRatingCard(
                 }
 
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = NeonDarkSurface,
                     border = BorderStroke(1.dp, NeonBorder)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
                             text = "⚡ LVL ${userProfile.level}",
                             fontWeight = FontWeight.Black,
-                            fontSize = 12.sp,
+                            fontSize = 9.5.sp,
                             color = NeonAmber
                         )
                     }
