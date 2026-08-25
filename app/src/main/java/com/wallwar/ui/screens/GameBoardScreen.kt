@@ -398,36 +398,12 @@ fun GameBoardScreen(
                 }
             }
 
-            // Right: Timer + Resign + Sound Toggle Button
+            // Right: Resign + Sound Toggle Button
             Row(
                 modifier = Modifier.align(Alignment.CenterEnd),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                if (gameState.winner == null && opponentType == OpponentType.ONLINE) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.3f))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Timer,
-                            contentDescription = null,
-                            tint = if (turnTimeLeft < 10) NeonMagenta else NeonCyan,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "${turnTimeLeft}s",
-                            color = if (turnTimeLeft < 10) NeonMagenta else NeonCyan,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
-
                 // Resign Icon Button
                 if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
                     Box(
@@ -539,6 +515,7 @@ fun GameBoardScreen(
                     pawnColor = NeonMagenta,
                     isAi = false,
                     ballDrawableRes = com.wallwar.data.BallSkinCatalog.getBallDrawableRes(resolvedP1BallSkinId, R.drawable.ic_red_ball),
+                    turnSecondsRemaining = if (gameState.turn == 1 && gameState.winner == null && opponentType == OpponentType.ONLINE) turnTimeLeft else null,
                     modifier = Modifier.fillMaxWidth(0.7f)
                 )
             }
@@ -556,6 +533,7 @@ fun GameBoardScreen(
                 pawnColor = opponentPawnColor,
                 isAi = gameState.isAiMatch && opponentIndex == 1,
                 ballDrawableRes = opponentBallRes,
+                turnSecondsRemaining = if (gameState.turn == opponentIndex && gameState.winner == null && opponentType == OpponentType.ONLINE) turnTimeLeft else null,
                 modifier = Modifier.fillMaxWidth(0.7f)
             )
         }
@@ -715,6 +693,7 @@ fun GameBoardScreen(
             pawnColor = localPawnColor,
             isAi = false,
             ballDrawableRes = myBallRes,
+            turnSecondsRemaining = if (gameState.turn == localPlayerIndex && gameState.winner == null && opponentType == OpponentType.ONLINE) turnTimeLeft else null,
             modifier = Modifier.fillMaxWidth(0.7f)
         )
 
@@ -1447,6 +1426,7 @@ fun PlayerScoreCard(
     pawnColor: Color,
     isAi: Boolean = false,
     @androidx.annotation.DrawableRes ballDrawableRes: Int? = null,
+    turnSecondsRemaining: Int? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -1488,18 +1468,53 @@ fun PlayerScoreCard(
                 )
             }
             if (isTurn) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(pawnColor)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "TURN",
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black
-                    )
+                    if (turnSecondsRemaining != null) {
+                        val isUrgent = turnSecondsRemaining < 10
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isUrgent) NeonMagenta.copy(alpha = 0.25f) else Color.Black.copy(alpha = 0.45f))
+                                .border(
+                                    1.dp,
+                                    if (isUrgent) NeonMagenta else pawnColor.copy(alpha = 0.6f),
+                                    RoundedCornerShape(6.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Timer,
+                                contentDescription = "Turn Timer",
+                                tint = if (isUrgent) NeonMagenta else pawnColor,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "${turnSecondsRemaining}s",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isUrgent) NeonMagenta else Color.White
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(pawnColor)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "TURN",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.Black
+                        )
+                    }
                 }
             }
         }
