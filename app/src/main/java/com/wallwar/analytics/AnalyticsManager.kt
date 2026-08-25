@@ -46,13 +46,20 @@ class AnalyticsManager @Inject constructor(
     /**
      * User Authentication & Identity
      */
-    fun logLogin(method: String, userId: String? = null, isGuest: Boolean = false) {
+    fun logLogin(method: String, userId: String? = null, isGuest: Boolean = false, username: String? = null) {
         val bundle = Bundle().apply {
             putString(FirebaseAnalytics.Param.METHOD, method)
             putBoolean("is_guest", isGuest)
             userId?.let { putString("user_id", it) }
+            username?.let { putString("user_name", it) }
         }
         logEvent(FirebaseAnalytics.Event.LOGIN, bundle)
+        logEvent("user_login", bundle)
+        if (!userId.isNullOrBlank()) {
+            setUserId(userId)
+        }
+        setUserProperty("login_method", method)
+        setUserProperty("is_guest_user", isGuest.toString())
     }
 
     fun logSignUp(method: String) {
@@ -337,23 +344,27 @@ class AnalyticsManager @Inject constructor(
     // DAILY RETENTION & QUESTS
     // ==========================================
 
-    fun logDailyStreakClaimed(day: Int, coinsAwarded: Int, wasReset: Boolean = false) {
+    fun logDailyStreakClaimed(day: Int, coinsAwarded: Int, wasReset: Boolean = false, currentStreak: Int = day) {
         val bundle = Bundle().apply {
             putInt("streak_day", day)
             putInt("coins_awarded", coinsAwarded)
             putBoolean("was_reset", wasReset)
+            putInt("current_streak", currentStreak)
         }
         logEvent("daily_streak_claimed", bundle)
+        logEvent("daily_reward_claimed", bundle)
         logCoinsEarned(coinsAwarded, "daily_streak_day_$day")
     }
 
-    fun logDailySpinnerSpun(rewardType: String, amount: Int, isFree: Boolean) {
+    fun logDailySpinnerSpun(rewardType: String, amount: Int, isFree: Boolean, rewardLabel: String = "") {
         val bundle = Bundle().apply {
             putString("reward_type", rewardType)
             putInt("reward_amount", amount)
             putBoolean("is_free_spin", isFree)
+            if (rewardLabel.isNotBlank()) putString("reward_label", rewardLabel)
         }
         logEvent("daily_spinner_spun", bundle)
+        logEvent("lucky_spin_claimed", bundle)
         if (rewardType == "coins" && amount > 0) {
             logCoinsEarned(amount, "daily_spinner")
         }
@@ -442,22 +453,6 @@ class AnalyticsManager @Inject constructor(
         if (isWin && prizeCoins > 0) {
             logCoinsEarned(prizeCoins, "match_win_${arenaId ?: gameMode}")
         }
-    }
-
-    fun logWallPlaced(orientation: String, isOnline: Boolean) {
-        val bundle = Bundle().apply {
-            putString("wall_orientation", orientation)
-            putBoolean("is_online", isOnline)
-        }
-        logEvent("wall_placed", bundle)
-    }
-
-    fun logPawnMoved(isJump: Boolean, isOnline: Boolean) {
-        val bundle = Bundle().apply {
-            putBoolean("is_jump", isJump)
-            putBoolean("is_online", isOnline)
-        }
-        logEvent("pawn_moved", bundle)
     }
 
     fun logEmojiSent(emojiId: String, isOnline: Boolean) {

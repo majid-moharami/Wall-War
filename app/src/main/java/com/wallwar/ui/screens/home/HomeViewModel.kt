@@ -149,7 +149,8 @@ class HomeViewModel @Inject constructor(
             analyticsManager.logDailyStreakClaimed(
                 day = result.newStreakDay,
                 coinsAwarded = result.coinsAwarded,
-                wasReset = result.wasReset
+                wasReset = result.wasReset,
+                currentStreak = result.newStreakDay
             )
             soundManager.playCoinSound()
             val resetNote = if (result.wasReset) " (Streak Reset)" else ""
@@ -185,14 +186,14 @@ class HomeViewModel @Inject constructor(
         when (val r = outcome.winningSegment.reward) {
             is SpinRewardType.Coins -> {
                 authRepository.addCoins(r.amount)
-                analyticsManager.logDailySpinnerSpun("coins", r.amount, isFree)
+                analyticsManager.logDailySpinnerSpun("coins", r.amount, isFree, outcome.winningSegment.label)
                 soundManager.playCoinSound()
             }
             is SpinRewardType.Cosmetic -> {
                 // Unlock the exclusive ball skin and grant bonus coins
                 authRepository.grantRewardBallSkin(r.id)
                 authRepository.addCoins(r.fallbackCoins)
-                analyticsManager.logDailySpinnerSpun("cosmetic_${r.id}", r.fallbackCoins, isFree)
+                analyticsManager.logDailySpinnerSpun("cosmetic_${r.id}", r.fallbackCoins, isFree, outcome.winningSegment.label)
                 soundManager.playRewardSound()
             }
         }

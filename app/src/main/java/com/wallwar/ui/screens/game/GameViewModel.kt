@@ -460,19 +460,6 @@ class GameViewModel @Inject constructor(
         soundManager.playMoveSound(isMine = true, isWall = isWall)
         soundManager.vibrateShort()
 
-        if (isWall) {
-            val wallMove = move as Move.WallPlacement
-            analyticsManager.logWallPlaced(
-                orientation = if (wallMove.wall.isHorizontal) "horizontal" else "vertical",
-                isOnline = opponentType == OpponentType.ONLINE
-            )
-        } else if (move is Move.PawnStep) {
-            analyticsManager.logPawnMoved(
-                isJump = false,
-                isOnline = opponentType == OpponentType.ONLINE
-            )
-        }
-
         _gameState.value = nextState
         startTurnTimer()
 

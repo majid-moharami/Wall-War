@@ -31,6 +31,7 @@ import javax.inject.Singleton
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.data.auth.GoogleAuthManager
 import com.wallwar.data.auth.GoogleAuthResult
 
@@ -59,7 +60,8 @@ class AuthRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val nakamaRepository: NakamaRepository,
     private val settingsRepository: SettingsRepository,
-    private val googleAuthManager: GoogleAuthManager
+    private val googleAuthManager: GoogleAuthManager,
+    private val analyticsManager: AnalyticsManager
 ) {
     private val prefs: SharedPreferences =
         context.getSharedPreferences("wall_war_auth", Context.MODE_PRIVATE)
@@ -94,11 +96,14 @@ class AuthRepository @Inject constructor(
 
     init {
         checkAndResolveAbandonedMatch()
+        val initialProfile = _userProfile.value
+        analyticsManager.setUserId(initialProfile.nakamaUserId ?: initialProfile.displayName)
+        analyticsManager.setUserProperty("display_name", initialProfile.displayName)
+        analyticsManager.setUserProperty("is_logged_in", initialProfile.isLoggedIn.toString())
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
             if (nakamaRepository.hasValidSession()) {
                 syncFromNakamaServer()
             } else {
-                val initialProfile = _userProfile.value
                 nakamaRepository.ensureAuthenticatedGuest(initialProfile.displayName)
                 syncFromNakamaServer()
             }

@@ -388,19 +388,14 @@ fun HistoryScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "⚡ ${match.totalMoves} Moves",
+                                            text = if (match.durationSeconds > 0) "⏱️ Duration: ${match.durationSeconds}s" else "⚔️ Online Arena Match",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = Color(0xFFA0ACCC)
                                         )
+                                        val dateFormat = SimpleDateFormat("MMM dd • HH:mm", Locale.getDefault())
                                         Text(
-                                            text = "🧱 ${match.totalWallsPlaced} Walls",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color(0xFFA0ACCC)
-                                        )
-                                        Text(
-                                            text = if (match.durationSeconds > 0) "⏱️ ${match.durationSeconds}s" else "Online Arena",
+                                            text = dateFormat.format(Date(match.timestamp)),
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = Color(0xFFA0ACCC)
@@ -544,7 +539,7 @@ private fun NeonRatingTrendChart(
         var cumRating = max(1000, baseRating - (matches.size * 5))
         matches.map { match ->
             if (match.winnerPlayer == 0) {
-                cumRating += 25 + (match.totalWallsPlaced * 2)
+                cumRating += 25
             } else {
                 cumRating = max(1000, cumRating - 18)
             }
@@ -740,302 +735,6 @@ private fun NeonRatingTrendChart(
 }
 
 @Composable
-private fun NeonWallsVsMovesBarChart(
-    matches: List<MatchRecord>,
-    onSelectMatch: (MatchRecord) -> Unit
-) {
-    var tappedIndex by remember { mutableStateOf<Int?>(null) }
-    val animatedProgress by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(800),
-        label = "bar_anim"
-    )
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp, 10.dp).clip(RoundedCornerShape(2.dp)).background(NeonCyan))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Walls Placed", fontSize = 10.sp, color = NeonCyan, fontWeight = FontWeight.Bold)
-                }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(10.dp, 10.dp).clip(RoundedCornerShape(2.dp)).background(NeonMagenta))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Total Moves", fontSize = 10.sp, color = NeonMagenta, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            if (tappedIndex != null && tappedIndex!! < matches.size) {
-                val m = matches[tappedIndex!!]
-                Text(
-                    text = "${m.totalWallsPlaced} Walls / ${m.totalMoves} Moves",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
-                )
-            }
-        }
-
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(matches) {
-                    detectTapGestures { offset ->
-                        val width = size.width
-                        val paddingLeft = 35.dp.toPx()
-                        val paddingRight = 20.dp.toPx()
-                        val usableWidth = width - paddingLeft - paddingRight
-                        val groupWidth = usableWidth / matches.size
-
-                        val idx = ((offset.x - paddingLeft) / groupWidth).toInt()
-                        if (idx in matches.indices) {
-                            tappedIndex = idx
-                            onSelectMatch(matches[idx])
-                        }
-                    }
-                }
-        ) {
-            val width = size.width
-            val height = size.height
-
-            val paddingLeft = 35.dp.toPx()
-            val paddingRight = 20.dp.toPx()
-            val paddingTop = 15.dp.toPx()
-            val paddingBottom = 20.dp.toPx()
-
-            val usableWidth = width - paddingLeft - paddingRight
-            val usableHeight = height - paddingTop - paddingBottom
-
-            if (matches.isEmpty()) return@Canvas
-
-            val maxVal = (matches.maxOfOrNull { max(it.totalMoves, it.totalWallsPlaced) } ?: 30).coerceAtLeast(15)
-
-            val gridCount = 3
-            for (i in 0..gridCount) {
-                val y = paddingTop + (usableHeight / gridCount) * i
-                drawLine(
-                    color = NeonBorder.copy(alpha = 0.35f),
-                    start = Offset(paddingLeft, y),
-                    end = Offset(width - paddingRight, y),
-                    strokeWidth = 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
-                )
-            }
-
-            val groupWidth = usableWidth / matches.size
-            val barWidth = (groupWidth * 0.32f).coerceAtMost(16.dp.toPx())
-
-            matches.forEachIndexed { idx, match ->
-                val groupStartX = paddingLeft + idx * groupWidth + (groupWidth - barWidth * 2 - 4.dp.toPx()) / 2
-
-                val wallsHeight = (match.totalWallsPlaced.toFloat() / maxVal) * usableHeight * animatedProgress
-                val movesHeight = (match.totalMoves.toFloat() / maxVal) * usableHeight * animatedProgress
-
-                val wallsY = height - paddingBottom - wallsHeight
-                val movesY = height - paddingBottom - movesHeight
-
-                val isSelected = tappedIndex == idx
-
-                drawRoundRect(
-                    color = if (isSelected) NeonCyan else NeonCyan.copy(alpha = 0.85f),
-                    topLeft = Offset(groupStartX, wallsY),
-                    size = Size(barWidth, wallsHeight),
-                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                )
-
-                drawRoundRect(
-                    color = if (isSelected) NeonMagenta else NeonMagenta.copy(alpha = 0.85f),
-                    topLeft = Offset(groupStartX + barWidth + 4.dp.toPx(), movesY),
-                    size = Size(barWidth, movesHeight),
-                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun NeonWinRateMomentumChart(
-    matches: List<MatchRecord>,
-    onSelectMatch: (MatchRecord) -> Unit
-) {
-    var tappedIndex by remember { mutableStateOf<Int?>(null) }
-    
-    // Compute rolling 5-game win percentage momentum
-    val momentumPoints = remember(matches) {
-        matches.mapIndexed { idx, _ ->
-            val window = matches.subList(max(0, idx - 4), idx + 1)
-            val winsInWindow = window.count { it.winnerPlayer == 0 }
-            (winsInWindow.toFloat() / window.size * 100).toInt()
-        }
-    }
-
-    val animatedProgress by animateFloatAsState(
-        targetValue = 1f,
-        animationSpec = tween(900),
-        label = "momentum_anim"
-    )
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonEmerald))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Rolling Win % Momentum", fontSize = 10.sp, color = NeonEmerald, fontWeight = FontWeight.Bold)
-            }
-            if (tappedIndex != null) {
-                Text(
-                    text = "Win Rate: ${momentumPoints.getOrNull(tappedIndex ?: 0) ?: 0}%",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = NeonEmerald
-                )
-            }
-        }
-
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(matches) {
-                    detectTapGestures { offset ->
-                        val width = size.width
-                        val paddingLeft = 40.dp.toPx()
-                        val paddingRight = 20.dp.toPx()
-                        val usableWidth = width - paddingLeft - paddingRight
-                        val stepX = if (momentumPoints.size > 1) usableWidth / (momentumPoints.size - 1) else usableWidth
-
-                        val closestIdx = momentumPoints.indices.minByOrNull { idx ->
-                            val x = paddingLeft + idx * stepX
-                            kotlin.math.abs(x - offset.x)
-                        }
-
-                        if (closestIdx != null && closestIdx < matches.size) {
-                            tappedIndex = closestIdx
-                            onSelectMatch(matches[closestIdx])
-                        }
-                    }
-                }
-        ) {
-            val width = size.width
-            val height = size.height
-
-            val paddingLeft = 40.dp.toPx()
-            val paddingRight = 20.dp.toPx()
-            val paddingTop = 15.dp.toPx()
-            val paddingBottom = 20.dp.toPx()
-
-            val usableWidth = width - paddingLeft - paddingRight
-            val usableHeight = height - paddingTop - paddingBottom
-
-            val gridLines = 4
-            for (i in 0..gridLines) {
-                val y = paddingTop + (usableHeight / gridLines) * i
-                drawLine(
-                    color = NeonBorder.copy(alpha = 0.35f),
-                    start = Offset(paddingLeft, y),
-                    end = Offset(width - paddingRight, y),
-                    strokeWidth = 1.dp.toPx(),
-                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
-                )
-            }
-
-            if (momentumPoints.isEmpty()) return@Canvas
-
-            val stepX = if (momentumPoints.size > 1) usableWidth / (momentumPoints.size - 1) else usableWidth
-
-            fun getY(valNum: Int): Float {
-                val ratio = valNum / 100f
-                return (paddingTop + usableHeight * (1f - ratio * animatedProgress)).coerceIn(paddingTop, height - paddingBottom)
-            }
-
-            val pathPoints = momentumPoints.mapIndexed { index, valNum ->
-                Offset(paddingLeft + index * stepX, getY(valNum))
-            }
-
-            if (pathPoints.size >= 2) {
-                val fillPath = Path().apply {
-                    moveTo(pathPoints.first().x, height - paddingBottom)
-                    lineTo(pathPoints.first().x, pathPoints.first().y)
-
-                    for (i in 0 until pathPoints.size - 1) {
-                        val p1 = pathPoints[i]
-                        val p2 = pathPoints[i + 1]
-                        val controlX1 = p1.x + (p2.x - p1.x) / 2
-                        val controlY1 = p1.y
-                        val controlX2 = p1.x + (p2.x - p1.x) / 2
-                        val controlY2 = p2.y
-                        cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
-                    }
-
-                    lineTo(pathPoints.last().x, height - paddingBottom)
-                    close()
-                }
-
-                drawPath(
-                    path = fillPath,
-                    brush = Brush.verticalGradient(
-                        colors = listOf(
-                            NeonEmerald.copy(alpha = 0.35f),
-                            NeonEmerald.copy(alpha = 0.01f)
-                        ),
-                        startY = paddingTop,
-                        endY = height - paddingBottom
-                    )
-                )
-
-                val linePath = Path().apply {
-                    moveTo(pathPoints.first().x, pathPoints.first().y)
-                    for (i in 0 until pathPoints.size - 1) {
-                        val p1 = pathPoints[i]
-                        val p2 = pathPoints[i + 1]
-                        val controlX1 = p1.x + (p2.x - p1.x) / 2
-                        val controlY1 = p1.y
-                        val controlX2 = p1.x + (p2.x - p1.x) / 2
-                        val controlY2 = p2.y
-                        cubicTo(controlX1, controlY1, controlX2, controlY2, p2.x, p2.y)
-                    }
-                }
-
-                drawPath(
-                    path = linePath,
-                    color = NeonEmerald,
-                    style = Stroke(width = 3.dp.toPx())
-                )
-            }
-
-            pathPoints.forEachIndexed { idx, point ->
-                val isSelected = tappedIndex == idx
-
-                drawCircle(
-                    color = if (isSelected) NeonEmerald else NeonEmerald.copy(alpha = 0.4f),
-                    radius = if (isSelected) 10.dp.toPx() else 6.dp.toPx(),
-                    center = point
-                )
-
-                drawCircle(
-                    color = if (isSelected) Color.White else NeonEmerald,
-                    radius = if (isSelected) 5.dp.toPx() else 3.5.dp.toPx(),
-                    center = point
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun NeonMatchHistoryCard(match: MatchRecord) {
     val isUserWin = match.winnerPlayer == 0
     val dateFormat = SimpleDateFormat("MMM dd • HH:mm", Locale.getDefault())
@@ -1083,7 +782,7 @@ private fun NeonMatchHistoryCard(match: MatchRecord) {
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = "${match.totalMoves} moves • ${match.totalWallsPlaced} walls • ${match.durationSeconds}s",
+                    text = if (match.durationSeconds > 0) "⏱️ Match Duration: ${match.durationSeconds}s" else "⚔️ Online Duel",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFA0ACCC),
                     maxLines = 1,
