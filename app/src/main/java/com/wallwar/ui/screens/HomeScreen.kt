@@ -643,40 +643,31 @@ fun HeroRatingCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = "GLOBAL RANKING TIER",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFFA0ACCC),
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(NeonEmerald.copy(alpha = 0.2f))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
                         Text(
-                            text = "GLOBAL RANKING TIER",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFFA0ACCC),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.sp
+                            text = "📋 DAILY QUESTS",
+                            color = NeonEmerald,
+                            fontSize = 7.sp,
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = 0.3.sp
                         )
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(NeonEmerald.copy(alpha = 0.2f))
-                                .padding(horizontal = 4.dp, vertical = 1.dp)
-                        ) {
-                            Text(
-                                text = "📋 DAILY QUESTS",
-                                color = NeonEmerald,
-                                fontSize = 7.sp,
-                                fontWeight = FontWeight.Black,
-                                letterSpacing = 0.3.sp
-                            )
-                        }
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = userProfile.rankTitle.uppercase(),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Black,
-                        color = NeonCyan
-                    )
                 }
 
                 Surface(
@@ -697,6 +688,15 @@ fun HeroRatingCard(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = userProfile.rankTitle.uppercase(),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+                color = NeonCyan
+            )
 
             Spacer(modifier = Modifier.height(12.dp))
 
