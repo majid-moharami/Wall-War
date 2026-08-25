@@ -86,8 +86,9 @@ class GameViewModel @Inject constructor(
 
     val userProfile = authRepository.userProfile
 
-    // Nakama Online State
-    val onlineMatchState: StateFlow<OnlineMatchState> = nakamaRepository.matchState
+    // Nakama Online State & Simulated Opponent Fallback
+    private val _onlineMatchState = MutableStateFlow(nakamaRepository.matchState.value)
+    val onlineMatchState: StateFlow<OnlineMatchState> = _onlineMatchState.asStateFlow()
 
     private val _onlineOpponentName = MutableStateFlow("Searching...")
     val onlineOpponentName: StateFlow<String> = _onlineOpponentName.asStateFlow()
@@ -95,8 +96,18 @@ class GameViewModel @Inject constructor(
     private val _myPlayerIndex = MutableStateFlow(0)
     val myPlayerIndex: StateFlow<Int> = _myPlayerIndex.asStateFlow()
 
+    private val _opponentBallSkinId = MutableStateFlow(com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID)
+    val opponentBallSkinId: StateFlow<String> = _opponentBallSkinId.asStateFlow()
+
+    private val _opponentWallSkinId = MutableStateFlow(com.wallwar.data.WallSkinCatalog.DEFAULT_OPPONENT_WALL_ID)
+    val opponentWallSkinId: StateFlow<String> = _opponentWallSkinId.asStateFlow()
+
     private val _onlineErrorMessage = MutableStateFlow<String?>(null)
     val onlineErrorMessage: StateFlow<String?> = _onlineErrorMessage.asStateFlow()
+
+    private var isFakeOnlineMatch: Boolean = false
+    private var fakeMatchmakerJob: kotlinx.coroutines.Job? = null
+    private var fakeOpponentMoveJob: kotlinx.coroutines.Job? = null
 
     private val _gameState = MutableStateFlow(
         GameEngine.createInitialState(gameMode).copy(
@@ -179,13 +190,16 @@ class GameViewModel @Inject constructor(
 
             viewModelScope.launch {
                 nakamaRepository.matchEvents.collect { event ->
+                    if (isFakeOnlineMatch) return@collect
                     when (event) {
                         is OnlineMatchEvent.MatchFound -> {
+                            fakeMatchmakerJob?.cancel()
                             _onlineOpponentName.value = event.opponentName
                             _myPlayerIndex.value = event.selfPlayerIndex
                             _onlineErrorMessage.value = null
                             _isOpponentDisconnected.value = false
                             _isLocalDisconnected.value = false
+                            _onlineMatchState.value = OnlineMatchState.IN_MATCH
                             
                             // Matchmaking successful: deduct entry fee now
                             if (selectedArena.entryFee > 0) {
@@ -195,6 +209,10 @@ class GameViewModel @Inject constructor(
 
                             // Mark match as active in persistent storage for crash/disconnect recovery
                             authRepository.markActiveOnlineMatch(event.matchId)
+
+                            // Switch to active in-match state first
+                            _onlineMatchState.value = OnlineMatchState.IN_MATCH
+                            _isWallMode.value = false
 
                             // Set the initial turn based on the deterministic starter index
                             val currentState = _gameState.value
@@ -210,7 +228,12 @@ class GameViewModel @Inject constructor(
                             handleRemoteTimeout()
                         }
                         is OnlineMatchEvent.Error -> {
-                            _onlineErrorMessage.value = event.message
+                            // If searching and matchmaking encountered an error, let fake fallback take over instead of abruptly failing
+                            if (_onlineMatchState.value != OnlineMatchState.IN_MATCH && !isFakeOnlineMatch) {
+                                triggerFakeOnlineMatch()
+                            } else {
+                                _onlineErrorMessage.value = event.message
+                            }
                         }
                         is OnlineMatchEvent.OpponentSurrendered -> {
                             val winner = _myPlayerIndex.value
@@ -239,13 +262,16 @@ class GameViewModel @Inject constructor(
 
             // Handle local socket disconnection during match
             viewModelScope.launch {
-                onlineMatchState.collect { state ->
-                    if (state == OnlineMatchState.DISCONNECTED || state == OnlineMatchState.ERROR) {
-                        if (_gameState.value.winner == null && !_isOpponentDisconnected.value) {
-                            handleLocalConnectionLost()
+                nakamaRepository.matchState.collect { state ->
+                    if (!isFakeOnlineMatch) {
+                        _onlineMatchState.value = state
+                        if (state == OnlineMatchState.DISCONNECTED || state == OnlineMatchState.ERROR) {
+                            if (_gameState.value.winner == null && !_isOpponentDisconnected.value && _onlineMatchState.value == OnlineMatchState.IN_MATCH) {
+                                handleLocalConnectionLost()
+                            }
+                        } else if (state == OnlineMatchState.IN_MATCH) {
+                            handleLocalConnectionRestored()
                         }
-                    } else if (state == OnlineMatchState.IN_MATCH) {
-                        handleLocalConnectionRestored()
                     }
                 }
             }
@@ -332,12 +358,129 @@ class GameViewModel @Inject constructor(
     }
 
     fun startOnlineMatchmaking() {
+        fakeMatchmakerJob?.cancel()
+        fakeOpponentMoveJob?.cancel()
+        isFakeOnlineMatch = false
         _onlineErrorMessage.value = null
+        _onlineOpponentName.value = "Searching..."
+        _onlineMatchState.value = OnlineMatchState.CONNECTING
+
         val username = authRepository.userProfile.value.displayName
         nakamaRepository.startOnlineMatchmaking(username, selectedArena.id)
+
+        // Random timeout between 30 and 45 seconds before falling back to a seamless fake opponent
+        val fakeMatchWaitSeconds = kotlin.random.Random.nextInt(30, 46)
+        fakeMatchmakerJob = viewModelScope.launch {
+            delay(fakeMatchWaitSeconds * 1000L)
+            if (!isFakeOnlineMatch && _onlineMatchState.value != OnlineMatchState.IN_MATCH && _gameState.value.winner == null) {
+                triggerFakeOnlineMatch()
+            }
+        }
+    }
+
+    private fun triggerFakeOnlineMatch() {
+        if (_onlineMatchState.value == OnlineMatchState.IN_MATCH || _gameState.value.winner != null) return
+
+        fakeMatchmakerJob?.cancel()
+        isFakeOnlineMatch = true
+
+        // Silently cancel Nakama matchmaking ticket in background
+        nakamaRepository.cancelMatchmaking()
+
+        // 1. Assign realistic opponent name (65% random Guest-XXXX, 35% gamer tags)
+        val fakeName = generateRealisticGuestOrPlayerName()
+        _onlineOpponentName.value = fakeName
+
+        // 2. Select realistic custom cosmetic skins for the opponent
+        val randomBall = com.wallwar.data.BallSkinCatalog.ALL_BALL_SKINS.random()
+        val randomWall = com.wallwar.data.WallSkinCatalog.ALL_WALL_SKINS.random()
+        _opponentBallSkinId.value = randomBall.id
+        _opponentWallSkinId.value = randomWall.id
+
+        _myPlayerIndex.value = 0
+        _onlineErrorMessage.value = null
+        _isOpponentDisconnected.value = false
+        _isLocalDisconnected.value = false
+
+        // 3. Deduct entry fee just like a real online match
+        if (selectedArena.entryFee > 0) {
+            authRepository.deductCoins(selectedArena.entryFee)
+            analyticsManager.logCoinsSpent(selectedArena.entryFee, "arena_entry_${selectedArena.id}")
+        }
+
+        // 4. Switch to active in-match state & ensure wall mode is off
+        _onlineMatchState.value = OnlineMatchState.IN_MATCH
+        _isWallMode.value = false
+
+        // 5. Random 50/50 starting turn (0 = player, 1 = fake opponent)
+        val starterIndex = kotlin.random.Random.nextInt(2)
+        val currentState = _gameState.value
+        val nextState = currentState.copy(turn = starterIndex)
+        _gameState.value = nextState
+        updateHighlightsForState(nextState)
+        startTurnTimer()
+
+        // If fake opponent starts first, schedule their move
+        if (starterIndex == 1) {
+            scheduleFakeOpponentMove()
+        }
+    }
+
+    private fun generateRealisticGuestOrPlayerName(): String {
+        val isGuest = kotlin.random.Random.nextInt(100) < 65
+        return if (isGuest) {
+            "Guest-${kotlin.random.Random.nextInt(1000, 9999)}"
+        } else {
+            val gamerHandles = listOf(
+                "ShadowStrike", "CyberKnight", "Alex_92", "NeonRacer", "PixelMaster",
+                "Viper_99", "NovaPilot", "ThunderBolt", "Falcon_X", "AeroMaster",
+                "PulseRider", "Quantum_8", "Krypton_9", "EchoPrime", "HyperDrive",
+                "Sam_V", "ApexHunter", "ZeroCool", "SkyWalker_7", "MatrixRunner",
+                "Phantom_Blade", "Zenith", "Turbo_Rex", "CosmicDrift", "Blaze_42"
+            )
+            gamerHandles.random()
+        }
+    }
+
+    private fun scheduleFakeOpponentMove() {
+        fakeOpponentMoveJob?.cancel()
+        val state = _gameState.value
+        if (state.winner != null || !isFakeOnlineMatch || state.turn != 1) return
+
+        // Realistic human thinking delay between 5 to 10 seconds (timer runs naturally)
+        val thinkingDelay = kotlin.random.Random.nextLong(5000, 10001)
+
+        fakeOpponentMoveJob = viewModelScope.launch {
+            delay(thinkingDelay)
+            if (_gameState.value.turn == 1 && _gameState.value.winner == null && isFakeOnlineMatch) {
+                val current = _gameState.value
+                val effectiveDiff = when (selectedArena.id) {
+                    "starter" -> AiDifficulty.NORMAL
+                    "rookie" -> AiDifficulty.NORMAL
+                    "champion" -> AiDifficulty.PRO
+                    "grandmaster" -> AiDifficulty.PRO
+                    else -> AiDifficulty.NORMAL
+                }
+                val move = withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    AiEngine.computeBestMove(current, effectiveDiff)
+                }
+                applyRemoteMove(move)
+
+                // 25% chance for the fake opponent to send a reaction emote
+                if (kotlin.random.Random.nextInt(100) < 25 && allEmojis.isNotEmpty()) {
+                    delay(kotlin.random.Random.nextLong(1200, 2500))
+                    if (_gameState.value.winner == null && isFakeOnlineMatch) {
+                        showOpponentEmote(allEmojis.random())
+                    }
+                }
+            }
+        }
     }
 
     fun cancelOnlineMatchmaking() {
+        fakeMatchmakerJob?.cancel()
+        fakeOpponentMoveJob?.cancel()
+        isFakeOnlineMatch = false
         if (opponentType == OpponentType.ONLINE) {
             nakamaRepository.cancelMatchmaking()
         }
@@ -401,7 +544,7 @@ class GameViewModel @Inject constructor(
         if (GameEngine.canPlaceWall(state, state.turn, wall)) {
             val move = Move.WallPlacement(wall)
             applyUserMove(move)
-            if (opponentType == OpponentType.ONLINE) {
+            if (opponentType == OpponentType.ONLINE && !isFakeOnlineMatch) {
                 nakamaRepository.sendOnlineMove(move)
             }
             _isWallMode.value = false
@@ -421,7 +564,7 @@ class GameViewModel @Inject constructor(
             if (GameEngine.canPlaceWall(state, state.turn, wall)) {
                 val move = Move.WallPlacement(wall)
                 applyUserMove(move)
-                if (opponentType == OpponentType.ONLINE) {
+                if (opponentType == OpponentType.ONLINE && !isFakeOnlineMatch) {
                     nakamaRepository.sendOnlineMove(move)
                 }
                 _isWallMode.value = false
@@ -442,7 +585,7 @@ class GameViewModel @Inject constructor(
         if (_validMoveHighlights.value.contains(target)) {
             val move = Move.PawnStep(target)
             applyUserMove(move)
-            if (opponentType == OpponentType.ONLINE) {
+            if (opponentType == OpponentType.ONLINE && !isFakeOnlineMatch) {
                 nakamaRepository.sendOnlineMove(move)
             }
             _selectedPosition.value = null
@@ -463,7 +606,24 @@ class GameViewModel @Inject constructor(
         _gameState.value = nextState
         startTurnTimer()
 
-        checkGameEndAndTriggerAiIfNeeded(nextState)
+        if (isFakeOnlineMatch) {
+            updateHighlightsForState(nextState)
+            if (nextState.winner != null) {
+                timerJob?.cancel()
+                if (nextState.winner == _myPlayerIndex.value) {
+                    soundManager.playVictoryFanfare()
+                    soundManager.playCoinSound()
+                    soundManager.vibrateSuccess()
+                } else {
+                    soundManager.playErrorSound()
+                }
+                saveMatchToHistory(nextState)
+            } else if (nextState.turn == 1) {
+                scheduleFakeOpponentMove()
+            }
+        } else {
+            checkGameEndAndTriggerAiIfNeeded(nextState)
+        }
     }
 
     private fun applyRemoteMove(move: Move) {
@@ -510,7 +670,11 @@ class GameViewModel @Inject constructor(
             
             // Time up!
             if (isLocalTurn) {
-                nakamaRepository.sendTurnTimeout()
+                if (!isFakeOnlineMatch) {
+                    nakamaRepository.sendTurnTimeout()
+                }
+                switchTurnLocally()
+            } else if (isFakeOnlineMatch) {
                 switchTurnLocally()
             }
         }
@@ -530,6 +694,10 @@ class GameViewModel @Inject constructor(
         _gameState.value = nextState
         updateHighlightsForState(nextState)
         startTurnTimer()
+
+        if (isFakeOnlineMatch && nextState.turn == 1 && nextState.winner == null) {
+            scheduleFakeOpponentMove()
+        }
     }
 
     private fun checkGameEndAndTriggerAiIfNeeded(state: GameState) {
@@ -576,7 +744,7 @@ class GameViewModel @Inject constructor(
     }
 
     fun resignGame() {
-        if (opponentType == OpponentType.ONLINE) {
+        if (opponentType == OpponentType.ONLINE && !isFakeOnlineMatch) {
             nakamaRepository.sendSurrender()
         }
         val winner = 1 - _myPlayerIndex.value
@@ -584,6 +752,7 @@ class GameViewModel @Inject constructor(
         _gameState.value = next
         saveMatchToHistory(next)
         timerJob?.cancel()
+        fakeOpponentMoveJob?.cancel()
     }
 
     fun undoMove() {
@@ -730,7 +899,19 @@ class GameViewModel @Inject constructor(
         }
 
         if (opponentType == OpponentType.ONLINE) {
-            nakamaRepository.sendOnlineEmote(emoji.id, emoji.symbol)
+            if (!isFakeOnlineMatch) {
+                nakamaRepository.sendOnlineEmote(emoji.id, emoji.symbol)
+            } else {
+                // Fake online opponent has a 45% chance to react back with an emote after 1.8 - 3.8 seconds
+                if (kotlin.random.Random.nextInt(100) < 45) {
+                    viewModelScope.launch {
+                        delay(kotlin.random.Random.nextLong(1800, 3800))
+                        if (_gameState.value.winner == null && isFakeOnlineMatch && allEmojis.isNotEmpty()) {
+                            showOpponentEmote(allEmojis.random())
+                        }
+                    }
+                }
+            }
         } else if (opponentType == OpponentType.AI) {
             // Bot AI reacts dynamically back with an emote
             viewModelScope.launch {
@@ -758,11 +939,13 @@ class GameViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+        fakeMatchmakerJob?.cancel()
+        fakeOpponentMoveJob?.cancel()
         timerJob?.cancel()
         disconnectTimerJob?.cancel()
         playerEmoteJob?.cancel()
         opponentEmoteJob?.cancel()
-        if (opponentType == OpponentType.ONLINE) {
+        if (opponentType == OpponentType.ONLINE && !isFakeOnlineMatch) {
             nakamaRepository.leaveMatch()
         }
     }

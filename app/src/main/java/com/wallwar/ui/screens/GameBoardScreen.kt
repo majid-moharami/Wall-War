@@ -538,6 +538,17 @@ fun GameBoardScreen(
             )
         }
 
+        val activeTurn = gameState.turn
+        val isLocalTurn = if (opponentType == OpponentType.ONLINE) {
+            (onlineMatchState == OnlineMatchState.IN_MATCH) && (activeTurn == myPlayerIndex)
+        } else {
+            !(gameState.isAiMatch && activeTurn == 1)
+        }
+
+        val myPawnColor = if (myPlayerIndex == 0) NeonCyan else NeonMagenta
+        val activePlayerColor = if (gameState.turn == 0) NeonCyan else NeonMagenta
+        val currentTurnColor = if (opponentType == OpponentType.LOCAL_PASS_PLAY) activePlayerColor else myPawnColor
+
         Spacer(modifier = Modifier.height(8.dp))
 
         // Center Game Board View
@@ -566,23 +577,12 @@ fun GameBoardScreen(
                 player0BallSkinId = resolvedP0BallSkinId,
                 player1BallSkinId = resolvedP1BallSkinId,
                 player0WallSkinId = resolvedP0WallSkinId,
-                player1WallSkinId = resolvedP1WallSkinId
+                player1WallSkinId = resolvedP1WallSkinId,
+                isInteractiveTurn = isLocalTurn
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-
-        // Bottom Section
-        val activeTurn = gameState.turn
-        val isLocalTurn = if (opponentType == OpponentType.ONLINE) {
-            activeTurn == myPlayerIndex
-        } else {
-            !(gameState.isAiMatch && activeTurn == 1)
-        }
-
-        val myPawnColor = if (myPlayerIndex == 0) NeonCyan else NeonMagenta
-        val activePlayerColor = if (gameState.turn == 0) NeonCyan else NeonMagenta
-        val currentTurnColor = if (opponentType == OpponentType.LOCAL_PASS_PLAY) activePlayerColor else myPawnColor
 
         val p1WallEnabled = if (isQuickPassPlay) {
             gameState.turn == 0 && gameState.leftWalls[0] > 0 && gameState.winner == null

@@ -233,6 +233,8 @@ fun WallWarNavGraph(
             val unlockedEmojiIds by viewModel.unlockedEmojiIds.collectAsStateWithLifecycle()
             val equippedBallSkinId by viewModel.equippedBallSkinId.collectAsStateWithLifecycle()
             val equippedWallSkinId by viewModel.equippedWallSkinId.collectAsStateWithLifecycle()
+            val opponentBallSkinId by viewModel.opponentBallSkinId.collectAsStateWithLifecycle()
+            val opponentWallSkinId by viewModel.opponentWallSkinId.collectAsStateWithLifecycle()
 
             val activity = LocalActivity.current
 
@@ -259,6 +261,8 @@ fun WallWarNavGraph(
                 matchResultDelta = matchResultDelta,
                 equippedBallSkinId = equippedBallSkinId,
                 equippedWallSkinId = equippedWallSkinId,
+                opponentBallSkinId = opponentBallSkinId,
+                opponentWallSkinId = opponentWallSkinId,
                 playerEmote = playerEmote,
                 opponentEmote = opponentEmote,
                 allEmojis = viewModel.allEmojis,

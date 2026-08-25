@@ -75,6 +75,7 @@ fun GameBoardComposable(
     player1BallSkinId: String = com.wallwar.data.BallSkinCatalog.DEFAULT_OPPONENT_BALL_ID,
     player0WallSkinId: String = com.wallwar.data.WallSkinCatalog.DEFAULT_EQUIPPED_WALL_ID,
     player1WallSkinId: String = com.wallwar.data.WallSkinCatalog.DEFAULT_OPPONENT_WALL_ID,
+    isInteractiveTurn: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val cols = gameState.cols
@@ -235,7 +236,7 @@ fun GameBoardComposable(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .pointerInput(gameState, isWallMode, isWallHorizontal) {
+                .pointerInput(gameState.turn, gameState.winner, isInteractiveTurn, isWallMode, isWallHorizontal, shouldFlip) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val startPos = down.position
@@ -259,7 +260,7 @@ fun GameBoardComposable(
                         var lastC = initC.coerceIn(0, cols - 2)
 
                         // If in wall mode or AI is not thinking, initialize hover preview
-                        val isTurnDisabled = gameState.isAiMatch && turn == 1 || gameState.winner != null
+                        val isTurnDisabled = !isInteractiveTurn || gameState.winner != null
                         if (isWallMode && !isTurnDisabled) {
                             val (rawR, rawC) = screenToLogic(startPos.x, startPos.y)
                             if (rawR in 0..(rows - 2) && rawC in 0..(cols - 2)) {
