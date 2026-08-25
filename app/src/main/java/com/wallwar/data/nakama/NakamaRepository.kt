@@ -1008,8 +1008,15 @@ class NakamaRepository @Inject constructor(
                 var selfIndex = 0
                 var opponentUserId: String? = null
                 
-                matched.users.forEachIndexed { index, user ->
-                    if (user.presence.userId == nakamaUserId) {
+                // Deterministically sort matched users by presence userId so both clients agree on player 0 and player 1
+                val sortedUsers = matched.users.sortedBy { it.presence.userId }
+                val myUserId = session?.userId ?: nakamaUserId ?: matched.self?.presence?.userId
+                
+                sortedUsers.forEachIndexed { index, user ->
+                    if (user.presence.userId == myUserId || 
+                        (nakamaUserId != null && user.presence.userId == nakamaUserId) ||
+                        (nakamaUsername != null && user.presence.username == nakamaUsername)
+                    ) {
                         selfIndex = index
                     } else {
                         opponentUserId = user.presence.userId
@@ -1036,7 +1043,7 @@ class NakamaRepository @Inject constructor(
                 }
 
                 myPlayerIndex = selfIndex
-                val starterIndex = Math.abs(activeMatchId.hashCode()) % 2
+                val starterIndex = 0
                 _matchState.value = OnlineMatchState.IN_MATCH
                 _matchEvents.emit(OnlineMatchEvent.MatchFound(activeMatchId!!, myPlayerIndex, oppName, starterIndex))
             } catch (e: Exception) {

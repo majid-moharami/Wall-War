@@ -705,11 +705,14 @@ fun GameBoardScreen(
             if (myPlayerIndex == 0) R.drawable.ic_blue_ball else R.drawable.ic_red_ball
         )
 
+        val localPlayerIndex = if (opponentType == OpponentType.ONLINE) myPlayerIndex else 0
+        val localPawnColor = if (localPlayerIndex == 0) NeonCyan else NeonMagenta
+
         PlayerScoreCard(
             playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else "$userDisplayName (You)",
-            wallsLeft = gameState.leftWalls[0],
-            isTurn = gameState.turn == 0 && gameState.winner == null,
-            pawnColor = NeonCyan,
+            wallsLeft = gameState.leftWalls[localPlayerIndex],
+            isTurn = gameState.turn == localPlayerIndex && gameState.winner == null,
+            pawnColor = localPawnColor,
             isAi = false,
             ballDrawableRes = myBallRes,
             modifier = Modifier.fillMaxWidth(0.7f)
