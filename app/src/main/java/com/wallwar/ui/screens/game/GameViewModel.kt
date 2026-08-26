@@ -391,9 +391,23 @@ class GameViewModel @Inject constructor(
         val fakeName = generateRealisticGuestOrPlayerName()
         _onlineOpponentName.value = fakeName
 
-        // 2. Select realistic custom cosmetic skins for the opponent
-        val randomBall = com.wallwar.data.BallSkinCatalog.ALL_BALL_SKINS.random()
-        val randomWall = com.wallwar.data.WallSkinCatalog.ALL_WALL_SKINS.random()
+        // 2. Select realistic custom cosmetic skins for the opponent:
+        // Includes default blue & red balls + first 3 paid ball skins
+        val paidBalls = com.wallwar.data.BallSkinCatalog.ALL_BALL_SKINS.filter { it.priceCoins > 0 }.take(3)
+        val allowedBalls = listOf(
+            com.wallwar.data.BallSkinCatalog.DEFAULT_BLUE,
+            com.wallwar.data.BallSkinCatalog.DEFAULT_RED
+        ) + paidBalls
+        val randomBall = allowedBalls.random()
+
+        // Includes default blue & red walls + first 2 paid wall skins (Cyber Matrix, Obsidian Magma)
+        val paidWalls = com.wallwar.data.WallSkinCatalog.ALL_WALL_SKINS.filter { it.priceCoins > 0 }.take(2)
+        val allowedWalls = listOf(
+            com.wallwar.data.WallSkinCatalog.DEFAULT_BLUE,
+            com.wallwar.data.WallSkinCatalog.DEFAULT_RED
+        ) + paidWalls
+        val randomWall = allowedWalls.random()
+
         _opponentBallSkinId.value = randomBall.id
         _opponentWallSkinId.value = randomWall.id
 
