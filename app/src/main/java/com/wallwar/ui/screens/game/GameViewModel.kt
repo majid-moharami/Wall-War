@@ -447,8 +447,8 @@ class GameViewModel @Inject constructor(
         val state = _gameState.value
         if (state.winner != null || !isFakeOnlineMatch || state.turn != 1) return
 
-        // Realistic human thinking delay between 5 to 10 seconds (timer runs naturally)
-        val thinkingDelay = kotlin.random.Random.nextLong(5000, 10001)
+        // Realistic human thinking delay between 1 to 3 seconds (timer runs naturally)
+        val thinkingDelay = kotlin.random.Random.nextLong(1000, 3001)
 
         fakeOpponentMoveJob = viewModelScope.launch {
             delay(thinkingDelay)
