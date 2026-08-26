@@ -1049,7 +1049,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "UPLINK FAILURE",
+                        text = "CONNECTION ERROR",
                         style = MaterialTheme.typography.labelLarge,
                         color = NeonMagenta,
                         letterSpacing = 2.sp
@@ -1059,16 +1059,16 @@ fun GameBoardScreen(
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = onlineErrorMessage ?: "Protocol mismatch or server unreachable.",
+                        text = onlineErrorMessage ?: "Unable to connect to the game server.",
                         color = Color.White,
                         fontSize = 14.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Verify your connection and ensure the Nakama server is active.",
+                        text = "Please check your internet connection and try again.",
                         color = Color(0xFFA0ACCC),
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                 }
@@ -1080,7 +1080,7 @@ fun GameBoardScreen(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Retry Link", fontWeight = FontWeight.Bold)
+                    Text("Retry Connection", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {

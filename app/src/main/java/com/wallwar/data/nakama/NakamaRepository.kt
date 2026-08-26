@@ -993,7 +993,7 @@ class NakamaRepository @Inject constructor(
             } catch (e: Exception) {
                 Log.e("NakamaRepository", "Socket connection error: ${e.message}")
                 _matchState.value = OnlineMatchState.ERROR
-                _matchEvents.emit(OnlineMatchEvent.Error("Connection Error: ${e.message}"))
+                _matchEvents.emit(OnlineMatchEvent.Error("Unable to connect to game servers. Please check your internet connection and try again."))
             }
         }
     }
