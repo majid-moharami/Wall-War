@@ -228,12 +228,10 @@ class GameViewModel @Inject constructor(
                             handleRemoteTimeout()
                         }
                         is OnlineMatchEvent.Error -> {
-                            // If searching and matchmaking encountered an error, let fake fallback take over instead of abruptly failing
-                            if (_onlineMatchState.value != OnlineMatchState.IN_MATCH && !isFakeOnlineMatch) {
-                                triggerFakeOnlineMatch()
-                            } else {
-                                _onlineErrorMessage.value = event.message
-                            }
+                            // On connection or server error, show error state so user can retry or check connection
+                            fakeMatchmakerJob?.cancel()
+                            _onlineMatchState.value = OnlineMatchState.ERROR
+                            _onlineErrorMessage.value = event.message
                         }
                         is OnlineMatchEvent.OpponentSurrendered -> {
                             val winner = _myPlayerIndex.value
@@ -369,17 +367,27 @@ class GameViewModel @Inject constructor(
         nakamaRepository.startOnlineMatchmaking(username, selectedArena.id)
 
         // Random timeout between 30 and 45 seconds before falling back to a seamless fake opponent
+        // ONLY trigger if currently connected and searching (not on connection error or offline)
         val fakeMatchWaitSeconds = kotlin.random.Random.nextInt(30, 46)
         fakeMatchmakerJob = viewModelScope.launch {
             delay(fakeMatchWaitSeconds * 1000L)
-            if (!isFakeOnlineMatch && _onlineMatchState.value != OnlineMatchState.IN_MATCH && _gameState.value.winner == null) {
+            if (!isFakeOnlineMatch && 
+                _onlineMatchState.value == OnlineMatchState.SEARCHING_MATCH && 
+                _onlineErrorMessage.value == null && 
+                _gameState.value.winner == null
+            ) {
                 triggerFakeOnlineMatch()
             }
         }
     }
 
     private fun triggerFakeOnlineMatch() {
-        if (_onlineMatchState.value == OnlineMatchState.IN_MATCH || _gameState.value.winner != null) return
+        if (_onlineMatchState.value == OnlineMatchState.IN_MATCH || 
+            _onlineMatchState.value == OnlineMatchState.ERROR || 
+            _onlineMatchState.value == OnlineMatchState.DISCONNECTED || 
+            _onlineErrorMessage.value != null || 
+            _gameState.value.winner != null
+        ) return
 
         fakeMatchmakerJob?.cancel()
         isFakeOnlineMatch = true
