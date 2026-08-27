@@ -5,13 +5,16 @@ import android.content.SharedPreferences
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.wallwar.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -68,6 +71,83 @@ class SoundManager(private val context: Context) {
         .setSampleRate(sampleRate)
         .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
         .build()
+
+    /**
+     * Plays an audio resource using Android MediaPlayer.
+     */
+    private fun playRawResource(rawResId: Int, fallback: (() -> Unit)? = null) {
+        if (!isSoundEnabled) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val mp = MediaPlayer.create(context, rawResId)
+                if (mp != null) {
+                    mp.setOnCompletionListener { player ->
+                        try {
+                            player.release()
+                        } catch (_: Throwable) {}
+                    }
+                    mp.start()
+                } else {
+                    fallback?.invoke()
+                }
+            } catch (e: Exception) {
+                Log.w("SoundManager", "Failed to play raw audio resource $rawResId", e)
+                fallback?.invoke()
+            }
+        }
+    }
+
+    /**
+     * Plays the custom winner sound (winner_sound.mp3) with victory vibration.
+     */
+    fun playWinnerSound() {
+        if (!isSoundEnabled) return
+        playRawResource(R.raw.winner_sound) {
+            playVictoryFanfare()
+        }
+        vibrateSuccess()
+    }
+
+    /**
+     * Plays the custom loser sound (loser_sound.wav) for match defeat.
+     */
+    fun playLoserSound() {
+        if (!isSoundEnabled) return
+        playRawResource(R.raw.loser_sound) {
+            playErrorSound()
+        }
+        vibrateShort()
+    }
+
+    /**
+     * Plays the custom spinner sound (spinner_sound.wav) when spinning the lucky wheel.
+     */
+    fun playSpinnerSound() {
+        if (!isSoundEnabled) return
+        playRawResource(R.raw.spinner_sound) {
+            playButtonClick()
+        }
+        vibrateShort()
+    }
+
+    /**
+     * Plays the custom coin claim sound (coins_sound.wav) when claiming coins, daily rewards, daily quests, etc.
+     */
+    fun playCoinSound() {
+        if (!isSoundEnabled) return
+        playRawResource(R.raw.coins_sound) {
+            playSynthesizedCoinSound()
+        }
+        vibrateCoinReward()
+    }
+
+    fun playRewardSound() {
+        playCoinSound()
+    }
+
+    fun playVictory() {
+        playWinnerSound()
+    }
 
     /**
      * Synthesizes PCM Audio in real-time.
@@ -135,11 +215,6 @@ class SoundManager(private val context: Context) {
         vibrateShort()
     }
 
-    fun playVictory() {
-        playVictoryFanfare()
-        vibrateSuccess()
-    }
-
     fun playPawnMove() {
         playMoveSound(isMine = true, isWall = false)
         vibrateShort()
@@ -196,15 +271,11 @@ class SoundManager(private val context: Context) {
         }
     }
 
-    fun playRewardSound() {
-        playCoinSound()
-    }
-
     /**
      * Synthesizes a bright, crisp cascading coin claim chime sound effect (arcade style coin clink).
-     * Plays a sparkling ascending arpeggio with rich harmonics and metallic bell ring.
+     * Plays a sparkling ascending arpeggio with rich harmonics and metallic bell ring as fallback.
      */
-    fun playCoinSound() {
+    private fun playSynthesizedCoinSound() {
         if (!isSoundEnabled) return
         scope.launch {
             try {
@@ -233,7 +304,6 @@ class SoundManager(private val context: Context) {
                 }
             } catch (_: Throwable) {}
         }
-        vibrateCoinReward()
     }
 
     fun vibrateCoinReward() {

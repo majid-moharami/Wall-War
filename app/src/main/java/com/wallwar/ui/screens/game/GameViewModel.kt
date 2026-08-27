@@ -237,7 +237,8 @@ class GameViewModel @Inject constructor(
                             val winner = _myPlayerIndex.value
                             val next = _gameState.value.copy(winner = winner)
                             _gameState.value = next
-                            soundManager.playVictoryFanfare()
+                            soundManager.playWinnerSound()
+                            soundManager.playCoinSound()
                             saveMatchToHistory(next)
                             timerJob?.cancel()
                         }
@@ -633,11 +634,10 @@ class GameViewModel @Inject constructor(
             if (nextState.winner != null) {
                 timerJob?.cancel()
                 if (nextState.winner == _myPlayerIndex.value) {
-                    soundManager.playVictoryFanfare()
+                    soundManager.playWinnerSound()
                     soundManager.playCoinSound()
-                    soundManager.vibrateSuccess()
                 } else {
-                    soundManager.playErrorSound()
+                    soundManager.playLoserSound()
                 }
                 saveMatchToHistory(nextState)
             } else if (nextState.turn == 1) {
@@ -663,11 +663,10 @@ class GameViewModel @Inject constructor(
         if (nextState.winner != null) {
             timerJob?.cancel()
             if (nextState.winner == _myPlayerIndex.value) {
-                soundManager.playVictoryFanfare()
+                soundManager.playWinnerSound()
                 soundManager.playCoinSound()
-                soundManager.vibrateSuccess()
             } else {
-                soundManager.playErrorSound()
+                soundManager.playLoserSound()
             }
             saveMatchToHistory(nextState)
         }
@@ -727,11 +726,10 @@ class GameViewModel @Inject constructor(
 
         if (state.winner != null) {
             if (state.winner == _myPlayerIndex.value) {
-                soundManager.playVictoryFanfare()
+                soundManager.playWinnerSound()
                 soundManager.playCoinSound()
-                soundManager.vibrateSuccess()
             } else {
-                soundManager.playErrorSound()
+                soundManager.playLoserSound()
             }
             saveMatchToHistory(state)
             return
@@ -752,11 +750,10 @@ class GameViewModel @Inject constructor(
 
                     if (afterAiState.winner != null) {
                         if (afterAiState.winner == 0) {
-                            soundManager.playVictoryFanfare()
+                            soundManager.playWinnerSound()
                             soundManager.playCoinSound()
-                            soundManager.vibrateSuccess()
                         } else {
-                            soundManager.playErrorSound()
+                            soundManager.playLoserSound()
                         }
                         saveMatchToHistory(afterAiState)
                     }
@@ -769,6 +766,7 @@ class GameViewModel @Inject constructor(
         if (opponentType == OpponentType.ONLINE && !isFakeOnlineMatch) {
             nakamaRepository.sendSurrender()
         }
+        soundManager.playLoserSound()
         val winner = 1 - _myPlayerIndex.value
         val next = _gameState.value.copy(winner = winner)
         _gameState.value = next

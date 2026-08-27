@@ -178,6 +178,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun spinWheel(isFree: Boolean = false): SpinOutcome {
+        soundManager.playSpinnerSound()
         if (!isFree) {
             authRepository.deductCoins(DailySpinnerManager.SPIN_FEE_COINS)
             analyticsManager.logCoinsSpent(DailySpinnerManager.SPIN_FEE_COINS, "lucky_spin", "spinner")
