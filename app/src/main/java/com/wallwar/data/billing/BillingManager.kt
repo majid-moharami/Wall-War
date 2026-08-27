@@ -19,6 +19,7 @@ import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryPurchasesParams
 import com.wallwar.analytics.AnalyticsManager
+import com.wallwar.audio.SoundManager
 import com.wallwar.data.AuthRepository
 import com.wallwar.data.nakama.NakamaRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,7 +54,8 @@ class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
     private val nakamaRepository: NakamaRepository,
-    private val analyticsManager: AnalyticsManager
+    private val analyticsManager: AnalyticsManager,
+    private val soundManager: SoundManager
 ) : PurchasesUpdatedListener, BillingClientStateListener {
 
     private val tag = "BillingManager"
@@ -356,6 +358,9 @@ class BillingManager @Inject constructor(
                         orderId = orderId,
                         isSandbox = false
                     )
+
+                    // Play coin sound when transaction is done
+                    soundManager.playCoinSound()
                 }
 
                 scope.launch {
@@ -441,6 +446,9 @@ class BillingManager @Inject constructor(
             orderId = dummyOrder,
             isSandbox = true
         )
+
+        // Play coin sound when transaction is done
+        soundManager.playCoinSound()
 
         scope.launch {
             _purchaseResult.emit(
