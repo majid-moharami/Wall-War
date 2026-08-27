@@ -148,24 +148,38 @@ class AdManager @Inject constructor(
 
         _rewardDescription.value = "Reward: +$rewardCoins Coins 🪙"
 
-        val networkName = if (geoLocationDetector.isIranUser.value) "adivery" else "admob"
+        val isIran = geoLocationDetector.isIranUser.value
+        val country = geoLocationDetector.getCountryCode()
+        val networkName = if (isIran) "adivery" else "admob"
+
         analyticsManager.logAdRequested(
             adType = "rewarded",
             adNetwork = networkName,
+            country = country,
+            isIranIp = isIran,
             triggerLocation = "coin_shop"
         )
 
         if (activity != null) {
-            val useAdivery = geoLocationDetector.isIranUser.value
-            Log.d("AdManager", "Serving Rewarded Ad: useAdivery=$useAdivery")
+            Log.d("AdManager", "Serving Rewarded Ad: isIran=$isIran, country=$country, selectedNetwork=$networkName")
 
-            if (useAdivery) {
+            if (isIran) {
+                // Iran IP: Strictly Adivery ads
+                analyticsManager.logAdShowing(
+                    adType = "rewarded",
+                    adNetwork = "adivery",
+                    country = country,
+                    isIranIp = true,
+                    triggerLocation = "coin_shop"
+                )
                 adiveryManager.loadAndShowRewardedAd(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
                             analyticsManager.logRewardedAdWatchedForCoins(
                                 adNetwork = "adivery",
+                                country = country,
+                                isIranIp = true,
                                 rewardCoins = rewardCoins,
                                 triggerLocation = "coin_shop"
                             )
@@ -177,61 +191,49 @@ class AdManager @Inject constructor(
                         }
                     },
                     onAdDismissed = {
-                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
+                        analyticsManager.logAdDismissed(
+                            adType = "rewarded",
+                            adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true
+                        )
                         onClosed()
                     },
                     onFailed = { adiveryError ->
-                        Log.w("AdManager", "Adivery failed, falling back to AdMob: $adiveryError")
+                        Log.w("AdManager", "Adivery ad failed for Iran user: $adiveryError")
                         analyticsManager.logAdFailed(
                             adType = "rewarded",
                             adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true,
                             errorMessage = adiveryError,
                             triggerLocation = "coin_shop"
                         )
-                        adMobManager.loadAndShowRewardedAd(
-                            activity = activity,
-                            onRewardEarned = {
-                                scope.launch {
-                                    analyticsManager.logRewardedAdWatchedForCoins(
-                                        adNetwork = "admob",
-                                        rewardCoins = rewardCoins,
-                                        triggerLocation = "coin_shop"
-                                    )
-                                    nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad")
-                                    authRepository.addCoins(rewardCoins)
-                                    val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Ad!"
-                                    _rewardToast.value = successMsg
-                                    onSuccess(rewardCoins)
-                                }
-                            },
-                            onAdDismissed = {
-                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
-                                onClosed()
-                            },
-                            onFailed = { admobError ->
-                                scope.launch {
-                                    analyticsManager.logAdFailed(
-                                        adType = "rewarded",
-                                        adNetwork = "admob",
-                                        errorMessage = admobError,
-                                        triggerLocation = "coin_shop"
-                                    )
-                                    val finalError = "Ad could not be loaded ($adiveryError / $admobError)"
-                                    _rewardToast.value = finalError
-                                    onError?.invoke(finalError)
-                                    onClosed()
-                                }
-                            }
-                        )
+                        scope.launch {
+                            val finalError = "Ad could not be loaded: $adiveryError"
+                            _rewardToast.value = finalError
+                            onError?.invoke(finalError)
+                            onClosed()
+                        }
                     }
                 )
             } else {
+                // Non-Iran IP (All other countries): Strictly Google AdMob ads
+                analyticsManager.logAdShowing(
+                    adType = "rewarded",
+                    adNetwork = "admob",
+                    country = country,
+                    isIranIp = false,
+                    triggerLocation = "coin_shop"
+                )
                 adMobManager.loadAndShowRewardedAd(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
                             analyticsManager.logRewardedAdWatchedForCoins(
                                 adNetwork = "admob",
+                                country = country,
+                                isIranIp = false,
                                 rewardCoins = rewardCoins,
                                 triggerLocation = "coin_shop"
                             )
@@ -243,52 +245,30 @@ class AdManager @Inject constructor(
                         }
                     },
                     onAdDismissed = {
-                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
+                        analyticsManager.logAdDismissed(
+                            adType = "rewarded",
+                            adNetwork = "admob",
+                            country = country,
+                            isIranIp = false
+                        )
                         onClosed()
                     },
                     onFailed = { errorMsg ->
-                        Log.w("AdManager", "AdMob failed, falling back to Adivery: $errorMsg")
+                        Log.w("AdManager", "AdMob failed for Global user ($country): $errorMsg")
                         analyticsManager.logAdFailed(
                             adType = "rewarded",
                             adNetwork = "admob",
+                            country = country,
+                            isIranIp = false,
                             errorMessage = errorMsg,
                             triggerLocation = "coin_shop"
                         )
-                        adiveryManager.loadAndShowRewardedAd(
-                            activity = activity,
-                            onRewardEarned = {
-                                scope.launch {
-                                    analyticsManager.logRewardedAdWatchedForCoins(
-                                        adNetwork = "adivery",
-                                        rewardCoins = rewardCoins,
-                                        triggerLocation = "coin_shop"
-                                    )
-                                    nakamaRepository.rpcProcessCoinTransaction(rewardCoins, "rewarded_ad_adivery")
-                                    authRepository.addCoins(rewardCoins)
-                                    val successMsg = "🎉 +$rewardCoins Coins Earned from Watching Persian Ad!"
-                                    _rewardToast.value = successMsg
-                                    onSuccess(rewardCoins)
-                                }
-                            },
-                            onAdDismissed = {
-                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
-                                onClosed()
-                            },
-                            onFailed = { secondaryError ->
-                                scope.launch {
-                                    analyticsManager.logAdFailed(
-                                        adType = "rewarded",
-                                        adNetwork = "adivery",
-                                        errorMessage = secondaryError,
-                                        triggerLocation = "coin_shop"
-                                    )
-                                    val msg = "Ad failed to load ($errorMsg)"
-                                    _rewardToast.value = msg
-                                    onError?.invoke(msg)
-                                    onClosed()
-                                }
-                            }
-                        )
+                        scope.launch {
+                            val msg = "Ad failed to load: $errorMsg"
+                            _rewardToast.value = msg
+                            onError?.invoke(msg)
+                            onClosed()
+                        }
                     }
                 )
             }
@@ -311,6 +291,8 @@ class AdManager @Inject constructor(
 
             analyticsManager.logRewardedAdWatchedForCoins(
                 adNetwork = "simulated",
+                country = country,
+                isIranIp = isIran,
                 rewardCoins = rewardCoins,
                 triggerLocation = "coin_shop_simulated"
             )
@@ -338,23 +320,36 @@ class AdManager @Inject constructor(
 
         _rewardDescription.value = "Reward: Free Match Entry 🎮"
 
-        val networkName = if (geoLocationDetector.isIranUser.value) "adivery" else "admob"
+        val isIran = geoLocationDetector.isIranUser.value
+        val country = geoLocationDetector.getCountryCode()
+        val networkName = if (isIran) "adivery" else "admob"
+
         analyticsManager.logAdRequested(
             adType = "rewarded",
             adNetwork = networkName,
+            country = country,
+            isIranIp = isIran,
             triggerLocation = "free_match_entry"
         )
 
         if (activity != null) {
-            val useAdivery = geoLocationDetector.isIranUser.value
-
-            if (useAdivery) {
+            if (isIran) {
+                // Iran IP: Strictly Adivery ads
+                analyticsManager.logAdShowing(
+                    adType = "rewarded",
+                    adNetwork = "adivery",
+                    country = country,
+                    isIranIp = true,
+                    triggerLocation = "free_match_entry"
+                )
                 adiveryManager.loadAndShowRewardedAd(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
                             analyticsManager.logRewardedAdWatchedForFreeEntry(
                                 adNetwork = "adivery",
+                                country = country,
+                                isIranIp = true,
                                 triggerLocation = "offline_entry"
                             )
                             val successMsg = "🎉 Free Entry Unlocked via Persian Ad! Starting Match..."
@@ -363,57 +358,49 @@ class AdManager @Inject constructor(
                         }
                     },
                     onAdDismissed = {
-                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
+                        analyticsManager.logAdDismissed(
+                            adType = "rewarded",
+                            adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true
+                        )
                         onClosed()
                     },
                     onFailed = { adiveryError ->
+                        Log.w("AdManager", "Adivery free entry ad failed: $adiveryError")
                         analyticsManager.logAdFailed(
                             adType = "rewarded",
                             adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true,
                             errorMessage = adiveryError,
                             triggerLocation = "free_match_entry"
                         )
-                        adMobManager.loadAndShowRewardedAd(
-                            activity = activity,
-                            onRewardEarned = {
-                                scope.launch {
-                                    analyticsManager.logRewardedAdWatchedForFreeEntry(
-                                        adNetwork = "admob",
-                                        triggerLocation = "offline_entry"
-                                    )
-                                    val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
-                                    _rewardToast.value = successMsg
-                                    onSuccess()
-                                }
-                            },
-                            onAdDismissed = {
-                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
-                                onClosed()
-                            },
-                            onFailed = { admobError ->
-                                scope.launch {
-                                    analyticsManager.logAdFailed(
-                                        adType = "rewarded",
-                                        adNetwork = "admob",
-                                        errorMessage = admobError,
-                                        triggerLocation = "free_match_entry"
-                                    )
-                                    val errorMsg = "Unable to load ad: $admobError"
-                                    _rewardToast.value = errorMsg
-                                    onError?.invoke(errorMsg)
-                                    onClosed()
-                                }
-                            }
-                        )
+                        scope.launch {
+                            val errorMsg = "Unable to load ad: $adiveryError"
+                            _rewardToast.value = errorMsg
+                            onError?.invoke(errorMsg)
+                            onClosed()
+                        }
                     }
                 )
             } else {
+                // Non-Iran IP (All other countries): Strictly Google AdMob ads
+                analyticsManager.logAdShowing(
+                    adType = "rewarded",
+                    adNetwork = "admob",
+                    country = country,
+                    isIranIp = false,
+                    triggerLocation = "free_match_entry"
+                )
                 adMobManager.loadAndShowRewardedAd(
                     activity = activity,
                     onRewardEarned = {
                         scope.launch {
                             analyticsManager.logRewardedAdWatchedForFreeEntry(
                                 adNetwork = "admob",
+                                country = country,
+                                isIranIp = false,
                                 triggerLocation = "offline_entry"
                             )
                             val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
@@ -422,47 +409,30 @@ class AdManager @Inject constructor(
                         }
                     },
                     onAdDismissed = {
-                        analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "admob")
+                        analyticsManager.logAdDismissed(
+                            adType = "rewarded",
+                            adNetwork = "admob",
+                            country = country,
+                            isIranIp = false
+                        )
                         onClosed()
                     },
                     onFailed = { errorMsg ->
+                        Log.w("AdManager", "AdMob free entry failed for Global user ($country): $errorMsg")
                         analyticsManager.logAdFailed(
                             adType = "rewarded",
                             adNetwork = "admob",
+                            country = country,
+                            isIranIp = false,
                             errorMessage = errorMsg,
                             triggerLocation = "free_match_entry"
                         )
-                        adiveryManager.loadAndShowRewardedAd(
-                            activity = activity,
-                            onRewardEarned = {
-                                scope.launch {
-                                    analyticsManager.logRewardedAdWatchedForFreeEntry(
-                                        adNetwork = "adivery",
-                                        triggerLocation = "offline_entry"
-                                    )
-                                    val successMsg = "🎉 Free Entry Unlocked! Starting Match..."
-                                    _rewardToast.value = successMsg
-                                    onSuccess()
-                                }
-                            },
-                            onAdDismissed = {
-                                analyticsManager.logAdDismissed(adType = "rewarded", adNetwork = "adivery")
-                                onClosed()
-                            },
-                            onFailed = {
-                                scope.launch {
-                                    analyticsManager.logAdFailed(
-                                        adType = "rewarded",
-                                        adNetwork = "adivery",
-                                        errorMessage = errorMsg,
-                                        triggerLocation = "free_match_entry"
-                                    )
-                                    _rewardToast.value = errorMsg
-                                    onError?.invoke(errorMsg)
-                                    onClosed()
-                                }
-                            }
-                        )
+                        scope.launch {
+                            val msg = "Ad failed to load: $errorMsg"
+                            _rewardToast.value = msg
+                            onError?.invoke(msg)
+                            onClosed()
+                        }
                     }
                 )
             }
@@ -485,6 +455,8 @@ class AdManager @Inject constructor(
 
             analyticsManager.logRewardedAdWatchedForFreeEntry(
                 adNetwork = "simulated",
+                country = country,
+                isIranIp = isIran,
                 triggerLocation = "offline_entry_simulated"
             )
 
@@ -511,93 +483,93 @@ class AdManager @Inject constructor(
             return
         }
 
-        val network = if (geoLocationDetector.isIranUser.value) "adivery" else "admob"
+        val isIran = geoLocationDetector.isIranUser.value
+        val country = geoLocationDetector.getCountryCode()
+        val network = if (isIran) "adivery" else "admob"
+
         analyticsManager.logAdRequested(
             adType = "interstitial",
             adNetwork = network,
+            country = country,
+            isIranIp = isIran,
             triggerLocation = "post_match"
         )
 
         if (activity != null) {
-            val useAdivery = geoLocationDetector.isIranUser.value
-            if (useAdivery) {
+            if (isIran) {
+                // Iran IP: Strictly Adivery ads
+                analyticsManager.logAdShowing(
+                    adType = "interstitial",
+                    adNetwork = "adivery",
+                    country = country,
+                    isIranIp = true,
+                    triggerLocation = "post_match"
+                )
                 adiveryManager.loadAndShowInterstitialAd(
                     activity = activity,
                     onAdDismissed = {
                         analyticsManager.logInterstitialAdShownAfterGame(
                             adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true,
                             completedMatchCount = count
                         )
-                        analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "adivery")
+                        analyticsManager.logAdDismissed(
+                            adType = "interstitial",
+                            adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true
+                        )
                         onAdClosed()
                     },
                     onFailed = {
                         analyticsManager.logAdFailed(
                             adType = "interstitial",
                             adNetwork = "adivery",
+                            country = country,
+                            isIranIp = true,
                             errorMessage = "Adivery interstitial skipped",
                             triggerLocation = "post_match"
                         )
-                        adMobManager.loadAndShowInterstitialAd(
-                            activity = activity,
-                            onAdDismissed = {
-                                analyticsManager.logInterstitialAdShownAfterGame(
-                                    adNetwork = "admob",
-                                    completedMatchCount = count
-                                )
-                                analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "admob")
-                                onAdClosed()
-                            },
-                            onFailed = {
-                                analyticsManager.logAdFailed(
-                                    adType = "interstitial",
-                                    adNetwork = "admob",
-                                    errorMessage = "AdMob interstitial skipped",
-                                    triggerLocation = "post_match"
-                                )
-                                onAdClosed()
-                            }
-                        )
+                        onAdClosed()
                     }
                 )
             } else {
+                // Non-Iran IP (All other countries): Strictly Google AdMob ads
+                analyticsManager.logAdShowing(
+                    adType = "interstitial",
+                    adNetwork = "admob",
+                    country = country,
+                    isIranIp = false,
+                    triggerLocation = "post_match"
+                )
                 adMobManager.loadAndShowInterstitialAd(
                     activity = activity,
                     onAdDismissed = {
                         analyticsManager.logInterstitialAdShownAfterGame(
                             adNetwork = "admob",
+                            country = country,
+                            isIranIp = false,
                             completedMatchCount = count
                         )
-                        analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "admob")
+                        analyticsManager.logAdDismissed(
+                            adType = "interstitial",
+                            adNetwork = "admob",
+                            country = country,
+                            isIranIp = false
+                        )
                         onAdClosed()
                     },
                     onFailed = {
                         analyticsManager.logAdFailed(
                             adType = "interstitial",
                             adNetwork = "admob",
+                            country = country,
+                            isIranIp = false,
                             errorMessage = "AdMob interstitial skipped",
                             triggerLocation = "post_match"
                         )
-                        adiveryManager.loadAndShowInterstitialAd(
-                            activity = activity,
-                            onAdDismissed = {
-                                analyticsManager.logInterstitialAdShownAfterGame(
-                                    adNetwork = "adivery",
-                                    completedMatchCount = count
-                                )
-                                analyticsManager.logAdDismissed(adType = "interstitial", adNetwork = "adivery")
-                                onAdClosed()
-                            },
-                            onFailed = {
-                                analyticsManager.logAdFailed(
-                                    adType = "interstitial",
-                                    adNetwork = "adivery",
-                                    errorMessage = "Adivery interstitial skipped",
-                                    triggerLocation = "post_match"
-                                )
-                                onAdClosed()
-                            }
-                        )
+                        onAdClosed()
                     }
                 )
             }
@@ -619,6 +591,8 @@ class AdManager @Inject constructor(
 
             analyticsManager.logInterstitialAdShownAfterGame(
                 adNetwork = "simulated",
+                country = country,
+                isIranIp = isIran,
                 completedMatchCount = count
             )
 

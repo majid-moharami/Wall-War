@@ -31,17 +31,24 @@ class GeoLocationDetector @Inject constructor(
     private val _isIranUser = MutableStateFlow(determineInitialIranStatus())
     val isIranUser: StateFlow<Boolean> = _isIranUser.asStateFlow()
 
-    private val _detectedCountry = MutableStateFlow(prefs.getString("detected_country", null) ?: "IR")
+    private val _detectedCountry = MutableStateFlow(determineInitialCountryCode())
     val detectedCountry: StateFlow<String> = _detectedCountry.asStateFlow()
 
     init {
         detectCountryFromIp()
     }
 
+    private fun determineInitialCountryCode(): String {
+        val saved = prefs.getString("detected_country", null)
+        if (!saved.isNullOrBlank()) return saved.uppercase()
+        val systemCountry = Locale.getDefault().country
+        return if (systemCountry.isNotBlank()) systemCountry.uppercase() else "UNKNOWN"
+    }
+
     private fun determineInitialIranStatus(): Boolean {
         // Check saved preference first
         if (prefs.contains("is_iran")) {
-            return prefs.getBoolean("is_iran", true)
+            return prefs.getBoolean("is_iran", false)
         }
 
         // Fast system heuristic: Locale, TimeZone, Language
@@ -60,43 +67,54 @@ class GeoLocationDetector @Inject constructor(
     }
 
     fun setIranUserMode(isIran: Boolean) {
+        val country = if (isIran) "IR" else "GLOBAL"
         _isIranUser.value = isIran
+        _detectedCountry.value = country
         prefs.edit()
             .putBoolean("is_iran", isIran)
-            .putString("detected_country", if (isIran) "IR" else "GLOBAL")
+            .putString("detected_country", country)
             .apply()
-        Log.d("GeoLocationDetector", "Manual Iran user mode set to: $isIran")
+        Log.d("GeoLocationDetector", "Manual Iran user mode set to: $isIran (country=$country)")
+    }
+
+    fun getCountryCode(): String {
+        return _detectedCountry.value
     }
 
     fun detectCountryFromIp() {
         scope.launch {
             val country = fetchCountryFromIp()
-            if (country != null) {
-                val isIran = country.equals("IR", ignoreCase = true)
-                _detectedCountry.value = country
+            if (!country.isNullOrBlank()) {
+                val upperCountry = country.trim().uppercase()
+                val isIran = upperCountry == "IR" || upperCountry == "IRN" || upperCountry == "IRAN"
+                _detectedCountry.value = upperCountry
                 _isIranUser.value = isIran
                 prefs.edit()
                     .putBoolean("is_iran", isIran)
-                    .putString("detected_country", country)
+                    .putString("detected_country", upperCountry)
                     .apply()
-                Log.d("GeoLocationDetector", "IP Detection complete: country=$country, isIran=$isIran")
+                Log.d("GeoLocationDetector", "IP Detection complete: country=$upperCountry, isIran=$isIran")
             } else {
-                Log.d("GeoLocationDetector", "IP Detection unavailable, retaining state: ${_isIranUser.value}")
+                Log.d("GeoLocationDetector", "IP Detection unavailable, retaining state: ${_detectedCountry.value}, isIran=${_isIranUser.value}")
             }
         }
     }
 
     private suspend fun fetchCountryFromIp(): String? = withContext(Dispatchers.IO) {
-        // Try country.is first
+        // 1. Try country.is
         var country = queryGeoApi("https://api.country.is", "country")
-        if (country != null) return@withContext country
+        if (!country.isNullOrBlank()) return@withContext country
 
-        // Fallback to ip-api.com
+        // 2. Try ip-api.com
         country = queryGeoApi("http://ip-api.com/json", "countryCode")
-        if (country != null) return@withContext country
+        if (!country.isNullOrBlank()) return@withContext country
 
-        // Fallback to ipapi.co
+        // 3. Try ipapi.co
         country = queryGeoApi("https://ipapi.co/json", "country_code")
+        if (!country.isNullOrBlank()) return@withContext country
+
+        // 4. Try ipinfo.io
+        country = queryGeoApi("https://ipinfo.io/json", "country")
         return@withContext country
     }
 

@@ -106,34 +106,69 @@ class AnalyticsManager @Inject constructor(
     fun logAdRequested(
         adType: String,
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         placementId: String? = null,
         triggerLocation: String? = null
     ) {
         val bundle = Bundle().apply {
             putString("ad_type", adType)
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             placementId?.let { putString("placement_id", it) }
             triggerLocation?.let { putString("trigger_location", it) }
         }
+        Log.d(TAG, "📊 [Analytics] Ad Requested: network=$adNetwork, country=$country, isIranIp=$isIranIp, type=$adType, location=$triggerLocation")
         logEvent("ad_requested", bundle)
     }
 
     fun logAdLoaded(
         adType: String,
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         placementId: String? = null
     ) {
         val bundle = Bundle().apply {
             putString("ad_type", adType)
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             placementId?.let { putString("placement_id", it) }
         }
+        Log.d(TAG, "📊 [Analytics] Ad Loaded: network=$adNetwork, country=$country, isIranIp=$isIranIp, type=$adType")
         logEvent("ad_loaded", bundle)
+    }
+
+    fun logAdShowing(
+        adType: String,
+        adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
+        placementId: String? = null,
+        triggerLocation: String? = null
+    ) {
+        val bundle = Bundle().apply {
+            putString("ad_type", adType)
+            putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
+            putString(FirebaseAnalytics.Param.AD_PLATFORM, adNetwork)
+            putString(FirebaseAnalytics.Param.AD_SOURCE, adNetwork)
+            putString(FirebaseAnalytics.Param.AD_FORMAT, adType)
+            placementId?.let { putString(FirebaseAnalytics.Param.AD_UNIT_NAME, it) }
+            triggerLocation?.let { putString("trigger_location", it) }
+        }
+        Log.d(TAG, "📊 [Analytics] Ad Showing: network=$adNetwork, country=$country, isIranIp=$isIranIp, type=$adType, location=$triggerLocation")
+        logEvent("ad_showing", bundle)
     }
 
     fun logAdImpression(
         adType: String,
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         placementId: String? = null,
         triggerLocation: String? = null
     ) {
@@ -141,24 +176,33 @@ class AnalyticsManager @Inject constructor(
             putString(FirebaseAnalytics.Param.AD_PLATFORM, adNetwork)
             putString(FirebaseAnalytics.Param.AD_SOURCE, adNetwork)
             putString(FirebaseAnalytics.Param.AD_FORMAT, adType)
+            putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             placementId?.let { putString(FirebaseAnalytics.Param.AD_UNIT_NAME, it) }
             triggerLocation?.let { putString("trigger_location", it) }
         }
+        Log.d(TAG, "📊 [Analytics] Ad Impression: network=$adNetwork, country=$country, isIranIp=$isIranIp, type=$adType")
         logEvent(FirebaseAnalytics.Event.AD_IMPRESSION, bundle)
     }
 
     fun logAdFailed(
         adType: String,
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         errorMessage: String? = null,
         triggerLocation: String? = null
     ) {
         val bundle = Bundle().apply {
             putString("ad_type", adType)
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             errorMessage?.let { putString("error_message", it) }
             triggerLocation?.let { putString("trigger_location", it) }
         }
+        Log.w(TAG, "⚠️ [Analytics] Ad Failed: network=$adNetwork, country=$country, isIranIp=$isIranIp, type=$adType, error=$errorMessage")
         logEvent("ad_failed", bundle)
     }
 
@@ -167,15 +211,20 @@ class AnalyticsManager @Inject constructor(
      */
     fun logRewardedAdWatchedForCoins(
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         rewardCoins: Int = 50,
         triggerLocation: String = "coin_shop"
     ) {
         val bundle = Bundle().apply {
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             putInt("reward_coins", rewardCoins)
             putString("reward_type", "coins")
             putString("trigger_location", triggerLocation)
         }
+        Log.d(TAG, "📊 [Analytics] Rewarded Ad Watched for Coins: network=$adNetwork, country=$country, isIranIp=$isIranIp, coins=$rewardCoins")
         logEvent("ad_reward_coins_earned", bundle)
         logCoinsEarned(rewardCoins, "rewarded_ad_$adNetwork")
     }
@@ -185,13 +234,18 @@ class AnalyticsManager @Inject constructor(
      */
     fun logRewardedAdWatchedForFreeEntry(
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         triggerLocation: String = "offline_entry"
     ) {
         val bundle = Bundle().apply {
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             putString("reward_type", "free_match_entry")
             putString("trigger_location", triggerLocation)
         }
+        Log.d(TAG, "📊 [Analytics] Rewarded Ad Watched for Free Entry: network=$adNetwork, country=$country, isIranIp=$isIranIp")
         logEvent("ad_reward_free_entry", bundle)
     }
 
@@ -200,27 +254,37 @@ class AnalyticsManager @Inject constructor(
      */
     fun logInterstitialAdShownAfterGame(
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         completedMatchCount: Int,
         triggerLocation: String = "post_match"
     ) {
         val bundle = Bundle().apply {
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             putInt("completed_matches_count", completedMatchCount)
             putString("trigger_location", triggerLocation)
         }
+        Log.d(TAG, "📊 [Analytics] Interstitial Ad Shown After Game: network=$adNetwork, country=$country, isIranIp=$isIranIp, matches=$completedMatchCount")
         logEvent("ad_interstitial_after_game", bundle)
     }
 
     fun logAdDismissed(
         adType: String,
         adNetwork: String,
+        country: String = "UNKNOWN",
+        isIranIp: Boolean = false,
         wasRewardEarned: Boolean = false
     ) {
         val bundle = Bundle().apply {
             putString("ad_type", adType)
             putString("ad_network", adNetwork)
+            putString("country", country)
+            putBoolean("is_iran_ip", isIranIp)
             putBoolean("was_reward_earned", wasRewardEarned)
         }
+        Log.d(TAG, "📊 [Analytics] Ad Dismissed: network=$adNetwork, country=$country, isIranIp=$isIranIp, type=$adType, rewardEarned=$wasRewardEarned")
         logEvent("ad_dismissed", bundle)
     }
 
