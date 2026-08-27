@@ -3,6 +3,7 @@ package com.wallwar.ui.navigation
 import android.app.Activity
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -358,6 +359,10 @@ fun WallWarNavGraph(
             val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
 
             val activity = LocalActivity.current
+
+            LaunchedEffect(Unit) {
+                viewModel.refreshBilling()
+            }
 
             CoinShopScreen(
                 userProfile = userProfile,

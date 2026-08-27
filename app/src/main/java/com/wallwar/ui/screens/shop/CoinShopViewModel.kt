@@ -160,6 +160,10 @@ class CoinShopViewModel @Inject constructor(
         }
     }
 
+    fun refreshBilling() {
+        billingManager.queryProductDetails()
+    }
+
     fun buyCoinPack(activity: Activity?, pack: CoinPack) {
         val canonicalId = BillingConstants.getCanonicalProductId(pack.productId.ifBlank { pack.id })
         
@@ -167,9 +171,10 @@ class CoinShopViewModel @Inject constructor(
             val launched = billingManager.launchBillingFlow(activity, canonicalId)
             if (!launched) {
                 if (!billingManager.isConnected.value) {
-                    _purchaseMessage.value = "⚠️ Google Play Store is connecting. Please ensure Google Play Services is available."
+                    _purchaseMessage.value = "⚠️ Google Play Store is connecting. Please check your internet connection or Google Play Services."
                 } else if (!billingManager.productDetailsMap.value.containsKey(canonicalId)) {
-                    _purchaseMessage.value = "⚠️ Google Play In-App Product ($canonicalId) is not yet published or active in Google Play Console."
+                    val availableIds = billingManager.productDetailsMap.value.keys.joinToString(", ")
+                    _purchaseMessage.value = "⚠️ Product '$canonicalId' not yet active on Play Store. (Cached IDs: ${if (availableIds.isEmpty()) "None" else availableIds})"
                 }
             }
         } else {
