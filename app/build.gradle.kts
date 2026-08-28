@@ -2,6 +2,10 @@ import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesS
 import java.io.FileInputStream
 import java.util.Properties
 
+val versionMajor = 1
+val versionMinor = 0
+val versionPatch = 1
+
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.android)
@@ -22,8 +26,8 @@ android {
     applicationId = "com.wallwar.game"
     minSdk = 24
     targetSdk = 35
-    versionCode = 1
-    versionName = "1.0"
+    versionCode = versionMajor * 100 + versionMinor + versionPatch
+    versionName = "$versionMajor.$versionMinor.$versionPatch"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
