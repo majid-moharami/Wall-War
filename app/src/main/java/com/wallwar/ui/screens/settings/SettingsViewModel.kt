@@ -33,6 +33,17 @@ class SettingsViewModel @Inject constructor(
     val nakamaConfig: StateFlow<NakamaConfig> = nakamaRepository.config
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
 
+    fun updateCoinsAndLevel(targetCoins: Int, targetLevel: Int, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                authRepository.setUserDevLevelAndCoins(targetLevel, targetCoins)
+                onResult(true, "Applied! Level: $targetLevel, Coins: $targetCoins (Synced to server).")
+            } catch (e: Exception) {
+                onResult(false, "Server sync error: ${e.localizedMessage ?: e.message}")
+            }
+        }
+    }
+
     fun boostLevelAndCoins(targetLevel: Int = 30, targetCoins: Int = 2000000, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             try {

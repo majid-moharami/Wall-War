@@ -3,6 +3,7 @@ package com.wallwar.ui.screens
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,20 +16,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Casino
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dns
-import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,196 +54,42 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wallwar.BuildConfig
 import com.wallwar.audio.SoundManager
+import com.wallwar.data.UserProfile
 import com.wallwar.data.nakama.NakamaConfig
-import com.wallwar.model.BoardTheme
-import com.wallwar.ui.theme.NeonCyan
-import com.wallwar.ui.theme.NeonPurple
-
-import androidx.compose.material.icons.filled.Backup
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.CloudDownload
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import com.wallwar.ui.theme.NeonAmber
+import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonEmerald
 import com.wallwar.ui.theme.NeonMagenta
+import com.wallwar.ui.theme.NeonPurple
 
 @Composable
 fun SettingsScreen(
     soundManager: SoundManager,
-    selectedTheme: BoardTheme,
+    userProfile: UserProfile,
     nakamaConfig: NakamaConfig = NakamaConfig(),
-    onSelectTheme: (BoardTheme) -> Unit,
     onUpdateNakamaConfig: (host: String, port: Int, key: String, ssl: Boolean) -> Unit = { _, _, _, _ -> },
     onTestConnection: ((Boolean) -> Unit) -> Unit = {},
-    onRestoreFromNakamaServer: ((Boolean, String) -> Unit) -> Unit = { _ -> },
-    onExportDataBackup: ((String) -> Unit) -> Unit = { _ -> },
-    onRestoreDataFromBackup: (String, (Boolean, String) -> Unit) -> Unit = { _, _ -> },
-    onRestoreDefaultSettings: () -> Unit = {},
+    onUpdateCoinsAndLevel: (coins: Int, level: Int, onResult: (Boolean, String) -> Unit) -> Unit = { _, _, _ -> },
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val clipboardManager = LocalClipboardManager.current
-
     var serverHost by remember(nakamaConfig) { mutableStateOf(nakamaConfig.host) }
     var serverPort by remember(nakamaConfig) { mutableStateOf(nakamaConfig.port.toString()) }
     var serverKey by remember(nakamaConfig) { mutableStateOf(nakamaConfig.serverKey) }
     var testResultStatus by remember { mutableStateOf<String?>(null) }
+    var isTestingConnection by remember { mutableStateOf(false) }
 
-    var restoreStatusMessage by remember { mutableStateOf<String?>(null) }
-    var restoreStatusIsSuccess by remember { mutableStateOf(true) }
-
-    var showExportDialog by remember { mutableStateOf(false) }
-    var exportedJsonText by remember { mutableStateOf("") }
-
-    var showImportDialog by remember { mutableStateOf(false) }
-    var importJsonText by remember { mutableStateOf("") }
-
-    var showResetDialog by remember { mutableStateOf(false) }
-
-    // Export Dialog
-    if (showExportDialog) {
-        AlertDialog(
-            onDismissRequest = { showExportDialog = false },
-            title = { Text("Export Data Backup", color = Color.White, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Copy this backup JSON code to save your user profile, settings, and match logs:", color = Color(0xFFA0ACCC))
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = exportedJsonText,
-                        onValueChange = {},
-                        readOnly = true,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(150.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonCyan,
-                            unfocusedBorderColor = Color(0xFF374151),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        clipboardManager.setText(AnnotatedString(exportedJsonText))
-                        restoreStatusIsSuccess = true
-                        restoreStatusMessage = "Backup JSON copied to clipboard!"
-                        showExportDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
-                ) {
-                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = Color.Black)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy JSON", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExportDialog = false }) {
-                    Text("Close", color = Color.White)
-                }
-            },
-            containerColor = Color(0xFF1E2638)
-        )
-    }
-
-    // Import / Restore Dialog
-    if (showImportDialog) {
-        AlertDialog(
-            onDismissRequest = { showImportDialog = false },
-            title = { Text("Restore Data from Backup", color = Color.White, fontWeight = FontWeight.Bold) },
-            text = {
-                Column {
-                    Text("Paste your JSON backup code below to restore profile, settings, and match history:", color = Color(0xFFA0ACCC))
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = importJsonText,
-                        onValueChange = { importJsonText = it },
-                        placeholder = { Text("Paste JSON backup code here...", color = Color(0xFF6B7280)) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonCyan,
-                            unfocusedBorderColor = Color(0xFF374151),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        )
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        if (importJsonText.isNotBlank()) {
-                            onRestoreDataFromBackup(importJsonText) { success, msg ->
-                                restoreStatusIsSuccess = success
-                                restoreStatusMessage = msg
-                                if (success) showImportDialog = false
-                            }
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonEmerald)
-                ) {
-                    Icon(imageVector = Icons.Default.FileDownload, contentDescription = null, tint = Color.Black)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Restore Now", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showImportDialog = false }) {
-                    Text("Cancel", color = Color.White)
-                }
-            },
-            containerColor = Color(0xFF1E2638)
-        )
-    }
-
-    // Reset Defaults Dialog
-    if (showResetDialog) {
-        AlertDialog(
-            onDismissRequest = { showResetDialog = false },
-            title = { Text("Restore Default Settings?", color = Color.White, fontWeight = FontWeight.Bold) },
-            text = { Text("This will reset board theme, audio preferences, and server configuration back to factory default values.", color = Color(0xFFA0ACCC)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onRestoreDefaultSettings()
-                        soundManager.isSoundEnabled = true
-                        soundManager.isVibrationEnabled = true
-                        serverHost = "10.0.2.2"
-                        serverPort = "7350"
-                        serverKey = "defaultkey"
-                        restoreStatusIsSuccess = true
-                        restoreStatusMessage = "Settings restored to factory defaults!"
-                        showResetDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
-                ) {
-                    Text("Reset Defaults", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancel", color = Color.White)
-                }
-            },
-            containerColor = Color(0xFF1E2638)
-        )
-    }
+    // Dev Tools State
+    var targetCoinsInput by remember(userProfile.coins) { mutableStateOf(userProfile.coins.toString()) }
+    var targetLevelInput by remember(userProfile.level) { mutableStateOf(userProfile.level.toString()) }
+    var devStatusMessage by remember { mutableStateOf<String?>(null) }
+    var devStatusIsSuccess by remember { mutableStateOf(true) }
+    var isApplyingDevBoost by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -262,143 +114,13 @@ fun SettingsScreen(
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Settings & Nakama Server",
+                text = "Settings",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-
-        // Nakama Server Docker Configuration
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Dns,
-                        contentDescription = null,
-                        tint = NeonCyan,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Nakama Server Config (Docker / Personal IP)",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Connect to your custom server running Nakama Docker",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Port Explanation Note
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF1E2638))
-                        .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                        .padding(10.dp)
-                ) {
-                    Text(
-                        text = "💡 Note: Port 7350 is Nakama's Client API & WebSocket port (required for the app). Port 7351 is only for the Web Console Admin dashboard in your browser.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFC0D0E0)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                OutlinedTextField(
-                    value = serverHost,
-                    onValueChange = { serverHost = it },
-                    label = { Text("Server Host IP (e.g. 192.168.1.100 or MyServerIp)") },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = serverPort,
-                        onValueChange = { serverPort = it },
-                        label = { Text("Port (Use 7350 for API)") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    OutlinedTextField(
-                        value = serverKey,
-                        onValueChange = { serverKey = it },
-                        label = { Text("Server Key") },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = {
-                            var portInt = serverPort.toIntOrNull() ?: 7350
-                            var hostStr = serverHost.trim()
-
-                            // If user typed MyServerIp:7351 or 7351, auto-correct 7351 (console port) to 7350 (API port)
-                            if (hostStr.contains(":")) {
-                                val parts = hostStr.split(":")
-                                hostStr = parts[0]
-                                parts[1].toIntOrNull()?.let { extractedPort ->
-                                    portInt = if (extractedPort == 7351) 7350 else extractedPort
-                                }
-                            }
-                            if (portInt == 7351) {
-                                portInt = 7350
-                                serverPort = "7350"
-                            }
-
-                            onUpdateNakamaConfig(hostStr, portInt, serverKey, false)
-                            testResultStatus = "Connecting..."
-                            onTestConnection { success ->
-                                testResultStatus = if (success) "Connected to Nakama Server!" else "Connection failed (Check Docker / IP)"
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
-                    ) {
-                        Text("Save & Test Nakama", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-
-                    testResultStatus?.let { status ->
-                        Text(
-                            text = status,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (status.contains("Connected")) Color(0xFF4CAF50) else Color(0xFFFF5252),
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
 
         // Sound Effects Toggle
         Card(
@@ -484,177 +206,400 @@ fun SettingsScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        // ==========================================
+        // DEBUG MODE ONLY SECTIONS
+        // ==========================================
+        if (BuildConfig.DEBUG) {
+            Spacer(modifier = Modifier.height(24.dp))
 
-        // Board Theme Customizer Header
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Palette,
-                contentDescription = null,
-                tint = NeonPurple,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(12.dp))
-            Text(
-                text = "Board Themes",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        BoardTheme.values().forEach { theme ->
-            Card(
-                onClick = { onSelectTheme(theme) },
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selectedTheme == theme) NeonPurple.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
-                ),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+            // Section Header
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(Color(theme.primaryColor))
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
+                Icon(
+                    imageVector = Icons.Default.Build,
+                    contentDescription = null,
+                    tint = NeonAmber,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "DEBUG & DEV CONTROLS",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = NeonAmber,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 1.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 1. Dev Coins & Level Modifier Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, NeonAmber.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.MonetizationOn,
+                                contentDescription = null,
+                                tint = NeonAmber,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = "Coins & Level Modifier",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(NeonAmber.copy(alpha = 0.15f))
+                                .border(1.dp, NeonAmber, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "DEV ONLY",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = NeonAmber
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     Text(
-                        text = theme.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.weight(1f)
+                        text = "Current: Level ${userProfile.level} (${userProfile.rankTitle}) • ${userProfile.coins} Coins",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFA0ACCC)
                     )
-                    if (selectedTheme == theme) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = null,
-                            tint = NeonPurple
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Input fields for Target Coins and Target Level
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = targetCoinsInput,
+                            onValueChange = { targetCoinsInput = it.filter { ch -> ch.isDigit() } },
+                            label = { Text("Target Coins") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.MonetizationOn,
+                                    contentDescription = null,
+                                    tint = NeonAmber,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NeonAmber,
+                                focusedLabelColor = NeonAmber
+                            ),
+                            modifier = Modifier.weight(1.2f)
                         )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        OutlinedTextField(
+                            value = targetLevelInput,
+                            onValueChange = { targetLevelInput = it.filter { ch -> ch.isDigit() } },
+                            label = { Text("Level (1-50)") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Star,
+                                    contentDescription = null,
+                                    tint = NeonCyan,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = NeonCyan,
+                                focusedLabelColor = NeonCyan
+                            ),
+                            modifier = Modifier.weight(0.8f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Quick Preset Chips
+                    Text(
+                        text = "Quick Presets:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF8A99AD)
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        PresetChip(
+                            text = "+10K Coins",
+                            onClick = {
+                                val current = targetCoinsInput.toIntOrNull() ?: userProfile.coins
+                                targetCoinsInput = (current + 10_000).toString()
+                            },
+                            color = NeonAmber,
+                            modifier = Modifier.weight(1f)
+                        )
+                        PresetChip(
+                            text = "+100K Coins",
+                            onClick = {
+                                val current = targetCoinsInput.toIntOrNull() ?: userProfile.coins
+                                targetCoinsInput = (current + 100_000).toString()
+                            },
+                            color = NeonAmber,
+                            modifier = Modifier.weight(1f)
+                        )
+                        PresetChip(
+                            text = "+1M Coins",
+                            onClick = {
+                                val current = targetCoinsInput.toIntOrNull() ?: userProfile.coins
+                                targetCoinsInput = (current + 1_000_000).toString()
+                            },
+                            color = NeonAmber,
+                            modifier = Modifier.weight(1f)
+                        )
+                        PresetChip(
+                            text = "Lvl 30",
+                            onClick = {
+                                targetLevelInput = "30"
+                            },
+                            color = NeonCyan,
+                            modifier = Modifier.weight(0.8f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Apply Button
+                    Button(
+                        onClick = {
+                            val coins = targetCoinsInput.toIntOrNull() ?: userProfile.coins
+                            val level = (targetLevelInput.toIntOrNull() ?: userProfile.level).coerceIn(1, 50)
+                            isApplyingDevBoost = true
+                            devStatusMessage = null
+                            onUpdateCoinsAndLevel(coins, level) { success, msg ->
+                                isApplyingDevBoost = false
+                                devStatusIsSuccess = success
+                                devStatusMessage = msg
+                            }
+                        },
+                        enabled = !isApplyingDevBoost,
+                        colors = ButtonDefaults.buttonColors(containerColor = NeonEmerald),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        if (isApplyingDevBoost) {
+                            CircularProgressIndicator(
+                                color = Color.Black,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Syncing with Server...", color = Color.Black, fontWeight = FontWeight.Bold)
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Casino,
+                                contentDescription = null,
+                                tint = Color.Black
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Update Server & Profile", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    devStatusMessage?.let { status ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = if (devStatusIsSuccess) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                contentDescription = null,
+                                tint = if (devStatusIsSuccess) NeonEmerald else NeonMagenta,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = status,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (devStatusIsSuccess) NeonEmerald else NeonMagenta,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Data Backup & Restore Section
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Backup,
-                        contentDescription = null,
-                        tint = NeonCyan,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Data Backup & Restore",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "Cloud sync, JSON backup export & restore",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Restore from Nakama Server Button
-                Button(
-                    onClick = {
-                        restoreStatusMessage = "Restoring from Nakama Cloud..."
-                        onRestoreFromNakamaServer { success, msg ->
-                            restoreStatusIsSuccess = success
-                            restoreStatusMessage = msg
-                        }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(imageVector = Icons.Default.CloudDownload, contentDescription = null, tint = Color.Black)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Restore Stats from Server", color = Color.Black, fontWeight = FontWeight.Bold)
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Export JSON Backup
-                    OutlinedButton(
-                        onClick = {
-                            onExportDataBackup { jsonStr ->
-                                exportedJsonText = jsonStr
-                                showExportDialog = true
+            // 2. Nakama Server Docker Configuration Card (Debug Mode Only)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(20.dp),
+                border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Dns,
+                                contentDescription = null,
+                                tint = NeonCyan,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = "Nakama Server Config",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Docker / Custom Nakama IP",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f),
-                        border = BorderStroke(1.dp, NeonCyan)
-                    ) {
-                        Icon(imageVector = Icons.Default.FileUpload, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export Backup", color = NeonCyan, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(NeonCyan.copy(alpha = 0.15f))
+                                .border(1.dp, NeonCyan, RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "DEBUG ONLY",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Black,
+                                color = NeonCyan
+                            )
+                        }
                     }
 
-                    // Import & Restore JSON Backup
-                    OutlinedButton(
-                        onClick = {
-                            importJsonText = ""
-                            showImportDialog = true
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f),
-                        border = BorderStroke(1.dp, NeonEmerald)
-                    ) {
-                        Icon(imageVector = Icons.Default.FileDownload, contentDescription = null, tint = NeonEmerald, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Restore Backup", color = NeonEmerald, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Restore Factory Defaults Button
-                OutlinedButton(
-                    onClick = { showResetDialog = true },
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    border = BorderStroke(1.dp, NeonMagenta)
-                ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = null, tint = NeonMagenta, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Restore Default Settings", color = NeonMagenta, fontWeight = FontWeight.Bold)
-                }
-
-                restoreStatusMessage?.let { status ->
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = status,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (restoreStatusIsSuccess) NeonEmerald else NeonMagenta,
-                        fontWeight = FontWeight.Bold
+
+                    // Port Explanation Note
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF1E2638))
+                            .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = "💡 Note: Port 7350 is Nakama's Client API & WebSocket port (required for app). Port 7351 is only for the browser admin dashboard.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFC0D0E0)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    OutlinedTextField(
+                        value = serverHost,
+                        onValueChange = { serverHost = it },
+                        label = { Text("Server Host IP (e.g. 10.0.2.2 or 192.168.1.x)") },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
+                        modifier = Modifier.fillMaxWidth()
                     )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = serverPort,
+                            onValueChange = { serverPort = it },
+                            label = { Text("Port (7350)") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        OutlinedTextField(
+                            value = serverKey,
+                            onValueChange = { serverKey = it },
+                            label = { Text("Server Key") },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = {
+                                var portInt = serverPort.toIntOrNull() ?: 7350
+                                var hostStr = serverHost.trim()
+
+                                if (hostStr.contains(":")) {
+                                    val parts = hostStr.split(":")
+                                    hostStr = parts[0]
+                                    parts[1].toIntOrNull()?.let { extractedPort ->
+                                        portInt = if (extractedPort == 7351) 7350 else extractedPort
+                                    }
+                                }
+                                if (portInt == 7351) {
+                                    portInt = 7350
+                                    serverPort = "7350"
+                                }
+
+                                onUpdateNakamaConfig(hostStr, portInt, serverKey, false)
+                                testResultStatus = "Connecting..."
+                                isTestingConnection = true
+                                onTestConnection { success ->
+                                    isTestingConnection = false
+                                    testResultStatus = if (success) "Connected to Nakama!" else "Connection failed"
+                                }
+                            },
+                            enabled = !isTestingConnection,
+                            colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                        ) {
+                            Text("Save & Test Nakama", color = Color.Black, fontWeight = FontWeight.Bold)
+                        }
+
+                        testResultStatus?.let { status ->
+                            Text(
+                                text = status,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (status.contains("Connected")) NeonEmerald else NeonMagenta,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -665,6 +610,32 @@ fun SettingsScreen(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+    }
+}
+
+@Composable
+private fun PresetChip(
+    text: String,
+    onClick: () -> Unit,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(color.copy(alpha = 0.12f))
+            .border(1.dp, color.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp, horizontal = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = color,
+            maxLines = 1
         )
     }
 }
