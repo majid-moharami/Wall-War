@@ -7,11 +7,15 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +51,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -188,63 +193,6 @@ fun CoinShopScreen(
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp
-                    )
-                }
-            }
-        }
-
-        // Hero Banner Card
-        Card(
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            border = BorderStroke(1.5.dp, Brush.horizontalGradient(listOf(NeonAmber, NeonMagenta))),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 20.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "GET MORE COINS",
-                        color = NeonAmber,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 12.sp,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Power Up Your Duels",
-                        color = Color.White,
-                        fontWeight = FontWeight.Black,
-                        fontSize = 20.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Use coins to join online ranked matches, play high-stake duels, and customize your game themes.",
-                        color = Color(0xFFA0ACCC),
-                        fontSize = 12.sp
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(NeonAmber.copy(alpha = 0.2f))
-                        .border(1.dp, NeonAmber, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ShoppingBag,
-                        contentDescription = "Store",
-                        tint = NeonAmber,
-                        modifier = Modifier.size(30.dp)
                     )
                 }
             }
@@ -462,27 +410,12 @@ fun CoinShopScreen(
                                 modifier = Modifier.weight(1f),
                                 contentAlignment = Alignment.CenterEnd
                             ) {
-                                Button(
+                                CoinPriceButton(
+                                    priceText = pack.priceUsd,
                                     onClick = { if (!isPurchasing) onBuyPack(pack) },
                                     enabled = !isPurchasing,
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (pack.popularTag != null) NeonCyan else Color(0xFF1E283D),
-                                        disabledContainerColor = Color(0xFF1E283D).copy(alpha = 0.5f)
-                                    ),
-                                    shape = RoundedCornerShape(10.dp),
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (pack.popularTag != null) NeonCyan else Color(0xFF384766)
-                                    ),
-                                    modifier = Modifier.testTag("buy_pack_${pack.id}")
-                                ) {
-                                    Text(
-                                        text = pack.priceUsd,
-                                        fontWeight = FontWeight.Black,
-                                        color = if (pack.popularTag != null) Color.Black else Color.White,
-                                        fontSize = 13.sp
-                                    )
-                                }
+                                    testTag = "buy_pack_${pack.id}"
+                                )
                             }
                         }
 
@@ -522,6 +455,62 @@ fun CoinShopScreen(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CoinPriceButton(
+    priceText: String,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    testTag: String,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val containerColor = when {
+        !enabled -> Color(0xFF1A2332)
+        isPressed -> Color(0xFF00A854)
+        else -> Color(0xFF00E676)
+    }
+
+    val contentColor = when {
+        !enabled -> Color(0xFF63728F)
+        isPressed -> Color.White
+        else -> Color(0xFF031A0D)
+    }
+
+    val borderColor = when {
+        !enabled -> Color(0xFF263248)
+        isPressed -> Color(0xFF00E676)
+        else -> Color(0xFF69F0AE)
+    }
+
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interactionSource,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = Color(0xFF1A2332),
+            disabledContentColor = Color(0xFF63728F)
+        ),
+        shape = RoundedCornerShape(10.dp),
+        border = BorderStroke(1.dp, borderColor),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp),
+        modifier = modifier
+            .defaultMinSize(minWidth = 78.dp, minHeight = 36.dp)
+            .testTag(testTag)
+    ) {
+        Text(
+            text = priceText,
+            fontWeight = FontWeight.Black,
+            color = contentColor,
+            fontSize = 13.sp,
+            textAlign = TextAlign.Center
+        )
     }
 }
 
