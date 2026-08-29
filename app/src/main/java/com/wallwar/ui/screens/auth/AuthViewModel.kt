@@ -18,7 +18,7 @@ import javax.inject.Inject
 sealed class AuthUiState {
     object Idle : AuthUiState()
     object Loading : AuthUiState()
-    data class Success(val username: String, val email: String) : AuthUiState()
+    data class Success(val username: String, val email: String?) : AuthUiState()
     data class Error(val message: String) : AuthUiState()
 }
 
@@ -210,7 +210,7 @@ class AuthViewModel @Inject constructor(
                     isGuest = true,
                     username = userProfile.value.displayName
                 )
-                _authUiState.value = AuthUiState.Success(userProfile.value.displayName, "guest@wallwar.app")
+                _authUiState.value = AuthUiState.Success(userProfile.value.displayName, null)
             } else {
                 _authUiState.value = AuthUiState.Error("Guest login failed. Please check server connection.")
             }

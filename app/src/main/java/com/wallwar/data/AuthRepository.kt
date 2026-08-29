@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import com.wallwar.data.nakama.NakamaRepository
 import javax.inject.Inject
@@ -36,7 +38,7 @@ import com.wallwar.data.auth.GoogleAuthManager
 import com.wallwar.data.auth.GoogleAuthResult
 
 sealed class SignInResult {
-    data class Success(val name: String, val email: String) : SignInResult()
+    data class Success(val name: String, val email: String? = null) : SignInResult()
     object Cancelled : SignInResult()
     data class Error(val message: String) : SignInResult()
 }
@@ -151,11 +153,11 @@ class AuthRepository @Inject constructor(
                 val updated = current.copy(
                     isLoggedIn = true,
                     displayName = if (current.displayName.isBlank()) displayName else current.displayName,
-                    email = "guest@wallwar.app",
+                    email = null,
                     nakamaUserId = nakamaRepository.getNakamaUserId()
                 )
                 saveProfile(updated)
-                SignInResult.Success(updated.displayName, updated.email)
+                SignInResult.Success(updated.displayName, null)
             } else {
                 SignInResult.Error("Device authentication failed. Please check server connection.")
             }
@@ -189,11 +191,11 @@ class AuthRepository @Inject constructor(
             val current = _userProfile.value
             val updated = current.copy(
                 isLoggedIn = true,
-                email = email,
+                email = email.trim(),
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
-            SignInResult.Success(updated.displayName, email)
+            SignInResult.Success(updated.displayName, email.trim())
         } catch (e: Exception) {
             Log.e("AuthRepository", "Error linking Email account: ${e.message}", e)
             SignInResult.Error(e.localizedMessage ?: e.message ?: "Failed to link Email account")
@@ -207,26 +209,36 @@ class AuthRepository @Inject constructor(
         username: String? = null
     ): SignInResult {
         return try {
-            val displayName = username?.ifBlank { email.substringBefore("@") } ?: email.substringBefore("@")
+            val cleanEmail = email.trim()
+            val initialDisplayName = username?.trim()?.ifBlank { null } ?: cleanEmail.substringBefore("@")
             nakamaRepository.authenticateWithEmail(
-                email = email,
+                email = cleanEmail,
                 password = password,
                 create = isRegister,
-                username = displayName
+                username = cleanEmail // email is username on nakama
             )
 
             // Sync user data directly from Nakama Account and Storage
             syncFromNakamaServer()
 
             val current = _userProfile.value
+            val chosenDisplayName = if (current.displayName.isNotBlank() && !current.displayName.contains("Guest", ignoreCase = true)) {
+                current.displayName
+            } else {
+                initialDisplayName
+            }
             val updated = current.copy(
                 isLoggedIn = true,
-                displayName = if (current.displayName.contains("Guest", ignoreCase = true)) displayName else current.displayName,
-                email = email,
+                displayName = chosenDisplayName,
+                email = cleanEmail,
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
-            SignInResult.Success(updated.displayName, email)
+            // If display name was newly set or changed, sync it to Nakama
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                nakamaRepository.syncUserProfileToNakama(updated)
+            }
+            SignInResult.Success(updated.displayName, cleanEmail)
         } catch (e: IllegalArgumentException) {
             SignInResult.Error(e.message ?: "Authentication failed")
         } catch (e: Exception) {
@@ -394,8 +406,23 @@ class AuthRepository @Inject constructor(
             val currentWinStreak = stats.optInt("currentWinStreak", current.currentWinStreak)
             val longestWinStreak = stats.optInt("longestWinStreak", current.longestWinStreak)
             val avatarUrl = stats.optString("avatarUrl", current.photoUrl ?: "")
+            val serverDisplayName = stats.optString("displayName", "")
+            val serverUsername = stats.optString("username", "")
+
+            val resolvedDisplayName = if (serverDisplayName.isNotBlank()) {
+                serverDisplayName
+            } else {
+                current.displayName
+            }
+            val resolvedEmail = if (current.email.isNullOrBlank() && serverUsername.contains("@")) {
+                serverUsername
+            } else {
+                current.email
+            }
 
             val updated = current.copy(
+                displayName = resolvedDisplayName,
+                email = resolvedEmail,
                 trophies = trophies,
                 coins = coins,
                 wins = wins,
@@ -700,6 +727,18 @@ class AuthRepository @Inject constructor(
         return true
     }
 
+    fun updateDisplayName(newDisplayName: String) {
+        val trimmed = newDisplayName.trim()
+        if (trimmed.isBlank()) return
+        val current = _userProfile.value
+        val updated = current.copy(displayName = trimmed)
+        saveProfile(updated)
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            nakamaRepository.syncUserProfileToNakama(updated)
+        }
+    }
+
     private fun loadStoredProfile(): UserProfile {
         val currentUser = try {
             firebaseAuth.currentUser
@@ -719,8 +758,8 @@ class AuthRepository @Inject constructor(
             name = "Guest Duelist"
         }
 
-        val email = currentUser?.email
-            ?: prefs.getString("email", "guest@wallwar.app") ?: "guest@wallwar.app"
+        val storedEmail = currentUser?.email ?: prefs.getString("email", null)
+        val email = if (storedEmail.isNullOrBlank() || storedEmail == "guest@wallwar.app") null else storedEmail
         val photoUrl = currentUser?.photoUrl?.toString()
             ?: prefs.getString("photo_url", null)
 
@@ -881,11 +920,11 @@ class AuthRepository @Inject constructor(
         val updated = current.copy(
             isLoggedIn = false,
             displayName = "Guest Duelist",
-            email = "guest@wallwar.app",
+            email = null,
             photoUrl = null
         )
         saveProfile(updated)
-        _unlockedEmojiIds.value = loadUnlockedEmojis("guest@wallwar.app", null)
+        _unlockedEmojiIds.value = loadUnlockedEmojis(null, null)
         _unlockedAvatarSkinIds.value = com.wallwar.data.ProfileSkinCatalog.DEFAULT_UNLOCKED_SKIN_IDS
         _unlockedBallSkinIds.value = com.wallwar.data.BallSkinCatalog.DEFAULT_UNLOCKED_BALL_IDS
         _equippedBallSkinId.value = com.wallwar.data.BallSkinCatalog.DEFAULT_EQUIPPED_BALL_ID

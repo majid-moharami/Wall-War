@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
@@ -41,6 +42,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -53,6 +55,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -93,6 +96,7 @@ fun ProfileScreen(
     onAddFriend: (String, (Boolean) -> Unit) -> Unit = { _, _ -> },
     onRemoveFriend: (String) -> Unit = {},
     onChallengeFriend: (String) -> Unit = {},
+    onUpdateDisplayName: (String) -> Unit = {},
     onNavigateToHistory: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToCoinShop: () -> Unit = {},
@@ -100,8 +104,66 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var friendSearchQuery by remember { mutableStateOf("") }
-    var addFriendStatus by remember { mutableStateOf<String?>(null) }
+    var showEditNameDialog by remember { mutableStateOf(false) }
+    var editedNameText by remember { mutableStateOf("") }
+
+    if (showEditNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditNameDialog = false },
+            title = {
+                Text(
+                    text = "Edit Display Name",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Choose the display name that appears to other players during matches.",
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 13.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = editedNameText,
+                        onValueChange = { editedNameText = it },
+                        singleLine = true,
+                        placeholder = { Text("Display Name", color = Color(0xFF6B7280)) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = NeonCyan,
+                            unfocusedBorderColor = Color(0xFF2E334D),
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val trimmed = editedNameText.trim()
+                        if (trimmed.isNotBlank()) {
+                            onUpdateDisplayName(trimmed)
+                        }
+                        showEditNameDialog = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
+                ) {
+                    Text("Save", color = Color.Black, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditNameDialog = false }) {
+                    Text("Cancel", color = Color(0xFFA0ACCC))
+                }
+            },
+            containerColor = NeonDarkCard,
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 
     Column(
         modifier = modifier
@@ -198,18 +260,40 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = userProfile.displayName,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = userProfile.displayName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    IconButton(
+                        onClick = {
+                            editedNameText = userProfile.displayName
+                            showEditNameDialog = true
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit Display Name",
+                            tint = NeonCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
 
-                Text(
-                    text = userProfile.email,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFA0ACCC)
-                )
+                if (!userProfile.email.isNullOrBlank() && userProfile.email != "guest@wallwar.app") {
+                    Text(
+                        text = userProfile.email,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFA0ACCC)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -451,164 +535,6 @@ fun ProfileScreen(
                         fontSize = 12.sp,
                         color = Color(0xFFA0ACCC)
                     )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Nakama Friends Card
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.PersonAdd,
-                            contentDescription = "Friends",
-                            tint = NeonCyan,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "NAKAMA FRIENDS (${friends.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Add Friend input
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = friendSearchQuery,
-                        onValueChange = { friendSearchQuery = it },
-                        placeholder = { Text("Friend's username", fontSize = 13.sp, color = Color(0xFF6B7280)) },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = NeonCyan,
-                            unfocusedBorderColor = Color(0xFF2E334D),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            if (friendSearchQuery.isNotBlank()) {
-                                addFriendStatus = "Adding..."
-                                onAddFriend(friendSearchQuery.trim()) { success ->
-                                    addFriendStatus = if (success) "Friend added!" else "User not found"
-                                    if (success) friendSearchQuery = ""
-                                }
-                            }
-                        },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
-                    ) {
-                        Text("Add", color = Color.Black, fontWeight = FontWeight.Bold)
-                    }
-                }
-
-                if (!addFriendStatus.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = addFriendStatus ?: "",
-                        fontSize = 12.sp,
-                        color = if (addFriendStatus?.contains("added", ignoreCase = true) == true) NeonEmerald else NeonMagenta
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                if (friends.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(NeonDarkSurface)
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No friends added yet. Enter a username above to duel them online!",
-                            color = Color(0xFFA0ACCC),
-                            fontSize = 12.sp,
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    friends.forEach { friend ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(NeonDarkSurface)
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(NeonCyan.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = friend.displayName.take(1).uppercase(),
-                                    fontWeight = FontWeight.Bold,
-                                    color = NeonCyan
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = friend.displayName,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White,
-                                    fontSize = 14.sp
-                                )
-                                Text(
-                                    text = "Level ${friend.level} • ${friend.trophies} Trophies",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFFA0ACCC)
-                                )
-                            }
-                            Button(
-                                onClick = { onChallengeFriend(friend.username) },
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Duel",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(text = "Duel", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
                 }
             }
         }

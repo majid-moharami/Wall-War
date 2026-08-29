@@ -3,7 +3,7 @@ package com.wallwar.data
 data class UserProfile(
     val isLoggedIn: Boolean = false,
     val displayName: String = "Guest Duelist",
-    val email: String = "guest@wallwar.app",
+    val email: String? = null,
     val photoUrl: String? = null,
     val trophies: Int = 0,
     val xp: Int = 0,

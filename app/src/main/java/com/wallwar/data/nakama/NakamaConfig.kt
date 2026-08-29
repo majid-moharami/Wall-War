@@ -62,7 +62,8 @@ data class NakamaFriend(
     val isOnline: Boolean = true,
     val level: Int = 1,
     val trophies: Int = 0,
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    val state: Int = 0 // 0 = Mutual Friend, 1 = Invite Sent, 2 = Invite Received
 )
 
 data class LeaderboardEntry(

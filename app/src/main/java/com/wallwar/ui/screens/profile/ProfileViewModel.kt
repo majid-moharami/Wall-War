@@ -40,6 +40,9 @@ class ProfileViewModel @Inject constructor(
     fun addFriend(username: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val success = nakamaRepository.addFriendByUsername(username)
+            if (success) {
+                nakamaRepository.fetchFriends()
+            }
             onResult(success)
         }
     }
@@ -47,6 +50,13 @@ class ProfileViewModel @Inject constructor(
     fun removeFriend(username: String) {
         viewModelScope.launch {
             nakamaRepository.removeFriend(username)
+            nakamaRepository.fetchFriends()
+        }
+    }
+
+    fun updateDisplayName(newDisplayName: String) {
+        viewModelScope.launch {
+            authRepository.updateDisplayName(newDisplayName)
         }
     }
 
@@ -56,7 +66,8 @@ class ProfileViewModel @Inject constructor(
             val result = authRepository.signInWithGoogle(context)
             when (result) {
                 is SignInResult.Success -> {
-                    _signInStatus.value = "Signed in as ${result.name} (${result.email})"
+                    val emailStr = if (!result.email.isNullOrBlank()) " (${result.email})" else ""
+                    _signInStatus.value = "Signed in as ${result.name}$emailStr"
                     fetchFriends()
                 }
                 is SignInResult.Cancelled -> {

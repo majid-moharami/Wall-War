@@ -211,9 +211,15 @@ class NakamaRepository @Inject constructor(
         username: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val sanitizedUsername = username?.filter { it.isLetterOrDigit() }?.ifBlank { null }
-            session = if (!sanitizedUsername.isNullOrBlank()) {
-                client.authenticateEmail(email.trim(), password.trim(), create, sanitizedUsername).await()
+            // When creating, the user's email is their username on the Nakama server (sanitized for nakama requirement)
+            val desiredUsername = if (create) {
+                // If username is provided, use it, or default to the email address
+                username?.trim()?.ifBlank { null } ?: email.trim()
+            } else {
+                null
+            }
+            session = if (!desiredUsername.isNullOrBlank()) {
+                client.authenticateEmail(email.trim(), password.trim(), create, desiredUsername).await()
             } else {
                 client.authenticateEmail(email.trim(), password.trim(), create).await()
             }
@@ -406,14 +412,20 @@ class NakamaRepository @Inject constructor(
                 JSONObject()
             }
 
-            // Also fetch account for the latest avatar_url
+            // Also fetch account for the latest displayName and avatar_url
             try {
                 val account = client.getAccount(s).await()
+                if (!account.user.displayName.isNullOrBlank()) {
+                    statsObj.put("displayName", account.user.displayName)
+                }
+                if (!account.user.username.isNullOrBlank()) {
+                    statsObj.put("username", account.user.username)
+                }
                 if (account.user.avatarUrl != null) {
                     statsObj.put("avatarUrl", account.user.avatarUrl)
                 }
             } catch (e: Exception) {
-                Log.w("NakamaRepository", "Could not fetch account info for avatar: ${e.message}")
+                Log.w("NakamaRepository", "Could not fetch account info for avatar/displayName: ${e.message}")
             }
 
             return@withContext statsObj
@@ -986,15 +998,16 @@ class NakamaRepository @Inject constructor(
         val s = session ?: return@withContext _friends.value
         try {
             val result = client.listFriends(s).await()
-            val list = result.friendsList.filter { it.state.value == 0 }.map { f ->
+            val list = result.friendsList.map { f ->
                 NakamaFriend(
                     userId = f.user.id,
                     username = f.user.username,
-                    displayName = f.user.displayName ?: f.user.username,
+                    displayName = if (!f.user.displayName.isNullOrBlank()) f.user.displayName else f.user.username,
                     isOnline = f.user.online,
                     level = 1,
                     trophies = 0,
-                    avatarUrl = f.user.avatarUrl
+                    avatarUrl = f.user.avatarUrl,
+                    state = f.state.value
                 )
             }
             _friends.value = list
@@ -1005,26 +1018,54 @@ class NakamaRepository @Inject constructor(
         }
     }
 
-    suspend fun addFriendByUsername(username: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun addFriendByUsername(targetIdentifier: String): Boolean = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext false
+        val cleanTarget = targetIdentifier.trim()
+        if (cleanTarget.isBlank()) return@withContext false
+        
         try {
-            client.addFriends(s, username).await()
+            // First attempt: Add by username directly
+            client.addFriends(s, emptyList<String>(), cleanTarget).await()
             fetchFriends()
             true
         } catch (e: Exception) {
-            Log.e("NakamaRepository", "Error adding friend: ${e.message}")
-            false
+            Log.w("NakamaRepository", "addFriends with username failed: ${e.message}, trying lookup or user ID...")
+            try {
+                // Second attempt: Maybe the input is a userId or needs lookup
+                val usersResult = try {
+                    client.getUsers(s, emptyList<String>(), cleanTarget).await()
+                } catch (lookupEx: Exception) {
+                    null
+                }
+                
+                val foundUser = usersResult?.usersList?.firstOrNull()
+                if (foundUser != null) {
+                    client.addFriends(s, listOf(foundUser.id)).await()
+                    fetchFriends()
+                    true
+                } else {
+                    // Try passing as user ID directly
+                    client.addFriends(s, listOf(cleanTarget)).await()
+                    fetchFriends()
+                    true
+                }
+            } catch (fallbackEx: Exception) {
+                Log.e("NakamaRepository", "All attempts to add friend '$cleanTarget' failed: ${fallbackEx.message}")
+                false
+            }
         }
     }
 
     suspend fun removeFriend(username: String): Boolean = withContext(Dispatchers.IO) {
         val s = session ?: return@withContext false
         try {
-            val friendId = _friends.value.find { it.username == username }?.userId
-            if (friendId != null) {
-                client.deleteFriends(s, friendId).await()
-                fetchFriends()
+            val friend = _friends.value.find { it.username.equals(username, ignoreCase = true) || it.userId == username }
+            if (friend != null) {
+                client.deleteFriends(s, listOf(friend.userId)).await()
+            } else {
+                client.deleteFriends(s, emptyList<String>(), username).await()
             }
+            fetchFriends()
             true
         } catch (e: Exception) {
             Log.e("NakamaRepository", "Error removing friend: ${e.message}")

@@ -200,6 +200,7 @@ fun WallWarNavGraph(
                 onChallengeFriend = { friendUsername ->
                     navController.navigate(GameBoardRoute(opponent = "ONLINE"))
                 },
+                onUpdateDisplayName = viewModel::updateDisplayName,
                 onNavigateToHistory = { navController.navigate(HistoryRoute) },
                 onNavigateToSettings = { navController.navigate(SettingsRoute) },
                 onNavigateToCoinShop = { navController.navigate(CoinShopRoute) },

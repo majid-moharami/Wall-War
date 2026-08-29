@@ -145,10 +145,11 @@ class SettingsViewModel @Inject constructor(
 
                 if (json.has("profile")) {
                     val p = json.getJSONObject("profile")
+                    val restoredEmail = p.optString("email", "").takeIf { it.isNotBlank() && it != "guest@wallwar.app" }
                     val restoredProfile = UserProfile(
                         isLoggedIn = true,
                         displayName = p.optString("displayName", "Restored Duelist"),
-                        email = p.optString("email", "guest@wallwar.app"),
+                        email = restoredEmail,
                         trophies = p.optInt("trophies", 0),
                         xp = p.optInt("xp", 0),
                         level = p.optInt("level", 1),
