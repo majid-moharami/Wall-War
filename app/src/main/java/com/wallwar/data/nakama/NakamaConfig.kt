@@ -1,11 +1,19 @@
 package com.wallwar.data.nakama
 
 data class NakamaConfig(
-    val host: String = "10.0.2.2", // e.g. 10.0.2.2 or MyServerIp or MyServerIp:7351
-    val port: Int = 7350,
-    val serverKey: String = "defaultkey",
-    val useSsl: Boolean = false
+    val host: String = "https://nakama.wallwargame.com",
+    val port: Int = 7349,
+    val serverKey: String = "uReirVWP9KAKwsi96zmsB2iDEKCUELzT",
+    val useSsl: Boolean = true
 ) {
+    val effectiveSsl: Boolean
+        get() {
+            val lower = host.trim().lowercase()
+            if (lower.startsWith("http://") || lower.startsWith("ws://")) return false
+            if (lower.startsWith("https://") || lower.startsWith("wss://")) return true
+            return useSsl
+        }
+
     val cleanHost: String
         get() {
             val raw = host
@@ -36,13 +44,13 @@ data class NakamaConfig(
 
     val httpBaseUrl: String
         get() {
-            val scheme = if (useSsl) "https" else "http"
+            val scheme = if (effectiveSsl) "https" else "http"
             return "$scheme://$cleanHost:$effectivePort"
         }
 
     val wsBaseUrl: String
         get() {
-            val scheme = if (useSsl) "wss" else "ws"
+            val scheme = if (effectiveSsl) "wss" else "ws"
             return "$scheme://$cleanHost:$effectivePort"
         }
 }

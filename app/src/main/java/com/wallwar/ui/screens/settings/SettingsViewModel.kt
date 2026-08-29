@@ -63,10 +63,10 @@ class SettingsViewModel @Inject constructor(
         nakamaRepository.updateConfig(host, port, serverKey, useSsl)
     }
 
-    fun testNakamaConnection(onResult: (Boolean) -> Unit) {
+    fun testNakamaConnection(onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch {
-            val success = nakamaRepository.authenticateWithDevice("TestDevice")
-            onResult(success)
+            val result = nakamaRepository.testConnectionDetailed("TestDevice")
+            onResult(result.first, result.second)
         }
     }
 
@@ -215,6 +215,6 @@ class SettingsViewModel @Inject constructor(
         soundManager.isSoundEnabled = true
         soundManager.isVibrationEnabled = true
         settingsRepository.restoreDefaults()
-        nakamaRepository.updateConfig("10.0.2.2", 7350, "defaultkey", false)
+        nakamaRepository.updateConfig("https://nakama.wallwargame.com", 7350, "defaultkey", true)
     }
 }

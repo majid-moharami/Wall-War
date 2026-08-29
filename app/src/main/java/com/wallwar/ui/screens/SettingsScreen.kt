@@ -73,7 +73,7 @@ fun SettingsScreen(
     userProfile: UserProfile,
     nakamaConfig: NakamaConfig = NakamaConfig(),
     onUpdateNakamaConfig: (host: String, port: Int, key: String, ssl: Boolean) -> Unit = { _, _, _, _ -> },
-    onTestConnection: ((Boolean) -> Unit) -> Unit = {},
+    onTestConnection: ((Boolean, String) -> Unit) -> Unit = {},
     onUpdateCoinsAndLevel: (coins: Int, level: Int, onResult: (Boolean, String) -> Unit) -> Unit = { _, _, _ -> },
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -81,7 +81,9 @@ fun SettingsScreen(
     var serverHost by remember(nakamaConfig) { mutableStateOf(nakamaConfig.host) }
     var serverPort by remember(nakamaConfig) { mutableStateOf(nakamaConfig.port.toString()) }
     var serverKey by remember(nakamaConfig) { mutableStateOf(nakamaConfig.serverKey) }
+    var serverUseSsl by remember(nakamaConfig) { mutableStateOf(nakamaConfig.effectiveSsl) }
     var testResultStatus by remember { mutableStateOf<String?>(null) }
+    var testResultIsSuccess by remember { mutableStateOf(false) }
     var isTestingConnection by remember { mutableStateOf(false) }
 
     // Dev Tools State
@@ -502,30 +504,12 @@ fun SettingsScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Port Explanation Note
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF1E2638))
-                            .border(1.dp, NeonCyan.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                            .padding(10.dp)
-                    ) {
-                        Text(
-                            text = "💡 Note: Port 7350 is Nakama's Client API & WebSocket port (required for app). Port 7351 is only for the browser admin dashboard.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFC0D0E0)
-                        )
-                    }
-
                     Spacer(modifier = Modifier.height(14.dp))
 
                     OutlinedTextField(
                         value = serverHost,
                         onValueChange = { serverHost = it },
-                        label = { Text("Server Host IP (e.g. 10.0.2.2 or 192.168.1.x)") },
+                        label = { Text("Server Host / URL (e.g. https://nakama.wallwargame.com)") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
                         modifier = Modifier.fillMaxWidth()
@@ -537,7 +521,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = serverPort,
                             onValueChange = { serverPort = it },
-                            label = { Text("Port (7350)") },
+                            label = { Text("Port (7350 API)") },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
                             modifier = Modifier.weight(1f)
@@ -550,6 +534,86 @@ fun SettingsScreen(
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
                             modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Port helper chips
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Port:", style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontSize = 11.sp)
+                        
+                        val portOptions = remember {
+                            listOf(
+                                "7349" to "7349 (gRPC)",
+                                "7350" to "7350 (API)",
+                                "443" to "443 (HTTPS)",
+                                "7351" to "7351 (Console)"
+                            )
+                        }
+
+                        for ((portVal, portLabel) in portOptions) {
+                            val isSelected = serverPort == portVal
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSelected) NeonCyan.copy(alpha = 0.2f) else Color(0xFF1E2638))
+                                    .border(1.dp, if (isSelected) NeonCyan else Color.DarkGray, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        serverPort = portVal
+                                        if (portVal == "443") {
+                                            serverUseSsl = true
+                                        }
+                                    }
+                                    .padding(horizontal = 7.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = portLabel,
+                                    fontSize = 10.sp,
+                                    color = if (isSelected) NeonCyan else Color(0xFFC0D0E0),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // SSL / TLS Switch
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0xFF141A28))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Use SSL / TLS",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = if (serverUseSsl) "SSL Enabled (HTTPS / WSS)" else "SSL Disabled (Plain HTTP / TCP)",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontSize = 11.sp,
+                                color = if (serverUseSsl) NeonCyan else Color.Gray
+                            )
+                        }
+                        Switch(
+                            checked = serverUseSsl,
+                            onCheckedChange = { serverUseSsl = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = NeonCyan,
+                                checkedTrackColor = NeonCyan.copy(alpha = 0.5f)
+                            )
                         )
                     }
 
@@ -567,37 +631,83 @@ fun SettingsScreen(
 
                                 if (hostStr.contains(":")) {
                                     val parts = hostStr.split(":")
-                                    hostStr = parts[0]
-                                    parts[1].toIntOrNull()?.let { extractedPort ->
-                                        portInt = if (extractedPort == 7351) 7350 else extractedPort
+                                    if (parts.size >= 2 && !hostStr.startsWith("http://") && !hostStr.startsWith("https://")) {
+                                        hostStr = parts[0]
+                                        parts[1].toIntOrNull()?.let { extractedPort ->
+                                            portInt = extractedPort
+                                        }
                                     }
                                 }
-                                if (portInt == 7351) {
-                                    portInt = 7350
-                                    serverPort = "7350"
+
+                                val finalSsl = if (hostStr.startsWith("http://") || hostStr.startsWith("ws://")) {
+                                    false
+                                } else if (hostStr.startsWith("https://") || hostStr.startsWith("wss://")) {
+                                    true
+                                } else {
+                                    serverUseSsl
                                 }
 
-                                onUpdateNakamaConfig(hostStr, portInt, serverKey, false)
-                                testResultStatus = "Connecting..."
+                                onUpdateNakamaConfig(hostStr, portInt, serverKey, finalSsl)
+                                testResultStatus = "Connecting to $hostStr:$portInt (SSL: $finalSsl)..."
+                                testResultIsSuccess = false
                                 isTestingConnection = true
-                                onTestConnection { success ->
+                                onTestConnection { success, message ->
                                     isTestingConnection = false
-                                    testResultStatus = if (success) "Connected to Nakama!" else "Connection failed"
+                                    testResultIsSuccess = success
+                                    testResultStatus = message
                                 }
                             },
                             enabled = !isTestingConnection,
                             colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
                         ) {
-                            Text("Save & Test Nakama", color = Color.Black, fontWeight = FontWeight.Bold)
-                        }
-
-                        testResultStatus?.let { status ->
                             Text(
-                                text = status,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (status.contains("Connected")) NeonEmerald else NeonMagenta,
+                                text = if (isTestingConnection) "Testing..." else "Save & Test Nakama",
+                                color = Color.Black,
                                 fontWeight = FontWeight.Bold
                             )
+                        }
+                    }
+
+                    testResultStatus?.let { status ->
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (testResultIsSuccess) NeonEmerald.copy(alpha = 0.12f) else NeonMagenta.copy(alpha = 0.12f))
+                                .border(
+                                    1.dp,
+                                    if (testResultIsSuccess) NeonEmerald.copy(alpha = 0.6f) else NeonMagenta.copy(alpha = 0.6f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .padding(12.dp)
+                        ) {
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = if (testResultIsSuccess) Icons.Default.CheckCircle else Icons.Default.ErrorOutline,
+                                        contentDescription = null,
+                                        tint = if (testResultIsSuccess) NeonEmerald else NeonMagenta,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = if (testResultIsSuccess) "Connection Successful" else "Connection Diagnostics & Exact Error",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (testResultIsSuccess) NeonEmerald else NeonMagenta
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = status,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color(0xFFE2E8F0),
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                            }
                         }
                     }
                 }

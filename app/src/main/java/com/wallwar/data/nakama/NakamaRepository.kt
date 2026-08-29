@@ -66,14 +66,47 @@ class NakamaRepository @Inject constructor(
     private val prefs: SharedPreferences =
         context.getSharedPreferences("wall_war_nakama_prefs", Context.MODE_PRIVATE)
 
+    companion object {
+        const val DEFAULT_HOST = "https://nakama.wallwargame.com"
+        const val DEFAULT_PORT = 7349
+        const val DEFAULT_SERVER_KEY = "uReirVWP9KAKwsi96zmsB2iDEKCUELzT"
+        private val IPV4_PATTERN = Regex("^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}(:\\d+)?$")
+    }
+
     // Config
     private val _config = MutableStateFlow(
-        NakamaConfig(
-            host = prefs.getString("nakama_host", "10.13.52.220") ?: "10.13.52.220",
-            port = prefs.getInt("nakama_port", 7349),
-            serverKey = prefs.getString("nakama_server_key", "defaultkey") ?: "defaultkey",
-            useSsl = prefs.getBoolean("nakama_ssl", false)
-        )
+        run {
+            val savedHost = prefs.getString("nakama_host", null)?.trim()
+            val isLegacyIp = savedHost == null || savedHost.isBlank() || IPV4_PATTERN.matches(savedHost)
+            val host = if (isLegacyIp) {
+                DEFAULT_HOST
+            } else {
+                savedHost!!
+            }
+            val rawPort = prefs.getInt("nakama_port", DEFAULT_PORT)
+            val port = if (isLegacyIp || rawPort == 7351 || rawPort == 7350) {
+                DEFAULT_PORT
+            } else {
+                rawPort
+            }
+            val savedKey = prefs.getString("nakama_server_key", null)
+            val serverKey = if (savedKey == null || savedKey == "defaultkey" || savedKey.isBlank()) {
+                DEFAULT_SERVER_KEY
+            } else {
+                savedKey
+            }
+            val useSsl = if (isLegacyIp) {
+                true
+            } else {
+                prefs.getBoolean("nakama_ssl", host.startsWith("https://") || host.startsWith("wss://"))
+            }
+            NakamaConfig(
+                host = host,
+                port = port,
+                serverKey = serverKey,
+                useSsl = useSsl
+            )
+        }
     )
     val config: StateFlow<NakamaConfig> = _config.asStateFlow()
 
@@ -116,22 +149,31 @@ class NakamaRepository @Inject constructor(
     }
 
     private fun createClient(config: NakamaConfig): Client {
-        return DefaultClient(config.serverKey, config.cleanHost, config.effectivePort, config.useSsl)
+        return DefaultClient(config.serverKey, config.cleanHost, config.effectivePort, config.effectiveSsl)
     }
 
     fun updateConfig(host: String, port: Int, serverKey: String, useSsl: Boolean) {
+        val lower = host.trim().lowercase()
+        val effectiveSsl = if (lower.startsWith("http://") || lower.startsWith("ws://")) {
+            false
+        } else if (lower.startsWith("https://") || lower.startsWith("wss://")) {
+            true
+        } else {
+            useSsl
+        }
+        
         prefs.edit()
             .putString("nakama_host", host.trim())
             .putInt("nakama_port", port)
             .putString("nakama_server_key", serverKey.trim())
-            .putBoolean("nakama_ssl", useSsl)
+            .putBoolean("nakama_ssl", effectiveSsl)
             .apply()
 
         val newConfig = NakamaConfig(
             host = host.trim(),
             port = port,
             serverKey = serverKey.trim(),
-            useSsl = useSsl
+            useSsl = effectiveSsl
         )
         _config.value = newConfig
         client = createClient(newConfig)
@@ -242,6 +284,57 @@ class NakamaRepository @Inject constructor(
         } catch (e: Exception) {
             Log.w("NakamaRepository", "Device auth not available: ${e.message}")
             false
+        }
+    }
+
+    suspend fun testConnectionDetailed(deviceId: String = "TestDevice"): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+        try {
+            val cfg = _config.value
+            val testClient = createClient(cfg)
+            val testSession = testClient.authenticateDevice(deviceId, true).await()
+            if (testSession != null && !testSession.authToken.isNullOrBlank()) {
+                Pair(true, "Connected successfully!\nServer: ${cfg.httpBaseUrl}\nSession token acquired for User: ${testSession.userId ?: "Connected"}")
+            } else {
+                Pair(false, "Server responded with empty session token at ${cfg.httpBaseUrl}")
+            }
+        } catch (e: Throwable) {
+            Log.e("NakamaRepository", "Test connection failed: ${e.message}", e)
+            val cfg = _config.value
+            val exName = e.javaClass.simpleName
+            val exMsg = e.localizedMessage ?: e.message ?: "Unknown error"
+            val cause = e.cause?.let { "\nCause: [${it.javaClass.simpleName}] ${it.message ?: it.localizedMessage}" } ?: ""
+            
+            val diagnosticHint = when {
+                cause.contains("TLSV1_ALERT_NO_APPLICATION_PROTOCOL", ignoreCase = true) || exMsg.contains("NO_APPLICATION_PROTOCOL", ignoreCase = true) ->
+                    "⚠️ TLS / ALPN Protocol Error: The server at ${cfg.cleanHost}:${cfg.effectivePort} did not negotiate gRPC HTTP/2 (ALPN h2).\n" +
+                    "• If connecting directly to Nakama (e.g. docker port 7349/7350), turn 'Use SSL' OFF (or use http://).\n" +
+                    "• If using an HTTPS reverse proxy (Nginx, Cloudflare, Traefik, Caddy), set Port to 443 with SSL ON and enable HTTP/2 / gRPC in your reverse proxy config.\n" +
+                    "• Nakama Java SDK default gRPC port is 7349."
+                cfg.effectivePort == 7351 && exName.contains("SSL", ignoreCase = true) ->
+                    "⚠️ Protocol mismatch on Port 7351: Port 7351 is Nakama's Web Management Console (browser dashboard). For game client connections, switch the port to 7349 (gRPC), 7350 (API), or 443 (HTTPS reverse proxy)."
+                exMsg.contains("Failed to connect", ignoreCase = true) || exMsg.contains("Connection refused", ignoreCase = true) ->
+                    "Hint: Connection refused on port ${cfg.effectivePort}. Ensure Nakama server or reverse proxy is running and port ${cfg.effectivePort} is accessible."
+                exMsg.contains("Unable to resolve host", ignoreCase = true) || exName.contains("UnknownHost", ignoreCase = true) ->
+                    "Hint: DNS lookup failed for host '${cfg.cleanHost}'. Check internet connection and DNS settings."
+                exName.contains("SSL", ignoreCase = true) || exMsg.contains("SSL", ignoreCase = true) || exMsg.contains("Cert", ignoreCase = true) ->
+                    "Hint: SSL/TLS handshake failed. If connecting to a local/raw port (7349/7350), try turning SSL OFF. If using HTTPS, verify valid certificate on port 443."
+                exMsg.contains("401") || exMsg.contains("Unauthorized") || exMsg.contains("invalid key", ignoreCase = true) ->
+                    "Hint: HTTP 401 Unauthorized. Verify server key (default is '${DEFAULT_SERVER_KEY}')."
+                exMsg.contains("404") || exMsg.contains("Not Found") ->
+                    "Hint: HTTP 404 Not Found at port ${cfg.effectivePort}. The game client connects to port 7349, 7350, or 443."
+                exMsg.contains("502") || exMsg.contains("Bad Gateway") ->
+                    "Hint: HTTP 502 Bad Gateway. Reverse proxy is reachable but backend Nakama instance is down."
+                else -> ""
+            }
+            
+            val fullError = buildString {
+                append("Target: ${cfg.httpBaseUrl}\n")
+                append("Error: [$exName] $exMsg$cause")
+                if (diagnosticHint.isNotBlank()) {
+                    append("\n\n$diagnosticHint")
+                }
+            }
+            Pair(false, fullError)
         }
     }
 
@@ -356,13 +449,17 @@ class NakamaRepository @Inject constructor(
                 Log.w("NakamaRepository", "Failed to update Nakama account profile: ${e.message}")
             }
 
-            // Post to leaderboard with avatarUrl in metadata
-            val metadata = JSONObject().apply {
-                if (profile.photoUrl != null) {
-                    put("avatarUrl", profile.photoUrl)
+            // Post to leaderboard with avatarUrl in metadata (if leaderboard is initialized on server)
+            try {
+                val metadata = JSONObject().apply {
+                    if (profile.photoUrl != null) {
+                        put("avatarUrl", profile.photoUrl)
+                    }
                 }
+                client.writeLeaderboardRecord(s, "global_rankings", profile.trophies.toLong(), profile.wins.toLong(), metadata.toString()).await()
+            } catch (lbEx: Exception) {
+                Log.d("NakamaRepository", "Leaderboard 'global_rankings' not yet created on server: ${lbEx.message}")
             }
-            client.writeLeaderboardRecord(s, "global_rankings", profile.trophies.toLong(), profile.wins.toLong(), metadata.toString()).await()
         } catch (e: Exception) {
             Log.e("NakamaRepository", "Error syncing user profile: ${e.message}")
         }
