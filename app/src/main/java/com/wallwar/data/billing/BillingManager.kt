@@ -7,6 +7,7 @@ import android.util.Log
 import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.AuthRepository
+import com.wallwar.data.ad.GeoLocationDetector
 import com.wallwar.data.billing.bazaar.BazaarBillingManager
 import com.wallwar.data.billing.myket.MyketBillingManager
 import com.wallwar.data.billing.play.GooglePlayBillingManager
@@ -44,6 +45,7 @@ class BillingManager @Inject constructor(
     private val googlePlayBillingManager: GooglePlayBillingManager,
     private val bazaarBillingManager: BazaarBillingManager,
     private val myketBillingManager: MyketBillingManager,
+    private val geoLocationDetector: GeoLocationDetector,
     private val analyticsManager: AnalyticsManager,
     private val soundManager: SoundManager
 ) {
@@ -80,6 +82,23 @@ class BillingManager @Inject constructor(
     }
 
     private fun loadSelectedStore(): StoreBillingType {
+        // If build specifically targets a store flavor (MYKET, BAZAAR, PLAY)
+        val buildTarget = com.wallwar.BuildConfig.TARGET_STORE
+        when (buildTarget.uppercase()) {
+            "MYKET" -> {
+                Log.i(tag, "Build flavor locked to MYKET billing")
+                return StoreBillingType.MYKET
+            }
+            "BAZAAR", "CAFE_BAZAAR" -> {
+                Log.i(tag, "Build flavor locked to CAFE_BAZAAR billing")
+                return StoreBillingType.CAFE_BAZAAR
+            }
+            "PLAY", "GOOGLE_PLAY" -> {
+                Log.i(tag, "Build flavor locked to GOOGLE_PLAY billing")
+                return StoreBillingType.GOOGLE_PLAY
+            }
+        }
+
         val saved = prefs.getString("selected_store_billing", null)
         if (saved != null) {
             try {
@@ -107,11 +126,16 @@ class BillingManager @Inject constructor(
             Log.i(tag, "Detected app installer package: $installerPackage")
 
             when (installerPackage) {
-                "com.farsitel.bazaar" -> StoreBillingType.CAFE_BAZAAR
                 "ir.mservices.market" -> StoreBillingType.MYKET
+                "com.farsitel.bazaar" -> StoreBillingType.CAFE_BAZAAR
                 "com.android.vending" -> StoreBillingType.GOOGLE_PLAY
                 else -> {
-                    // Check if Cafe Bazaar is installed on device
+                    val hasMyket = try {
+                        packageManager.getPackageInfo("ir.mservices.market", 0)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
                     val hasBazaar = try {
                         packageManager.getPackageInfo("com.farsitel.bazaar", 0)
                         true
@@ -125,8 +149,14 @@ class BillingManager @Inject constructor(
                         false
                     }
 
-                    if (hasBazaar && !hasPlay) {
+                    if (hasMyket) {
+                        StoreBillingType.MYKET
+                    } else if (hasBazaar && !hasPlay) {
                         StoreBillingType.CAFE_BAZAAR
+                    } else if (geoLocationDetector.isIranUser.value || !hasPlay) {
+                        // Myket 2.0 allows payment via Custom Tabs/Web even when Myket app is not installed
+                        Log.i(tag, "Selecting Myket 2.0 (Web/App fallback) for Iranian / sideloaded environment")
+                        StoreBillingType.MYKET
                     } else {
                         StoreBillingType.GOOGLE_PLAY
                     }
@@ -165,6 +195,14 @@ class BillingManager @Inject constructor(
         }
 
         scope.launch {
+            myketBillingManager.purchaseResult.collect { result ->
+                if (_activeStore.value == StoreBillingType.MYKET) {
+                    _purchaseResult.emit(result)
+                }
+            }
+        }
+
+        scope.launch {
             _activeStore.collect { store ->
                 when (store) {
                     StoreBillingType.CAFE_BAZAAR -> {
@@ -172,7 +210,12 @@ class BillingManager @Inject constructor(
                         _isPurchasing.value = bazaarBillingManager.isPurchasing.value
                         _productPrices.value = bazaarBillingManager.productPrices.value
                     }
-                    else -> {
+                    StoreBillingType.MYKET -> {
+                        _isConnected.value = myketBillingManager.isConnected.value
+                        _isPurchasing.value = myketBillingManager.isPurchasing.value
+                        _productPrices.value = myketBillingManager.productPrices.value
+                    }
+                    StoreBillingType.GOOGLE_PLAY -> {
                         _isConnected.value = googlePlayBillingManager.isConnected.value
                         _isPurchasing.value = googlePlayBillingManager.isPurchasing.value
                         _productPrices.value = googlePlayBillingManager.productPrices.value
@@ -198,6 +241,14 @@ class BillingManager @Inject constructor(
         }
 
         scope.launch {
+            myketBillingManager.isConnected.collect { conn ->
+                if (_activeStore.value == StoreBillingType.MYKET) {
+                    _isConnected.value = conn
+                }
+            }
+        }
+
+        scope.launch {
             googlePlayBillingManager.productPrices.collect { prices ->
                 if (_activeStore.value == StoreBillingType.GOOGLE_PLAY && prices.isNotEmpty()) {
                     _productPrices.value = prices
@@ -214,6 +265,14 @@ class BillingManager @Inject constructor(
         }
 
         scope.launch {
+            myketBillingManager.productPrices.collect { prices ->
+                if (_activeStore.value == StoreBillingType.MYKET && prices.isNotEmpty()) {
+                    _productPrices.value = prices
+                }
+            }
+        }
+
+        scope.launch {
             googlePlayBillingManager.isPurchasing.collect { purchasing ->
                 if (_activeStore.value == StoreBillingType.GOOGLE_PLAY) {
                     _isPurchasing.value = purchasing
@@ -224,6 +283,14 @@ class BillingManager @Inject constructor(
         scope.launch {
             bazaarBillingManager.isPurchasing.collect { purchasing ->
                 if (_activeStore.value == StoreBillingType.CAFE_BAZAAR) {
+                    _isPurchasing.value = purchasing
+                }
+            }
+        }
+
+        scope.launch {
+            myketBillingManager.isPurchasing.collect { purchasing ->
+                if (_activeStore.value == StoreBillingType.MYKET) {
                     _isPurchasing.value = purchasing
                 }
             }

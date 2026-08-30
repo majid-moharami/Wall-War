@@ -30,10 +30,31 @@ android {
     versionName = "$versionMajor.$versionMinor.$versionPatch"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+  }
 
-    manifestPlaceholders["marketApplicationId"] = "ir.mservices.market"
-    manifestPlaceholders["marketBindAddress"] = "ir.mservices.market.InAppBillingService.BIND"
-    manifestPlaceholders["marketPermission"] = "ir.mservices.market.BILLING"
+  flavorDimensions += "store"
+  productFlavors {
+    create("play") {
+      dimension = "store"
+      buildConfigField("String", "TARGET_STORE", "\"PLAY\"")
+      manifestPlaceholders["marketApplicationId"] = "com.android.vending"
+      manifestPlaceholders["marketBindAddress"] = "com.android.vending.billing.InAppBillingService.BIND"
+      manifestPlaceholders["marketPermission"] = "com.android.vending.BILLING"
+    }
+    create("bazaar") {
+      dimension = "store"
+      buildConfigField("String", "TARGET_STORE", "\"BAZAAR\"")
+      manifestPlaceholders["marketApplicationId"] = "com.farsitel.bazaar"
+      manifestPlaceholders["marketBindAddress"] = "ir.cafebazaar.pardakht.InAppBillingService.BIND"
+      manifestPlaceholders["marketPermission"] = "com.farsitel.bazaar.permission.PAY_THROUGH_BAZAAR"
+    }
+    create("myket") {
+      dimension = "store"
+      buildConfigField("String", "TARGET_STORE", "\"MYKET\"")
+      manifestPlaceholders["marketApplicationId"] = "ir.mservices.market"
+      manifestPlaceholders["marketBindAddress"] = "ir.mservices.market.InAppBillingService.BIND"
+      manifestPlaceholders["marketPermission"] = "ir.mservices.market.BILLING"
+    }
   }
 
   val keystorePropertiesFile = rootProject.file("keystore.properties")
