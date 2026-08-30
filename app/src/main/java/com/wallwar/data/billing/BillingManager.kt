@@ -3,25 +3,13 @@ package com.wallwar.data.billing
 import android.app.Activity
 import android.content.Context
 import android.content.SharedPreferences
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
-import com.android.billingclient.api.BillingClient
-import com.android.billingclient.api.BillingClientStateListener
-import com.android.billingclient.api.BillingFlowParams
-import com.android.billingclient.api.BillingResult
-import com.android.billingclient.api.ConsumeParams
-import com.android.billingclient.api.PendingPurchasesParams
-import com.android.billingclient.api.ProductDetails
-import com.android.billingclient.api.ProductDetailsResponseListener
-import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.PurchasesUpdatedListener
-import com.android.billingclient.api.QueryProductDetailsParams
-import com.android.billingclient.api.QueryPurchasesParams
 import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.AuthRepository
-import com.wallwar.data.nakama.NakamaRepository
+import com.wallwar.data.billing.bazaar.BazaarBillingManager
+import com.wallwar.data.billing.myket.MyketBillingManager
+import com.wallwar.data.billing.play.GooglePlayBillingManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -53,379 +41,212 @@ sealed class BillingPurchaseResult {
 class BillingManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val authRepository: AuthRepository,
-    private val nakamaRepository: NakamaRepository,
+    private val googlePlayBillingManager: GooglePlayBillingManager,
+    private val bazaarBillingManager: BazaarBillingManager,
+    private val myketBillingManager: MyketBillingManager,
     private val analyticsManager: AnalyticsManager,
     private val soundManager: SoundManager
-) : PurchasesUpdatedListener, BillingClientStateListener {
-
+) {
     private val tag = "BillingManager"
     private val scope = CoroutineScope(Dispatchers.IO + Job())
-    private val mainHandler = Handler(Looper.getMainLooper())
-
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("wall_war_billing_prefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences("wall_war_store_billing_prefs", Context.MODE_PRIVATE)
 
-    // Billing Client instance
-    private var billingClient: BillingClient = BillingClient.newBuilder(context)
-        .setListener(this)
-        .enablePendingPurchases(
-            PendingPurchasesParams.newBuilder()
-                .enableOneTimeProducts()
-                .build()
-        )
-        .build()
+    // Store billing provider selection
+    private val _activeStore = MutableStateFlow(loadSelectedStore())
+    val activeStore: StateFlow<StoreBillingType> = _activeStore.asStateFlow()
 
-    // State
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
-
-    private val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
-    val productDetailsMap: StateFlow<Map<String, ProductDetails>> = _productDetailsMap.asStateFlow()
-
-    private val _purchaseResult = MutableSharedFlow<BillingPurchaseResult>(replay = 0)
-    val purchaseResult: SharedFlow<BillingPurchaseResult> = _purchaseResult.asSharedFlow()
 
     private val _isPurchasing = MutableStateFlow(false)
     val isPurchasing: StateFlow<Boolean> = _isPurchasing.asStateFlow()
 
-    private var reconnectAttempts = 0
-    private val maxReconnectAttempts = 5
+    private val _productPrices = MutableStateFlow<Map<String, String>>(emptyMap())
+    val productPrices: StateFlow<Map<String, String>> = _productPrices.asStateFlow()
+
+    private val _purchaseResult = MutableSharedFlow<BillingPurchaseResult>(replay = 0)
+    val purchaseResult: SharedFlow<BillingPurchaseResult> = _purchaseResult.asSharedFlow()
+
+    val currentProvider: StoreBillingProvider
+        get() = when (_activeStore.value) {
+            StoreBillingType.CAFE_BAZAAR -> bazaarBillingManager
+            StoreBillingType.MYKET -> myketBillingManager
+            StoreBillingType.GOOGLE_PLAY -> googlePlayBillingManager
+        }
 
     init {
-        startBillingConnection()
+        observeActiveProvider()
     }
 
-    /**
-     * Connects to Google Play Billing Service
-     */
-    fun startBillingConnection() {
-        if (billingClient.isReady) {
-            _isConnected.value = true
-            return
+    private fun loadSelectedStore(): StoreBillingType {
+        val saved = prefs.getString("selected_store_billing", null)
+        if (saved != null) {
+            try {
+                return StoreBillingType.valueOf(saved)
+            } catch (e: Exception) {
+                // fall through to auto-detection
+            }
         }
+        return detectInstalledStore(context)
+    }
 
-        try {
-            billingClient.startConnection(this)
+    private fun detectInstalledStore(context: Context): StoreBillingType {
+        return try {
+            val packageName = context.packageName
+            val packageManager = context.packageManager
+
+            val installerPackage: String? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                val installSourceInfo = packageManager.getInstallSourceInfo(packageName)
+                installSourceInfo.installingPackageName ?: installSourceInfo.initiatingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstallerPackageName(packageName)
+            }
+
+            Log.i(tag, "Detected app installer package: $installerPackage")
+
+            when (installerPackage) {
+                "com.farsitel.bazaar" -> StoreBillingType.CAFE_BAZAAR
+                "ir.mservices.market" -> StoreBillingType.MYKET
+                "com.android.vending" -> StoreBillingType.GOOGLE_PLAY
+                else -> {
+                    // Check if Cafe Bazaar is installed on device
+                    val hasBazaar = try {
+                        packageManager.getPackageInfo("com.farsitel.bazaar", 0)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+                    val hasPlay = try {
+                        packageManager.getPackageInfo("com.android.vending", 0)
+                        true
+                    } catch (e: Exception) {
+                        false
+                    }
+
+                    if (hasBazaar && !hasPlay) {
+                        StoreBillingType.CAFE_BAZAAR
+                    } else {
+                        StoreBillingType.GOOGLE_PLAY
+                    }
+                }
+            }
         } catch (e: Exception) {
-            Log.e(tag, "Exception starting billing connection: ${e.message}", e)
+            Log.e(tag, "Error detecting installer: ${e.message}")
+            StoreBillingType.GOOGLE_PLAY
         }
     }
 
-    override fun onBillingSetupFinished(billingResult: BillingResult) {
-        if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-            Log.i(tag, "Google Play Billing setup successful.")
-            _isConnected.value = true
-            reconnectAttempts = 0
-
-            // 1. Query available consumable coin products
-            queryProductDetails()
-
-            // 2. Query any unconsumed / pending purchases to ensure user receives coins
-            processPendingPurchases()
-        } else {
-            Log.w(tag, "Billing setup failed with code: ${billingResult.responseCode} - ${billingResult.debugMessage}")
-            _isConnected.value = false
-            retryBillingConnectionWithBackoff()
-        }
-    }
-
-    override fun onBillingServiceDisconnected() {
-        Log.w(tag, "Billing service disconnected.")
-        _isConnected.value = false
-        retryBillingConnectionWithBackoff()
-    }
-
-    private fun retryBillingConnectionWithBackoff() {
-        if (reconnectAttempts < maxReconnectAttempts) {
-            reconnectAttempts++
-            val delayMillis = (1000L * reconnectAttempts).coerceAtMost(10000L)
-            mainHandler.postDelayed({
-                if (!_isConnected.value) {
-                    Log.d(tag, "Retrying billing connection (attempt #$reconnectAttempts)...")
-                    startBillingConnection()
-                }
-            }, delayMillis)
-        }
-    }
-
-    /**
-     * Queries Google Play for the details of our in-app consumable coin packs
-     */
-    fun queryProductDetails() {
-        if (!billingClient.isReady) {
-            Log.d(tag, "queryProductDetails: BillingClient not ready, reconnecting...")
+    fun setStoreProvider(storeType: StoreBillingType) {
+        if (_activeStore.value != storeType) {
+            _activeStore.value = storeType
+            prefs.edit().putString("selected_store_billing", storeType.name).apply()
+            Log.i(tag, "Switched active store billing provider to: ${storeType.displayName}")
             startBillingConnection()
-            return
         }
-
-        val productList = BillingConstants.ALL_IN_APP_PRODUCT_IDS.map { productId ->
-            QueryProductDetailsParams.Product.newBuilder()
-                .setProductId(productId)
-                .setProductType(BillingClient.ProductType.INAPP)
-                .build()
-        }
-
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(productList)
-            .build()
-
-        billingClient.queryProductDetailsAsync(params, object : ProductDetailsResponseListener {
-            override fun onProductDetailsResponse(
-                billingResult: BillingResult,
-                productDetailsList: MutableList<ProductDetails>
-            ) {
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    Log.i(tag, "Queried ${productDetailsList.size} product details from Google Play.")
-                    val map = productDetailsList.associateBy { it.productId }
-                    _productDetailsMap.value = map
-                } else {
-                    Log.w(tag, "Failed to query product details: ${billingResult.debugMessage}")
-                }
-            }
-        })
     }
 
-    /**
-     * Launches the Google Play in-app purchase flow
-     */
-    fun launchBillingFlow(activity: Activity, productId: String): Boolean {
-        val canonicalId = BillingConstants.getCanonicalProductId(productId)
-        val expectedCoins = BillingConstants.getCoinsForProductId(canonicalId)
-
-        if (!billingClient.isReady) {
-            Log.w(tag, "launchBillingFlow: BillingClient not ready. Reconnecting...")
-            startBillingConnection()
-            scope.launch {
-                _purchaseResult.emit(
-                    BillingPurchaseResult.Error("Google Play Store connection initializing. Please try again.")
-                )
-            }
-            return false
-        }
-
-        val productDetails = _productDetailsMap.value[canonicalId]
-        if (productDetails == null) {
-            Log.w(tag, "launchBillingFlow: ProductDetails not found for $canonicalId in Play Store cache.")
-            // Allow fallback direct simulation if running outside production Play Console environment
-            return false
-        }
-
-        // Log initiation in Analytics
-        val priceFormatted = productDetails.oneTimePurchaseOfferDetails?.formattedPrice
-        analyticsManager.logPurchaseInitiated(
-            productId = canonicalId,
-            expectedCoins = expectedCoins,
-            priceString = priceFormatted
-        )
-
-        val productDetailsParamsList = listOf(
-            BillingFlowParams.ProductDetailsParams.newBuilder()
-                .setProductDetails(productDetails)
-                .build()
-        )
-
-        val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(productDetailsParamsList)
-            .build()
-
-        _isPurchasing.value = true
+    private fun observeActiveProvider() {
         scope.launch {
-            _purchaseResult.emit(BillingPurchaseResult.Purchasing(canonicalId))
-        }
-
-        val billingResult = billingClient.launchBillingFlow(activity, billingFlowParams)
-        if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-            Log.e(tag, "Failed to launch billing flow: ${billingResult.debugMessage}")
-            _isPurchasing.value = false
-            val errorMsg = billingResult.debugMessage.ifBlank { "Could not initiate Google Play purchase." }
-            analyticsManager.logPurchaseFailed(
-                productId = canonicalId,
-                responseCode = billingResult.responseCode,
-                errorMessage = errorMsg
-            )
-            scope.launch {
-                _purchaseResult.emit(
-                    BillingPurchaseResult.Error(
-                        errorMsg,
-                        billingResult.responseCode
-                    )
-                )
+            googlePlayBillingManager.purchaseResult.collect { result ->
+                if (_activeStore.value == StoreBillingType.GOOGLE_PLAY) {
+                    _purchaseResult.emit(result)
+                }
             }
-            return false
         }
 
-        return true
-    }
+        scope.launch {
+            bazaarBillingManager.purchaseResult.collect { result ->
+                if (_activeStore.value == StoreBillingType.CAFE_BAZAAR) {
+                    _purchaseResult.emit(result)
+                }
+            }
+        }
 
-    /**
-     * Callback from BillingClient when purchases are updated
-     */
-    override fun onPurchasesUpdated(billingResult: BillingResult, purchases: MutableList<Purchase>?) {
-        _isPurchasing.value = false
-
-        when (billingResult.responseCode) {
-            BillingClient.BillingResponseCode.OK -> {
-                if (!purchases.isNullOrEmpty()) {
-                    for (purchase in purchases) {
-                        handlePurchase(purchase)
+        scope.launch {
+            _activeStore.collect { store ->
+                when (store) {
+                    StoreBillingType.CAFE_BAZAAR -> {
+                        _isConnected.value = bazaarBillingManager.isConnected.value
+                        _isPurchasing.value = bazaarBillingManager.isPurchasing.value
+                        _productPrices.value = bazaarBillingManager.productPrices.value
+                    }
+                    else -> {
+                        _isConnected.value = googlePlayBillingManager.isConnected.value
+                        _isPurchasing.value = googlePlayBillingManager.isPurchasing.value
+                        _productPrices.value = googlePlayBillingManager.productPrices.value
                     }
                 }
             }
-            BillingClient.BillingResponseCode.USER_CANCELED -> {
-                Log.d(tag, "Purchase was cancelled by user.")
-                val productId = purchases?.firstOrNull()?.products?.firstOrNull() ?: "unknown_product"
-                analyticsManager.logPurchaseCancelled(productId)
-                scope.launch {
-                    _purchaseResult.emit(BillingPurchaseResult.Cancelled)
+        }
+
+        scope.launch {
+            googlePlayBillingManager.isConnected.collect { conn ->
+                if (_activeStore.value == StoreBillingType.GOOGLE_PLAY) {
+                    _isConnected.value = conn
                 }
             }
-            BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED -> {
-                Log.d(tag, "Item already owned; querying purchases to consume.")
-                processPendingPurchases()
+        }
+
+        scope.launch {
+            bazaarBillingManager.isConnected.collect { conn ->
+                if (_activeStore.value == StoreBillingType.CAFE_BAZAAR) {
+                    _isConnected.value = conn
+                }
             }
-            else -> {
-                val errorMsg = billingResult.debugMessage.ifBlank { "Google Play Purchase failed (${billingResult.responseCode})" }
-                Log.e(tag, "Purchase error: ${billingResult.responseCode} - $errorMsg")
-                val productId = purchases?.firstOrNull()?.products?.firstOrNull() ?: "unknown_product"
-                analyticsManager.logPurchaseFailed(
-                    productId = productId,
-                    responseCode = billingResult.responseCode,
-                    errorMessage = errorMsg
-                )
-                scope.launch {
-                    _purchaseResult.emit(
-                        BillingPurchaseResult.Error(
-                            errorMsg,
-                            billingResult.responseCode
-                        )
-                    )
+        }
+
+        scope.launch {
+            googlePlayBillingManager.productPrices.collect { prices ->
+                if (_activeStore.value == StoreBillingType.GOOGLE_PLAY && prices.isNotEmpty()) {
+                    _productPrices.value = prices
+                }
+            }
+        }
+
+        scope.launch {
+            bazaarBillingManager.productPrices.collect { prices ->
+                if (_activeStore.value == StoreBillingType.CAFE_BAZAAR && prices.isNotEmpty()) {
+                    _productPrices.value = prices
+                }
+            }
+        }
+
+        scope.launch {
+            googlePlayBillingManager.isPurchasing.collect { purchasing ->
+                if (_activeStore.value == StoreBillingType.GOOGLE_PLAY) {
+                    _isPurchasing.value = purchasing
+                }
+            }
+        }
+
+        scope.launch {
+            bazaarBillingManager.isPurchasing.collect { purchasing ->
+                if (_activeStore.value == StoreBillingType.CAFE_BAZAAR) {
+                    _isPurchasing.value = purchasing
                 }
             }
         }
     }
 
-    /**
-     * Handles an individual purchase: verifies state, consumes consumable, credits coins, and syncs to Nakama
-     */
-    fun handlePurchase(purchase: Purchase) {
-        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-            // Consume the purchase so the user can purchase coin packages again
-            consumePurchase(purchase)
-        } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
-            Log.i(tag, "Purchase is pending approval or transaction completion.")
-            val productId = purchase.products.firstOrNull() ?: "coin_pack"
-            analyticsManager.logPurchasePending(productId)
-            scope.launch {
-                _purchaseResult.emit(BillingPurchaseResult.Pending(productId))
-            }
-        }
+    fun startBillingConnection() {
+        currentProvider.startConnection()
     }
 
-    /**
-     * Consumes the purchased coin package via consumeAsync
-     */
-    private fun consumePurchase(purchase: Purchase) {
-        val consumeParams = ConsumeParams.newBuilder()
-            .setPurchaseToken(purchase.purchaseToken)
-            .build()
-
-        billingClient.consumeAsync(consumeParams) { billingResult, purchaseToken ->
-            val productId = purchase.products.firstOrNull() ?: BillingConstants.COINS_PACK_100
-            val canonicalId = BillingConstants.getCanonicalProductId(productId)
-            val coinAmount = BillingConstants.getCoinsForProductId(canonicalId)
-            val orderId = purchase.orderId ?: "ORDER_${System.currentTimeMillis()}"
-
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                Log.i(tag, "Purchase successfully consumed: $purchaseToken")
-
-                // Save processed token locally to prevent duplicate credits
-                val alreadyCredited = prefs.getBoolean("credited_$purchaseToken", false)
-                if (!alreadyCredited) {
-                    prefs.edit().putBoolean("credited_$purchaseToken", true).apply()
-
-                    // Securely credit to user's wallet in AuthRepository and sync with Nakama Server
-                    authRepository.processGooglePlayCoinPurchase(
-                        productId = canonicalId,
-                        amount = coinAmount,
-                        purchaseToken = purchaseToken,
-                        orderId = orderId
-                    )
-
-                    // Log purchase completion to Firebase Analytics
-                    analyticsManager.logPurchaseSuccess(
-                        productId = canonicalId,
-                        coinsAwarded = coinAmount,
-                        orderId = orderId,
-                        isSandbox = false
-                    )
-
-                    // Play coin sound when transaction is done
-                    soundManager.playCoinSound()
-                }
-
-                scope.launch {
-                    _purchaseResult.emit(
-                        BillingPurchaseResult.Success(
-                            productId = canonicalId,
-                            coinsAwarded = coinAmount,
-                            orderId = orderId
-                        )
-                    )
-                }
-            } else {
-                Log.e(tag, "Failed to consume purchase: ${billingResult.debugMessage}")
-                analyticsManager.logPurchaseFailed(
-                    productId = canonicalId,
-                    responseCode = billingResult.responseCode,
-                    errorMessage = "Failed to consume: ${billingResult.debugMessage}"
-                )
-                scope.launch {
-                    _purchaseResult.emit(
-                        BillingPurchaseResult.Error(
-                            "Failed to finalize purchase: ${billingResult.debugMessage}",
-                            billingResult.responseCode
-                        )
-                    )
-                }
-            }
-        }
+    fun queryProductDetails() {
+        currentProvider.queryProductDetails()
     }
 
-    /**
-     * Recovers any unconsumed purchases on app relaunch or reconnect
-     */
-    fun processPendingPurchases() {
-        if (!billingClient.isReady) {
-            startBillingConnection()
-            return
-        }
-
-        val params = QueryPurchasesParams.newBuilder()
-            .setProductType(BillingClient.ProductType.INAPP)
-            .build()
-
-        billingClient.queryPurchasesAsync(params) { billingResult, purchasesList ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                Log.i(tag, "Found ${purchasesList.size} existing in-app purchases to process.")
-                for (purchase in purchasesList) {
-                    if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
-                        handlePurchase(purchase)
-                    }
-                }
-            } else {
-                Log.w(tag, "Failed to query existing purchases: ${billingResult.debugMessage}")
-            }
-        }
+    fun launchBillingFlow(activity: Activity, productId: String): Boolean {
+        return currentProvider.launchBillingFlow(activity, productId)
     }
 
-    /**
-     * Fallback direct test purchase method for testing or emulator environments
-     */
     fun processFallbackPurchase(productId: String, customCoins: Int? = null) {
         val canonicalId = BillingConstants.getCanonicalProductId(productId)
         val coins = customCoins ?: BillingConstants.getCoinsForProductId(canonicalId)
         val dummyToken = "sandbox_token_${System.currentTimeMillis()}"
-        val dummyOrder = "GPA.TEST-${(1000..9999).random()}-${(10000..99999).random()}"
+        val dummyOrder = "ORDER.TEST-${(1000..9999).random()}-${(10000..99999).random()}"
 
         analyticsManager.logPurchaseInitiated(
             productId = canonicalId,
@@ -447,7 +268,6 @@ class BillingManager @Inject constructor(
             isSandbox = true
         )
 
-        // Play coin sound when transaction is done
         soundManager.playCoinSound()
 
         scope.launch {
@@ -462,9 +282,8 @@ class BillingManager @Inject constructor(
     }
 
     fun endConnection() {
-        if (billingClient.isReady) {
-            billingClient.endConnection()
-        }
+        googlePlayBillingManager.endConnection()
+        bazaarBillingManager.endConnection()
+        myketBillingManager.endConnection()
     }
 }
-

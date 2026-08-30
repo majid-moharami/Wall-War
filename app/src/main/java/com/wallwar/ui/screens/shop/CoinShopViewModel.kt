@@ -10,6 +10,7 @@ import com.wallwar.data.ad.AdManager
 import com.wallwar.data.billing.BillingConstants
 import com.wallwar.data.billing.BillingManager
 import com.wallwar.data.billing.BillingPurchaseResult
+import com.wallwar.data.billing.StoreBillingType
 import com.wallwar.data.nakama.NakamaRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -44,6 +45,7 @@ class CoinShopViewModel @Inject constructor(
     val rewardToast: StateFlow<String?> = adManager.rewardToast
 
     val isPurchasing: StateFlow<Boolean> = billingManager.isPurchasing
+    val activeStore: StateFlow<StoreBillingType> = billingManager.activeStore
 
     private val _purchaseMessage = MutableStateFlow<String?>(null)
     val purchaseMessage: StateFlow<String?> = _purchaseMessage.asStateFlow()
@@ -107,22 +109,23 @@ class CoinShopViewModel @Inject constructor(
     private fun observeBillingUpdates() {
         viewModelScope.launch {
             billingManager.purchaseResult.collect { result ->
+                val storeName = billingManager.activeStore.value.displayName
                 when (result) {
                     is BillingPurchaseResult.Success -> {
                         soundManager.playCoinSound()
-                        _purchaseMessage.value = "🎉 +${result.coinsAwarded} Coins added! Transaction synced with Nakama Server."
+                        _purchaseMessage.value = "🎉 +${result.coinsAwarded} Coins added! Transaction synced via $storeName."
                     }
                     is BillingPurchaseResult.Purchasing -> {
                         // Handled by isPurchasing flow
                     }
                     is BillingPurchaseResult.Pending -> {
-                        _purchaseMessage.value = "⏳ In-app purchase is pending Google Play confirmation."
+                        _purchaseMessage.value = "⏳ In-app purchase is pending $storeName confirmation."
                     }
                     is BillingPurchaseResult.Cancelled -> {
-                        _purchaseMessage.value = "Google Play purchase cancelled."
+                        _purchaseMessage.value = "$storeName purchase cancelled."
                     }
                     is BillingPurchaseResult.Error -> {
-                        _purchaseMessage.value = "❌ Purchase error: ${result.message}"
+                        _purchaseMessage.value = "❌ $storeName purchase error: ${result.message}"
                     }
                     BillingPurchaseResult.Idle -> Unit
                 }
@@ -130,12 +133,11 @@ class CoinShopViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            billingManager.productDetailsMap.collect { detailsMap ->
-                if (detailsMap.isNotEmpty()) {
+            billingManager.productPrices.collect { priceMap ->
+                if (priceMap.isNotEmpty()) {
                     val updatedList = _coinPacks.value.map { pack ->
                         val canonical = BillingConstants.getCanonicalProductId(pack.productId)
-                        val playDetails = detailsMap[canonical]
-                        val livePrice = playDetails?.oneTimePurchaseOfferDetails?.formattedPrice
+                        val livePrice = priceMap[canonical]
                         if (livePrice != null) {
                             pack.copy(priceUsd = livePrice)
                         } else {
@@ -146,6 +148,10 @@ class CoinShopViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun setStoreProvider(storeType: StoreBillingType) {
+        billingManager.setStoreProvider(storeType)
     }
 
     fun loadShopPackagesFromNakama() {
@@ -166,19 +172,20 @@ class CoinShopViewModel @Inject constructor(
 
     fun buyCoinPack(activity: Activity?, pack: CoinPack) {
         val canonicalId = BillingConstants.getCanonicalProductId(pack.productId.ifBlank { pack.id })
+        val storeName = billingManager.activeStore.value.displayName
         
         if (activity != null) {
             val launched = billingManager.launchBillingFlow(activity, canonicalId)
             if (!launched) {
                 if (!billingManager.isConnected.value) {
-                    _purchaseMessage.value = "⚠️ Google Play Store is connecting. Please check your internet connection or Google Play Services."
-                } else if (!billingManager.productDetailsMap.value.containsKey(canonicalId)) {
-                    val availableIds = billingManager.productDetailsMap.value.keys.joinToString(", ")
-                    _purchaseMessage.value = "⚠️ Product '$canonicalId' not yet active on Play Store. (Cached IDs: ${if (availableIds.isEmpty()) "None" else availableIds})"
+                    _purchaseMessage.value = "⚠️ $storeName is connecting. Please ensure the store app is installed and updated."
+                } else if (!billingManager.productPrices.value.containsKey(canonicalId)) {
+                    val availableIds = billingManager.productPrices.value.keys.joinToString(", ")
+                    _purchaseMessage.value = "⚠️ Product '$canonicalId' not yet active on $storeName. (Cached IDs: ${if (availableIds.isEmpty()) "None" else availableIds})"
                 }
             }
         } else {
-            _purchaseMessage.value = "⚠️ Unable to launch Google Play purchase sheet: Activity not found."
+            _purchaseMessage.value = "⚠️ Unable to launch $storeName purchase sheet: Activity not found."
         }
     }
 

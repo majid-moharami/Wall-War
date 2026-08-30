@@ -49,6 +49,8 @@ googleid = "1.1.1"
 nakamaJava = "2.5.3"
 kotlinxCoroutinesGuava = "1.11.0"
 adivery = "4.9.0"
+poolakey = "2.2.0"
+myketBilling = "2.0"
 
 
 [libraries]
@@ -117,6 +119,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-coroutines-guava = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-guava", version.ref = "kotlinxCoroutinesGuava" }
 nakama-java = { group = "com.github.heroiclabs.nakama-java", name = "nakama-java", version.ref = "nakamaJava" }
 adivery = { group = "com.adivery", name = "sdk", version.ref = "adivery" }
+poolakey = { group = "com.github.cafebazaar.Poolakey", name = "poolakey", version.ref = "poolakey" }
+myket-billing = { group = "ir.myket", name = "billing", version.ref = "myketBilling" }
 
 
 [plugins]

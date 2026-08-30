@@ -30,6 +30,10 @@ android {
     versionName = "$versionMajor.$versionMinor.$versionPatch"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    manifestPlaceholders["marketApplicationId"] = "ir.mservices.market"
+    manifestPlaceholders["marketBindAddress"] = "ir.mservices.market.InAppBillingService.BIND"
+    manifestPlaceholders["marketPermission"] = "ir.mservices.market.BILLING"
   }
 
   val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -153,6 +157,11 @@ dependencies {
   implementation(libs.adivery)
   implementation(libs.play.services.ads)
   implementation(libs.play.billing)
+  implementation(libs.poolakey)
+  implementation(files("libs/myket-billing-2.0.aar"))
+  implementation("androidx.browser:browser:1.8.0")
+  implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")
+  implementation("com.google.code.gson:gson:2.11.0")
   implementation("com.google.protobuf:protobuf-java:3.25.1")
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
