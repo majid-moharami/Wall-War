@@ -40,9 +40,8 @@ jobs:
           set -euo pipefail
 
           if [ ! -f "./gradlew" ]; then
-            echo "::error::gradlew was not found in the repository."
-            echo "Please commit gradlew and gradle/wrapper to Git."
-            exit 1
+            echo "Gradle wrapper not found. Generating wrapper..."
+            gradle wrapper --gradle-version 8.11.1
           fi
 
           chmod +x ./gradlew
