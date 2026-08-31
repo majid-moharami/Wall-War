@@ -1,28 +1,13 @@
 name: Android CI - Build & Send APKs
 
 on:
-  # ============================================================
-  # Normal pushes
-  # ============================================================
   push:
     branches:
       - '**'
-
-    # ============================================================
-    # Version tags
-    #
-    # Example:
-    #   v1.0.3
-    #   v2.0.0
-    # ============================================================
     tags:
       - 'v*'
 
-  # ============================================================
-  # Manual run
-  # ============================================================
   workflow_dispatch:
-
 
 jobs:
   build_and_send:
@@ -37,7 +22,6 @@ jobs:
       - name: 📥 Checkout Code
         uses: actions/checkout@v4
 
-
       # ============================================================
       # Java
       # ============================================================
@@ -48,25 +32,23 @@ jobs:
           java-version: '17'
           cache: gradle
 
-
       # ============================================================
       # Gradle Wrapper
       # ============================================================
       - name: ⚙️ Prepare Gradle Wrapper
         run: |
           set -euo pipefail
-          
+
           if [ ! -f "./gradlew" ]; then
             echo "::error::gradlew was not found in the repository."
             echo "Please commit gradlew and gradle/wrapper to Git."
             exit 1
           fi
-          
+
           chmod +x ./gradlew
-          
+
           echo "Gradle version:"
           ./gradlew --version
-      
 
       # ============================================================
       # Setup Keystore
@@ -77,70 +59,51 @@ jobs:
           KEYSTORE_PROPERTIES: ${{ secrets.KEYSTORE_PROPERTIES }}
         run: |
           set -euo pipefail
-          
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🔐 Setting up signing configuration"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+
           if [ -n "${KEYSTORE_BASE64:-}" ]; then
             echo "$KEYSTORE_BASE64" | base64 --decode > /tmp/release.keystore
             chmod 600 /tmp/release.keystore
-          
+
             echo "KEYSTORE_FILE=/tmp/release.keystore" > keystore.properties
-          
+
             if [ -n "${KEYSTORE_PROPERTIES:-}" ]; then
               printf '%s\n' "$KEYSTORE_PROPERTIES" >> keystore.properties
             fi
-          
+
             echo "✅ Keystore created."
           else
             echo "⚠️ KEYSTORE_BASE64 is not configured."
             echo "Release builds will use the fallback signing configuration."
           fi
-      
 
       # ============================================================
       # Decide what to build
-      #
-      # Normal push:
-      #   Play Debug only
-      #
-      # Tag:
-      #   All flavors + Debug + Release
-      #
-      # Manual:
-      #   Play Debug only
       # ============================================================
       - name: 🎯 Determine Build Type
         id: build_type
         run: |
           set -euo pipefail
-          
+
           echo "Event: ${{ github.event_name }}"
           echo "Ref: ${{ github.ref }}"
           echo "Ref name: ${{ github.ref_name }}"
-          
+
           if [[ "${{ github.ref }}" == refs/tags/* ]]; then
-          
             echo "🚀 TAG BUILD"
             echo "Building all flavors and build types."
-          
             echo "mode=release" >> "$GITHUB_OUTPUT"
-          
           else
-          
             echo "🧪 NORMAL BUILD"
             echo "Building Play Debug only."
-          
             echo "mode=debug" >> "$GITHUB_OUTPUT"
-          
           fi
-      
 
       # ============================================================
-      # Normal Push / Manual:
-      #
-      # Play Debug only
+      # Normal Push / Manual - Play Debug
       # ============================================================
       - name: 🔨 Build Play Debug
         if: steps.build_type.outputs.mode == 'debug'
@@ -148,24 +111,21 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🔨 Building Play Debug"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+
           ./gradlew assemblePlayDebug --stacktrace 2>&1 | tee build.log
-          
+
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          
+
           echo "exit_code=$BUILD_EXIT_CODE" >> "$GITHUB_OUTPUT"
-          
+
           exit "$BUILD_EXIT_CODE"
-      
 
       # ============================================================
-      # Tag:
-      #
-      # Build all flavors + Debug + Release
+      # Tag - Build All Flavors
       # ============================================================
       - name: 🚀 Build All Flavors
         if: steps.build_type.outputs.mode == 'release'
@@ -173,10 +133,11 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🚀 TAG BUILD"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
           echo "Building:"
           echo "  • Myket Debug"
           echo "  • Myket Release"
@@ -184,8 +145,9 @@ jobs:
           echo "  • Play Release"
           echo "  • Bazaar Debug"
           echo "  • Bazaar Release"
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+
           ./gradlew \
             assembleMyketDebug \
             assembleMyketRelease \
@@ -195,13 +157,12 @@ jobs:
             assembleBazaarRelease \
             --stacktrace \
             2>&1 | tee build.log
-          
+
           BUILD_EXIT_CODE=${PIPESTATUS[0]}
-          
+
           echo "exit_code=$BUILD_EXIT_CODE" >> "$GITHUB_OUTPUT"
-          
+
           exit "$BUILD_EXIT_CODE"
-      
 
       # ============================================================
       # Locate APKs
@@ -215,61 +176,64 @@ jobs:
            steps.all_build.outcome == 'success')
         run: |
           set -euo pipefail
-          
+
           APK_ROOT="$GITHUB_WORKSPACE/app/build/outputs/apk"
-          
+
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "📂 Generated APKs"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+
+          if [ ! -d "$APK_ROOT" ]; then
+            echo "::error::APK output directory does not exist:"
+            echo "$APK_ROOT"
+            exit 1
+          fi
+
           find "$APK_ROOT" \
             -type f \
             -name "*.apk" \
             -print \
             | sort
-          
+
           echo ""
-          
-          
+
           # ==========================================================
           # Normal build
           # ==========================================================
-          
+
           if [[ "${{ steps.build_type.outputs.mode }}" == "debug" ]]; then
-          
+
             PLAY_DEBUG="$APK_ROOT/play/debug/app-play-debug.apk"
-          
+
             if [ ! -f "$PLAY_DEBUG" ]; then
               echo "::error::Play Debug APK does not exist:"
               echo "$PLAY_DEBUG"
               exit 1
             fi
-          
+
             echo "play_debug=$PLAY_DEBUG" >> "$GITHUB_OUTPUT"
-          
+
             echo ""
             echo "✅ Play Debug APK:"
             ls -lh "$PLAY_DEBUG"
-          
+
           fi
-          
-          
+
           # ==========================================================
           # Tag build
           # ==========================================================
-          
+
           if [[ "${{ steps.build_type.outputs.mode }}" == "release" ]]; then
-          
+
             MYKET_DEBUG="$APK_ROOT/myket/debug/app-myket-debug.apk"
             MYKET_RELEASE="$APK_ROOT/myket/release/app-myket-release.apk"
-          
+
             PLAY_DEBUG="$APK_ROOT/play/debug/app-play-debug.apk"
             PLAY_RELEASE="$APK_ROOT/play/release/app-play-release.apk"
-          
+
             BAZAAR_DEBUG="$APK_ROOT/bazaar/debug/app-bazaar-debug.apk"
             BAZAAR_RELEASE="$APK_ROOT/bazaar/release/app-bazaar-release.apk"
-          
-          
+
             for APK in \
               "$MYKET_DEBUG" \
               "$MYKET_RELEASE" \
@@ -284,25 +248,22 @@ jobs:
                 exit 1
               fi
             done
-          
-          
+
             echo "myket_debug=$MYKET_DEBUG" >> "$GITHUB_OUTPUT"
             echo "myket_release=$MYKET_RELEASE" >> "$GITHUB_OUTPUT"
-          
+
             echo "play_debug=$PLAY_DEBUG" >> "$GITHUB_OUTPUT"
             echo "play_release=$PLAY_RELEASE" >> "$GITHUB_OUTPUT"
-          
+
             echo "bazaar_debug=$BAZAAR_DEBUG" >> "$GITHUB_OUTPUT"
             echo "bazaar_release=$BAZAAR_RELEASE" >> "$GITHUB_OUTPUT"
-          
-          
+
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "✅ All 6 APKs found"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+
           fi
-      
 
       # ============================================================
       # Send APKs to Telegram
@@ -325,35 +286,33 @@ jobs:
 
         run: |
           set -euo pipefail
-          
+
           if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
             echo "::error::TELEGRAM_BOT_TOKEN is missing."
             exit 1
           fi
-          
+
           if [ -z "${TELEGRAM_CHAT_ID:-}" ]; then
             echo "::error::TELEGRAM_CHAT_ID is missing."
             exit 1
           fi
-          
-          
+
           # ==========================================================
           # GitHub information
           # ==========================================================
-          
+
           REPO_NAME="${{ github.repository }}"
           BRANCH_NAME="${{ github.ref_name }}"
           SHORT_SHA="${GITHUB_SHA:0:7}"
           RUN_NUMBER="${{ github.run_number }}"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
+
           COMMIT_MSG=$(git log -1 --pretty=%s)
-          
-          
+
           # ==========================================================
           # Escape HTML
           # ==========================================================
-          
+
           escape_html() {
             printf '%s' "$1" |
               sed \
@@ -361,270 +320,281 @@ jobs:
                 -e 's/</\&lt;/g' \
                 -e 's/>/\&gt;/g'
           }
-          
+
           SAFE_BRANCH=$(escape_html "$BRANCH_NAME")
           SAFE_COMMIT=$(escape_html "$SHORT_SHA")
           SAFE_MESSAGE=$(escape_html "$COMMIT_MSG")
-          
-          
+
           # ==========================================================
           # Upload function
           # ==========================================================
-          
+
           upload_apk() {
-          
+
             local apk_path="$1"
             local store="$2"
             local build_type="$3"
-          
+
             echo ""
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             echo "📤 Uploading $store $build_type"
             echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          
+
             if [ ! -f "$apk_path" ]; then
               echo "::error::APK does not exist:"
               echo "$apk_path"
               return 1
             fi
-          
+
             local file_size
             file_size=$(du -h "$apk_path" | cut -f1)
-          
-          
+
             local emoji="🧪"
-          
+
             if [ "$build_type" = "Release" ]; then
               emoji="🚀"
             fi
-          
-          
-            local caption="<b>🎮 WALL WAR</b>
 
-  ━━━━━━━━━━━━━━━━━━━━
-  <b>${emoji} ${store} ${build_type}</b>
-  ━━━━━━━━━━━━━━━━━━━━
-  
-  📦 <b>File</b>
-  └ <code>$(basename "$apk_path")</code>
-  
-  🏪 <b>Store</b>
-  └ <code>${store}</code>
-  
-  🔧 <b>Build</b>
-  └ <code>${build_type}</code>
-  
-  📏 <b>Size</b>
-  └ <code>${file_size}</code>
-  
-  🌿 <b>Branch</b>
-  └ <code>${SAFE_BRANCH}</code>
-  
-  🔖 <b>Commit</b>
-  └ <code>${SAFE_COMMIT}</code>
-  
-  📝 <b>Changes</b>
-  └ ${SAFE_MESSAGE}
-  
-  🔢 <b>Build #${RUN_NUMBER}</b>
-  
-  ━━━━━━━━━━━━━━━━━━━━
-  📱 <b>APK is ready!</b>
-  
-  🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
-  
-  
-  curl \
-  --fail-with-body \
-  --show-error \
-  --silent \
-  --retry 3 \
-  --retry-delay 2 \
-  --request POST \
-  --form-string "chat_id=${TELEGRAM_CHAT_ID}" \
-  --form "document=@${apk_path}" \
-  --form-string "caption=${caption}" \
-  --form-string "parse_mode=HTML" \
-  "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
+            # ========================================================
+            # Telegram caption
+            # ========================================================
 
-  echo "✅ Uploaded successfully."
+            local caption
 
-}
+            caption=$(printf '%s\n' \
+              '<b>🎮 WALL WAR</b>' \
+              '' \
+              '━━━━━━━━━━━━━━━━━━━━' \
+              "<b>${emoji} ${store} ${build_type}</b>" \
+              '━━━━━━━━━━━━━━━━━━━━' \
+              '' \
+              '📦 <b>File</b>' \
+              "└ <code>$(basename "$apk_path")</code>" \
+              '' \
+              '🏪 <b>Store</b>' \
+              "└ <code>${store}</code>" \
+              '' \
+              '🔧 <b>Build</b>' \
+              "└ <code>${build_type}</code>" \
+              '' \
+              '📏 <b>Size</b>' \
+              "└ <code>${file_size}</code>" \
+              '' \
+              '🌿 <b>Branch</b>' \
+              "└ <code>${SAFE_BRANCH}</code>" \
+              '' \
+              '🔖 <b>Commit</b>' \
+              "└ <code>${SAFE_COMMIT}</code>" \
+              '' \
+              '📝 <b>Changes</b>' \
+              "└ ${SAFE_MESSAGE}" \
+              '' \
+              "🔢 <b>Build #${RUN_NUMBER}</b>" \
+              '' \
+              '━━━━━━━━━━━━━━━━━━━━' \
+              '📱 <b>APK is ready!</b>' \
+              '' \
+              "🔗 <a href=\"${RUN_URL}\">View GitHub Actions</a>"
+            )
 
+            # ========================================================
+            # Upload APK
+            # ========================================================
 
-# ==========================================================
-# NORMAL BUILD
-#
-# Play Debug only
-# ==========================================================
+            curl \
+              --fail-with-body \
+              --show-error \
+              --silent \
+              --retry 3 \
+              --retry-delay 2 \
+              --request POST \
+              --form-string "chat_id=${TELEGRAM_CHAT_ID}" \
+              --form "document=@${apk_path}" \
+              --form-string "caption=${caption}" \
+              --form-string "parse_mode=HTML" \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument"
 
-  if [[ "${{ steps.build_type.outputs.mode }}" == "debug" ]]; then
-  
-  upload_apk \
-  "$PLAY_DEBUG" \
-  "PLAY" \
-  "Debug"
+            echo "✅ Uploaded successfully."
+          }
 
-  fi
-  
-  
-  # ==========================================================
-  # TAG BUILD
-  #
-  # All 6 APKs
-  # ==========================================================
-  
-  if [[ "${{ steps.build_type.outputs.mode }}" == "release" ]]; then
-  
-  upload_apk "$MYKET_DEBUG" \
-  "MYKET" \
-  "Debug"
+          # ==========================================================
+          # NORMAL BUILD
+          # ==========================================================
 
-  upload_apk "$MYKET_RELEASE" \
-  "MYKET" \
-  "Release"
+          if [[ "${{ steps.build_type.outputs.mode }}" == "debug" ]]; then
 
+            upload_apk \
+              "$PLAY_DEBUG" \
+              "PLAY" \
+              "Debug"
 
-  upload_apk "$PLAY_DEBUG" \
-  "PLAY" \
-  "Debug"
+          fi
 
-  upload_apk "$PLAY_RELEASE" \
-  "PLAY" \
-  "Release"
+          # ==========================================================
+          # TAG BUILD
+          # ==========================================================
 
+          if [[ "${{ steps.build_type.outputs.mode }}" == "release" ]]; then
 
-  upload_apk "$BAZAAR_DEBUG" \
-  "BAZAAR" \
-  "Debug"
+            upload_apk \
+              "$MYKET_DEBUG" \
+              "MYKET" \
+              "Debug"
 
-  upload_apk "$BAZAAR_RELEASE" \
-  "BAZAAR" \
-  "Release"
+            upload_apk \
+              "$MYKET_RELEASE" \
+              "MYKET" \
+              "Release"
 
+            upload_apk \
+              "$PLAY_DEBUG" \
+              "PLAY" \
+              "Debug"
 
-  echo ""
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "🎉 ALL 6 APKs SENT TO TELEGRAM"
-  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  
-  fi
+            upload_apk \
+              "$PLAY_RELEASE" \
+              "PLAY" \
+              "Release"
 
+            upload_apk \
+              "$BAZAAR_DEBUG" \
+              "BAZAAR" \
+              "Debug"
 
-# ============================================================
-# Send Build Failure
-# ============================================================
-- name: 🚨 Send Build Failure to Telegram
-  if: |
-    (steps.build_type.outputs.mode == 'debug' &&
-     steps.play_debug_build.outcome == 'failure') ||
-    (steps.build_type.outputs.mode == 'release' &&
-     steps.all_build.outcome == 'failure')
-  env:
-    TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-    TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-  run: |
-    set -euo pipefail
-    
-    
-    if [ -f build.log ]; then
-    
-      ERROR_TEXT=$(
-        grep -E \
-          "FAILURE:|What went wrong:|Execution failed|Caused by:|error:|e: |Could not|Unresolved reference|Exception" \
-          build.log \
-          | tail -n 30 \
-          || true
-      )
-    
-      if [ -z "$ERROR_TEXT" ]; then
-        ERROR_TEXT=$(tail -n 50 build.log)
-      fi
-    
-    else
-    
-      ERROR_TEXT="Build failed, but build.log was not found."
-    
-    fi
-    
-    
-    ERROR_TEXT=$(printf '%s' "$ERROR_TEXT" | tail -c 3500)
-    
-    
-    escape_html() {
-      printf '%s' "$1" |
-        sed \
-          -e 's/&/\&amp;/g' \
-          -e 's/</\&lt;/g' \
-          -e 's/>/\&gt;/g'
-    }
-    
-    
-    SAFE_ERROR=$(escape_html "$ERROR_TEXT")
-    SAFE_BRANCH=$(escape_html "${{ github.ref_name }}")
-    SAFE_COMMIT=$(escape_html "${GITHUB_SHA:0:7}")
-    
-    
-    RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-    
-    
-    MESSAGE="<b>🎮 WALL WAR</b>
+            upload_apk \
+              "$BAZAAR_RELEASE" \
+              "BAZAAR" \
+              "Release"
 
-  ━━━━━━━━━━━━━━━━━━━━
-  <b>🔴 BUILD FAILED</b>
-  ━━━━━━━━━━━━━━━━━━━━
-  
-  🌿 <b>Branch / Tag</b>
-  └ <code>${SAFE_BRANCH}</code>
-  
-  🔖 <b>Commit</b>
-  └ <code>${SAFE_COMMIT}</code>
-  
-  ━━━━━━━━━━━━━━━━━━━━
-  <b>❌ Error</b>
-  
-  <pre>${SAFE_ERROR}</pre>
-  
-  ━━━━━━━━━━━━━━━━━━━━
-  
-  🔍 <a href=\"${RUN_URL}\">Open Full GitHub Log</a>"
-  
-  
-  curl \
-  --fail-with-body \
-  --show-error \
-  --silent \
-  --retry 3 \
-  --retry-delay 2 \
-  --request POST \
-  "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-  --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-  --data-urlencode "text=${MESSAGE}" \
-  --data-urlencode "parse_mode=HTML"
-  
-  
-  echo "🚨 Build failure notification sent."
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🎉 ALL 6 APKs SENT TO TELEGRAM"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+          fi
 
-# ============================================================
-# Cleanup
-# ============================================================
-- name: 🧹 Cleanup
-  if: always()
-  run: |
-    rm -f /tmp/release.keystore
-    rm -f keystore.properties
+      # ============================================================
+      # Send Build Failure
+      # ============================================================
+      - name: 🚨 Send Build Failure to Telegram
+        if: |
+          (steps.build_type.outputs.mode == 'debug' &&
+           steps.play_debug_build.outcome == 'failure') ||
+          (steps.build_type.outputs.mode == 'release' &&
+           steps.all_build.outcome == 'failure')
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          set -euo pipefail
 
+          # ==========================================================
+          # Read build error
+          # ==========================================================
 
-# ============================================================
-# Finally fail GitHub Actions if build failed
-# ============================================================
-- name: ❌ Fail Workflow if Build Failed
-  if: |
-    (steps.build_type.outputs.mode == 'debug' &&
-     steps.play_debug_build.outcome == 'failure') ||
-    (steps.build_type.outputs.mode == 'release' &&
-     steps.all_build.outcome == 'failure')
-  run: |
-    echo "❌ Gradle build failed."
-    exit 1
+          if [ -f build.log ]; then
+
+            ERROR_TEXT=$(
+              grep -E \
+                "FAILURE:|What went wrong:|Execution failed|Caused by:|error:|e: |Could not|Unresolved reference|Exception" \
+                build.log \
+                | tail -n 30 \
+                || true
+            )
+
+            if [ -z "$ERROR_TEXT" ]; then
+              ERROR_TEXT=$(tail -n 50 build.log)
+            fi
+
+          else
+
+            ERROR_TEXT="Build failed, but build.log was not found."
+
+          fi
+
+          ERROR_TEXT=$(printf '%s' "$ERROR_TEXT" | tail -c 3500)
+
+          # ==========================================================
+          # Escape HTML
+          # ==========================================================
+
+          escape_html() {
+            printf '%s' "$1" |
+              sed \
+                -e 's/&/\&amp;/g' \
+                -e 's/</\&lt;/g' \
+                -e 's/>/\&gt;/g'
+          }
+
+          SAFE_ERROR=$(escape_html "$ERROR_TEXT")
+          SAFE_BRANCH=$(escape_html "${{ github.ref_name }}")
+          SAFE_COMMIT=$(escape_html "${GITHUB_SHA:0:7}")
+
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          # ==========================================================
+          # Telegram failure message
+          # ==========================================================
+
+          MESSAGE=$(printf '%s\n' \
+            '<b>🎮 WALL WAR</b>' \
+            '' \
+            '━━━━━━━━━━━━━━━━━━━━' \
+            '<b>🔴 BUILD FAILED</b>' \
+            '━━━━━━━━━━━━━━━━━━━━' \
+            '' \
+            '🌿 <b>Branch / Tag</b>' \
+            "└ <code>${SAFE_BRANCH}</code>" \
+            '' \
+            '🔖 <b>Commit</b>' \
+            "└ <code>${SAFE_COMMIT}</code>" \
+            '' \
+            '━━━━━━━━━━━━━━━━━━━━' \
+            '<b>❌ Error</b>' \
+            '' \
+            "<pre>${SAFE_ERROR}</pre>" \
+            '' \
+            '━━━━━━━━━━━━━━━━━━━━' \
+            '' \
+            "🔍 <a href=\"${RUN_URL}\">Open Full GitHub Log</a>"
+          )
+
+          # ==========================================================
+          # Send failure message
+          # ==========================================================
+
+          curl \
+            --fail-with-body \
+            --show-error \
+            --silent \
+            --retry 3 \
+            --retry-delay 2 \
+            --request POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${MESSAGE}" \
+            --data-urlencode "parse_mode=HTML"
+
+          echo "🚨 Build failure notification sent."
+
+      # ============================================================
+      # Cleanup
+      # ============================================================
+      - name: 🧹 Cleanup
+        if: always()
+        run: |
+          rm -f /tmp/release.keystore
+          rm -f keystore.properties
+
+      # ============================================================
+      # Finally fail GitHub Actions if build failed
+      # ============================================================
+      - name: ❌ Fail Workflow if Build Failed
+        if: |
+          (steps.build_type.outputs.mode == 'debug' &&
+           steps.play_debug_build.outcome == 'failure') ||
+          (steps.build_type.outputs.mode == 'release' &&
+           steps.all_build.outcome == 'failure')
+        run: |
+          echo "❌ Gradle build failed."
+          exit 1
