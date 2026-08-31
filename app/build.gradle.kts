@@ -4,7 +4,7 @@ import java.util.Properties
 
 val versionMajor = 1
 val versionMinor = 0
-val versionPatch = 1
+val versionPatch = 3
 
 plugins {
   alias(libs.plugins.android.application)
@@ -25,7 +25,7 @@ android {
   defaultConfig {
     applicationId = "com.wallwar.game"
     minSdk = 24
-    targetSdk = 35
+    targetSdk = 36
     versionCode = versionMajor * 100 + versionMinor + versionPatch
     versionName = "$versionMajor.$versionMinor.$versionPatch"
 
