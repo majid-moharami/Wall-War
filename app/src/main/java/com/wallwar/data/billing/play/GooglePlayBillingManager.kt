@@ -17,6 +17,7 @@ import com.android.billingclient.api.ProductDetailsResponseListener
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchasesUpdatedListener
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import com.wallwar.analytics.AnalyticsManager
 import com.wallwar.audio.SoundManager
@@ -166,9 +167,10 @@ class GooglePlayBillingManager @Inject constructor(
         billingClient.queryProductDetailsAsync(params, object : ProductDetailsResponseListener {
             override fun onProductDetailsResponse(
                 billingResult: BillingResult,
-                productDetailsList: MutableList<ProductDetails>
+                queryProductDetailsResult: QueryProductDetailsResult
             ) {
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    val productDetailsList = queryProductDetailsResult.productDetailsList ?: emptyList()
                     Log.i(tag, "Queried ${productDetailsList.size} product details from Google Play.")
                     val map = productDetailsList.associateBy { it.productId }
                     _productDetailsMap.value = map
