@@ -1,6 +1,16 @@
 # Nakama and gRPC / Protobuf conflict resolution
 -dontoptimize
 -dontobfuscate
+-dontwarn io.grpc.netty.shaded.**
+-dontwarn org.apache.log4j.**
+-dontwarn org.apache.logging.log4j.**
+-dontwarn org.eclipse.jetty.**
+-dontwarn org.jboss.marshalling.**
+-dontwarn reactor.blockhound.**
+-dontwarn sun.security.x509.**
+-dontwarn net.jpountz.**
+-dontwarn io.netty.**
+-dontwarn javax.annotation.**
 -keep class com.google.type.** { *; }
 -keep class com.google.api.** { *; }
 -keep class com.google.protobuf.** { *; }

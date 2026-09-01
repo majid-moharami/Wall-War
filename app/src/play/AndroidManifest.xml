@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Google Play in-app billing permission -->
+    <uses-permission android:name="com.android.vending.BILLING" />
+
+    <!-- Remove third-party store billing permissions -->
+    <uses-permission
+        android:name="com.farsitel.bazaar.permission.PAY_THROUGH_BAZAAR"
+        tools:node="remove" />
+    <uses-permission
+        android:name="ir.mservices.market.BILLING"
+        tools:node="remove" />
+
+    <application>
+        <!-- Remove Cafe Bazaar Poolakey receiver in Play flavor -->
+        <receiver
+            android:name="ir.cafebazaar.poolakey.receiver.BillingReceiver"
+            tools:node="remove" />
+        <!-- Remove Myket billing receiver and activities in Play flavor -->
+        <receiver
+            android:name="ir.myket.billingclient.util.IABReceiver"
+            tools:node="remove" />
+        <activity
+            android:name="ir.myket.billingclient.util.ProxyBillingActivity"
+            tools:node="remove" />
+        <activity
+            android:name="ir.myket.billingclient.web.activities.CustomTabLauncherActivity"
+            tools:node="remove" />
+        <activity
+            android:name="ir.myket.billingclient.web.activities.PaymentCallbackActivity"
+            tools:node="remove" />
+    </application>
+</manifest>

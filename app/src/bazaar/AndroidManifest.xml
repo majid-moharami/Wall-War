@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Cafe Bazaar in-app billing permission -->
+    <uses-permission android:name="com.farsitel.bazaar.permission.PAY_THROUGH_BAZAAR" />
+
+    <!-- Remove other store billing permissions -->
+    <uses-permission
+        android:name="ir.mservices.market.BILLING"
+        tools:node="remove" />
+    <uses-permission
+        android:name="com.android.vending.BILLING"
+        tools:node="remove" />
+
+    <application>
+        <!-- Remove Myket billing receiver and activities in Bazaar flavor -->
+        <receiver
+            android:name="ir.myket.billingclient.util.IABReceiver"
+            tools:node="remove" />
+        <activity
+            android:name="ir.myket.billingclient.util.ProxyBillingActivity"
+            tools:node="remove" />
+        <activity
+            android:name="ir.myket.billingclient.web.activities.CustomTabLauncherActivity"
+            tools:node="remove" />
+        <activity
+            android:name="ir.myket.billingclient.web.activities.PaymentCallbackActivity"
+            tools:node="remove" />
+    </application>
+
+    <!-- Package Visibility Queries for Cafe Bazaar In-App Billing -->
+    <queries>
+        <package android:name="com.farsitel.bazaar" />
+        <intent>
+            <action android:name="ir.cafebazaar.pardakht.InAppBillingService.BIND" />
+        </intent>
+    </queries>
+</manifest>
