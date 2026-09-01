@@ -51,6 +51,7 @@ android {
     create("myket") {
       dimension = "store"
       buildConfigField("String", "TARGET_STORE", "\"MYKET\"")
+      buildConfigField("String", "MYKET_PUBLIC_KEY", "\"MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC68X9fQz5L2CXb8+/wkDqa4qAfcXFA5xwDpOaFZuY2Q4T6N0pzMr3gwsRBWcQdtkPE3TmN0w6mho7cODDxDOPZJSiY+bwRUu92PtVV/gzoy0iIyDskh/utFDesUUYGZEX9ljr26D/h1VsHiYu2p2qayfPlgC/aTtseiL9coKd/3wIDAQAB\"")
       manifestPlaceholders["marketApplicationId"] = "ir.mservices.market"
       manifestPlaceholders["marketBindAddress"] = "ir.mservices.market.InAppBillingService.BIND"
       manifestPlaceholders["marketPermission"] = "ir.mservices.market.BILLING"

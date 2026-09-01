@@ -67,7 +67,9 @@ class MyketBillingManager @Inject constructor(
 
         try {
             iabHelper?.dispose()
-            val helper = IabHelper(context, null)
+            // Myket RSA Public Key from Developer Console (used for client-side signature verification)
+            val base64PublicKey = com.wallwar.BuildConfig.MYKET_PUBLIC_KEY.ifEmpty { null }
+            val helper = IabHelper(context, base64PublicKey)
             helper.enableDebugLogging(true, tag)
             iabHelper = helper
 
