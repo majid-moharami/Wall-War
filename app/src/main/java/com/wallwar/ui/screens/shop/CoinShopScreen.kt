@@ -424,30 +424,18 @@ fun CoinShopScreen(
             )
         }
 
-        // Coin Packs 2-Column Grid Layout
+        // Coin Packs Vertical List Layout
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            coinPacks.chunked(2).forEach { rowPacks ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    rowPacks.forEach { pack ->
-                        Box(modifier = Modifier.weight(1f)) {
-                            CoinPackGridCard(
-                                pack = pack,
-                                isPurchasing = isPurchasing,
-                                activeStore = activeStore,
-                                onBuy = { onBuyPack(pack) }
-                            )
-                        }
-                    }
-                    if (rowPacks.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
+            coinPacks.forEach { pack ->
+                CoinPackItemCard(
+                    pack = pack,
+                    isPurchasing = isPurchasing,
+                    activeStore = activeStore,
+                    onBuy = { onBuyPack(pack) }
+                )
             }
         }
 
@@ -479,7 +467,7 @@ fun CoinShopScreen(
 }
 
 @Composable
-private fun CoinPackGridCard(
+private fun CoinPackItemCard(
     pack: CoinPack,
     isPurchasing: Boolean,
     activeStore: StoreBillingType,
@@ -493,6 +481,13 @@ private fun CoinPackGridCard(
         else -> Icons.Default.CardGiftcard
     }
 
+    val tagColor = when (pack.popularTag) {
+        "BEST VALUE" -> Color(0xFFFFD700) // Rich Gold
+        "GREAT VALUE" -> NeonMagenta // Vibrant Neon Pink/Magenta
+        "POPULAR" -> Color(0xFF00E5FF) // Electric Cyan/Blue
+        else -> NeonEmerald
+    }
+
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
@@ -501,100 +496,92 @@ private fun CoinPackGridCard(
             .fillMaxWidth()
             .testTag("coin_pack_${pack.id}")
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            // Unified Icon Badge (Same Gold/Amber aesthetic across all cards)
-            Surface(
-                shape = CircleShape,
-                color = NeonAmber.copy(alpha = 0.12f),
-                border = BorderStroke(1.dp, NeonAmber.copy(alpha = 0.35f)),
-                modifier = Modifier.size(44.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = iconVector,
-                        contentDescription = pack.nameEn,
-                        tint = NeonAmber,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Pack Title and Enhanced Mini-Tag next to title with fixed single-line alignment
+            // Icon + Title & Coin info
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(22.dp)
+                modifier = Modifier.weight(1f)
             ) {
-                Text(
-                    text = pack.nameEn,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 1
-                )
-                if (pack.popularTag != null) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    val tagColor = when (pack.popularTag) {
-                        "BEST VALUE" -> Color(0xFFFFD700) // Gold
-                        "GREAT VALUE" -> NeonMagenta // Magenta / Pink
-                        "POPULAR" -> Color(0xFF00E5FF) // Electric Blue / Cyan
-                        else -> NeonEmerald
+                // Unified Gold Icon Container
+                Surface(
+                    shape = CircleShape,
+                    color = NeonAmber.copy(alpha = 0.12f),
+                    border = BorderStroke(1.dp, NeonAmber.copy(alpha = 0.35f)),
+                    modifier = Modifier.size(46.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = iconVector,
+                            contentDescription = pack.nameEn,
+                            tint = NeonAmber,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
-                    Surface(
-                        shape = RoundedCornerShape(4.dp),
-                        color = tagColor.copy(alpha = 0.18f),
-                        border = BorderStroke(0.75.dp, tagColor.copy(alpha = 0.85f))
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(verticalArrangement = Arrangement.Center) {
+                    // Title and Tag in the same row
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = pack.popularTag,
-                            color = tagColor,
+                            text = pack.nameEn,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        if (pack.popularTag != null) {
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Surface(
+                                shape = RoundedCornerShape(3.dp),
+                                color = tagColor.copy(alpha = 0.16f),
+                                border = BorderStroke(0.5.dp, tagColor.copy(alpha = 0.8f))
+                            ) {
+                                Text(
+                                    text = pack.popularTag,
+                                    color = tagColor,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 6.sp,
+                                    lineHeight = 7.sp,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    // Coins Value
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.MonetizationOn,
+                            contentDescription = null,
+                            tint = NeonAmber,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "+${pack.coins} Coins",
+                            color = NeonAmber,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 6.5.sp,
-                            lineHeight = 7.sp,
-                            maxLines = 1,
-                            modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                            fontSize = 13.sp
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Coins Value (Fixed height for alignment)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(20.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MonetizationOn,
-                    contentDescription = null,
-                    tint = NeonAmber,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(3.dp))
-                Text(
-                    text = "+${pack.coins} Coins",
-                    color = NeonAmber,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 12.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Unified Buy Button (Same color across all packs)
+            // Buy Button
             val displayPrice = if (activeStore == StoreBillingType.MYKET || activeStore == StoreBillingType.CAFE_BAZAAR) {
                 BillingConstants.getTomanPriceForCoins(pack.coins)
             } else {
@@ -611,9 +598,8 @@ private fun CoinPackGridCard(
                     disabledContentColor = Color(0xFF8893A8)
                 ),
                 shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                 modifier = Modifier
-                    .fillMaxWidth()
                     .height(38.dp)
                     .testTag("buy_pack_${pack.id}_button")
             ) {
