@@ -539,20 +539,19 @@ private fun CoinPackItemCard(
                             color = Color.White
                         )
                         if (pack.popularTag != null) {
-                            Spacer(modifier = Modifier.width(5.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Surface(
-                                shape = RoundedCornerShape(3.dp),
+                                shape = RoundedCornerShape(6.dp),
                                 color = tagColor.copy(alpha = 0.16f),
-                                border = BorderStroke(0.5.dp, tagColor.copy(alpha = 0.8f))
+                                border = BorderStroke(1.dp, tagColor.copy(alpha = 0.8f))
                             ) {
                                 Text(
                                     text = pack.popularTag,
                                     color = tagColor,
                                     fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 6.sp,
-                                    lineHeight = 7.sp,
+                                    fontSize = 9.sp,
                                     maxLines = 1,
-                                    modifier = Modifier.padding(horizontal = 3.dp, vertical = 0.5.dp)
+                                    modifier = Modifier.padding(horizontal = 2.dp)
                                 )
                             }
                         }
