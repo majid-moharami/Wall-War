@@ -107,10 +107,15 @@ android {
     resources {
       excludes += "com/google/api/**"
       excludes += "google/protobuf/**"
+      excludes += "META-INF/versions/**"
       pickFirsts += "google/type/**"
       pickFirsts += "google/rpc/**"
       pickFirsts += "META-INF/INDEX.LIST"
       pickFirsts += "META-INF/io.netty.versions.properties"
+      pickFirsts += "META-INF/DEPENDENCIES"
+      pickFirsts += "META-INF/LICENSE*"
+      pickFirsts += "META-INF/NOTICE*"
+      pickFirsts += "META-INF/*.md"
     }
   }
 }
@@ -177,9 +182,9 @@ dependencies {
   implementation(libs.nakama.java)
   implementation(libs.adivery)
   implementation(libs.play.services.ads)
-  implementation(libs.play.billing)
-  implementation(libs.poolakey)
-  implementation(files("libs/myket-billing-2.0.aar"))
+  "playImplementation"(libs.play.billing)
+  "bazaarImplementation"(libs.poolakey)
+  "myketImplementation"(libs.myket.billing)
   implementation("androidx.browser:browser:1.8.0")
   implementation("com.google.android.gms:play-services-ads-identifier:18.1.0")
   implementation("com.google.code.gson:gson:2.11.0")
@@ -214,7 +219,7 @@ configurations.all {
 }
 
 tasks.configureEach {
-  if (name.contains("checkDebugDuplicateClasses", ignoreCase = true) || name.contains("checkReleaseDuplicateClasses", ignoreCase = true)) {
+  if (name.contains("DuplicateClasses", ignoreCase = true)) {
     enabled = false
   }
 }
