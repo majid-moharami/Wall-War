@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.wallwar.BuildConfig
 import com.wallwar.data.billing.BillingConstants
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
@@ -134,11 +135,13 @@ fun CoinShopScreen(
                         fontWeight = FontWeight.Black,
                         color = Color.White
                     )
-                    Text(
-                        text = "In-App Billing • ${activeStore.displayName}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = NeonCyan
-                    )
+                    if (BuildConfig.DEBUG) {
+                        Text(
+                            text = "In-App Billing • ${activeStore.displayName}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = NeonCyan
+                        )
+                    }
                 }
             }
 
@@ -169,97 +172,99 @@ fun CoinShopScreen(
             }
         }
 
-        // Active Store Banner (Automatically determined by install source)
-        Card(
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-            border = BorderStroke(1.dp, when (activeStore) {
-                StoreBillingType.CAFE_BAZAAR -> NeonEmerald.copy(alpha = 0.5f)
-                StoreBillingType.MYKET -> NeonMagenta.copy(alpha = 0.5f)
-                StoreBillingType.GOOGLE_PLAY -> NeonCyan.copy(alpha = 0.5f)
-            }),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            Row(
+        // Active Store Banner (Shown only in DEBUG mode)
+        if (BuildConfig.DEBUG) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
+                border = BorderStroke(1.dp, when (activeStore) {
+                    StoreBillingType.CAFE_BAZAAR -> NeonEmerald.copy(alpha = 0.5f)
+                    StoreBillingType.MYKET -> NeonMagenta.copy(alpha = 0.5f)
+                    StoreBillingType.GOOGLE_PLAY -> NeonCyan.copy(alpha = 0.5f)
+                }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(bottom = 16.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = CircleShape,
-                        color = when (activeStore) {
-                            StoreBillingType.CAFE_BAZAAR -> NeonEmerald.copy(alpha = 0.2f)
-                            StoreBillingType.MYKET -> NeonMagenta.copy(alpha = 0.2f)
-                            StoreBillingType.GOOGLE_PLAY -> NeonCyan.copy(alpha = 0.2f)
-                        },
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Default.Store,
-                                contentDescription = null,
-                                tint = when (activeStore) {
-                                    StoreBillingType.CAFE_BAZAAR -> NeonEmerald
-                                    StoreBillingType.MYKET -> NeonMagenta
-                                    StoreBillingType.GOOGLE_PLAY -> NeonCyan
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = when (activeStore) {
+                                StoreBillingType.CAFE_BAZAAR -> NeonEmerald.copy(alpha = 0.2f)
+                                StoreBillingType.MYKET -> NeonMagenta.copy(alpha = 0.2f)
+                                StoreBillingType.GOOGLE_PLAY -> NeonCyan.copy(alpha = 0.2f)
+                            },
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Store,
+                                    contentDescription = null,
+                                    tint = when (activeStore) {
+                                        StoreBillingType.CAFE_BAZAAR -> NeonEmerald
+                                        StoreBillingType.MYKET -> NeonMagenta
+                                        StoreBillingType.GOOGLE_PLAY -> NeonCyan
+                                    },
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Payment Method",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFA0ACCC)
+                            )
+                            Text(
+                                text = when (activeStore) {
+                                    StoreBillingType.CAFE_BAZAAR -> "کافه بازار (Cafe Bazaar In-App Billing)"
+                                    StoreBillingType.MYKET -> "مایکت (Myket In-App Billing)"
+                                    StoreBillingType.GOOGLE_PLAY -> "Google Play Billing (Official)"
                                 },
-                                modifier = Modifier.size(20.dp)
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Payment Method",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFA0ACCC)
+
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = when (activeStore) {
+                            StoreBillingType.CAFE_BAZAAR -> NeonEmerald.copy(alpha = 0.15f)
+                            StoreBillingType.MYKET -> NeonMagenta.copy(alpha = 0.15f)
+                            StoreBillingType.GOOGLE_PLAY -> NeonCyan.copy(alpha = 0.15f)
+                        },
+                        border = BorderStroke(
+                            1.dp,
+                            when (activeStore) {
+                                StoreBillingType.CAFE_BAZAAR -> NeonEmerald
+                                StoreBillingType.MYKET -> NeonMagenta
+                                StoreBillingType.GOOGLE_PLAY -> NeonCyan
+                            }
                         )
+                    ) {
                         Text(
-                            text = when (activeStore) {
-                                StoreBillingType.CAFE_BAZAAR -> "کافه بازار (Cafe Bazaar In-App Billing)"
-                                StoreBillingType.MYKET -> "مایکت (Myket In-App Billing)"
-                                StoreBillingType.GOOGLE_PLAY -> "Google Play Billing (Official)"
+                            text = "ACTIVE",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = when (activeStore) {
+                                StoreBillingType.CAFE_BAZAAR -> NeonEmerald
+                                StoreBillingType.MYKET -> NeonMagenta
+                                StoreBillingType.GOOGLE_PLAY -> NeonCyan
                             },
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = when (activeStore) {
-                        StoreBillingType.CAFE_BAZAAR -> NeonEmerald.copy(alpha = 0.15f)
-                        StoreBillingType.MYKET -> NeonMagenta.copy(alpha = 0.15f)
-                        StoreBillingType.GOOGLE_PLAY -> NeonCyan.copy(alpha = 0.15f)
-                    },
-                    border = BorderStroke(
-                        1.dp,
-                        when (activeStore) {
-                            StoreBillingType.CAFE_BAZAAR -> NeonEmerald
-                            StoreBillingType.MYKET -> NeonMagenta
-                            StoreBillingType.GOOGLE_PLAY -> NeonCyan
-                        }
-                    )
-                ) {
-                    Text(
-                        text = "ACTIVE",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
-                        color = when (activeStore) {
-                            StoreBillingType.CAFE_BAZAAR -> NeonEmerald
-                            StoreBillingType.MYKET -> NeonMagenta
-                            StoreBillingType.GOOGLE_PLAY -> NeonCyan
-                        },
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                    )
                 }
             }
         }
@@ -419,15 +424,31 @@ fun CoinShopScreen(
             )
         }
 
-        // Coin Packs Grid / List
-        coinPacks.forEach { pack ->
-            CoinPackItemCard(
-                pack = pack,
-                isPurchasing = isPurchasing,
-                activeStore = activeStore,
-                onBuy = { onBuyPack(pack) }
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+        // Coin Packs 2-Column Grid Layout
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            coinPacks.chunked(2).forEach { rowPacks ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    rowPacks.forEach { pack ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            CoinPackGridCard(
+                                pack = pack,
+                                isPurchasing = isPurchasing,
+                                activeStore = activeStore,
+                                onBuy = { onBuyPack(pack) }
+                            )
+                        }
+                    }
+                    if (rowPacks.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -458,20 +479,12 @@ fun CoinShopScreen(
 }
 
 @Composable
-private fun CoinPackItemCard(
+private fun CoinPackGridCard(
     pack: CoinPack,
     isPurchasing: Boolean,
     activeStore: StoreBillingType,
     onBuy: () -> Unit
 ) {
-    val isHighlighted = pack.popularTag != null
-    val accentColor = when (pack.popularTag) {
-        "BEST VALUE" -> NeonAmber
-        "POPULAR" -> NeonCyan
-        "GREAT VALUE" -> NeonMagenta
-        else -> NeonDarkSurface
-    }
-
     val iconVector = when {
         pack.coins >= 5000 -> Icons.Default.WorkspacePremium
         pack.coins >= 2000 -> Icons.Default.EmojiEvents
@@ -483,90 +496,92 @@ private fun CoinPackItemCard(
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = NeonDarkCard),
-        border = BorderStroke(
-            width = if (isHighlighted) 1.5.dp else 1.dp,
-            color = if (isHighlighted) accentColor else Color(0xFF2E334D)
-        ),
+        border = BorderStroke(1.dp, Color(0xFF2E3554)),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("coin_pack_${pack.id}")
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Icon + Details
+            // Unified Icon Badge (Same Gold/Amber aesthetic across all cards)
+            Surface(
+                shape = CircleShape,
+                color = NeonAmber.copy(alpha = 0.12f),
+                border = BorderStroke(1.dp, NeonAmber.copy(alpha = 0.35f)),
+                modifier = Modifier.size(46.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = iconVector,
+                        contentDescription = pack.nameEn,
+                        tint = NeonAmber,
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Pack Title and Enhanced Tag next to title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = accentColor.copy(alpha = 0.15f),
-                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = iconVector,
-                            contentDescription = pack.nameEn,
-                            tint = if (isHighlighted) accentColor else NeonAmber,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.width(12.dp))
-
-                Column {
-                    if (pack.popularTag != null) {
-                        Surface(
-                            shape = CircleShape,
-                            color = accentColor.copy(alpha = 0.2f),
-                            border = BorderStroke(0.5.dp, accentColor),
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        ) {
-                            Text(
-                                text = pack.popularTag,
-                                color = accentColor,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 9.sp,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = pack.nameEn,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.MonetizationOn,
-                            contentDescription = null,
-                            tint = NeonAmber,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = pack.nameEn,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1
+                )
+                if (pack.popularTag != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = NeonCyan.copy(alpha = 0.2f),
+                        border = BorderStroke(1.dp, NeonCyan)
+                    ) {
                         Text(
-                            text = "+${pack.coins} Coins",
-                            color = NeonAmber,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp
+                            text = pack.popularTag,
+                            color = NeonCyan,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 8.sp,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            // Buy Button
+            // Coins Value
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MonetizationOn,
+                    contentDescription = null,
+                    tint = NeonAmber,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "+${pack.coins} Coins",
+                    color = NeonAmber,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 13.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Unified Buy Button (Same color across all packs)
             val displayPrice = if (activeStore == StoreBillingType.MYKET || activeStore == StoreBillingType.CAFE_BAZAAR) {
                 BillingConstants.getTomanPriceForCoins(pack.coins)
             } else {
@@ -577,14 +592,17 @@ private fun CoinPackItemCard(
                 onClick = onBuy,
                 enabled = !isPurchasing,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isHighlighted) accentColor else NeonCyan,
+                    containerColor = NeonCyan,
                     contentColor = Color.Black,
                     disabledContainerColor = Color(0xFF333A4D),
                     disabledContentColor = Color(0xFF8893A8)
                 ),
                 shape = RoundedCornerShape(12.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
-                modifier = Modifier.testTag("buy_pack_${pack.id}_button")
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(38.dp)
+                    .testTag("buy_pack_${pack.id}_button")
             ) {
                 if (isPurchasing) {
                     CircularProgressIndicator(
@@ -596,7 +614,8 @@ private fun CoinPackItemCard(
                     Text(
                         text = displayPrice,
                         fontWeight = FontWeight.Black,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        maxLines = 1
                     )
                 }
             }
