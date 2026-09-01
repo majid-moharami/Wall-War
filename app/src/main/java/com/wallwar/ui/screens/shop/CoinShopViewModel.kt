@@ -25,6 +25,7 @@ data class CoinPack(
     val nameEn: String,
     val coins: Int,
     val priceUsd: String,
+    val priceToman: String = BillingConstants.getTomanPriceForCoins(coins),
     val popularTag: String? = null
 )
 
@@ -56,21 +57,24 @@ class CoinShopViewModel @Inject constructor(
             productId = BillingConstants.COINS_PACK_100,
             nameEn = "Micro Pack",
             coins = 100,
-            priceUsd = "$0.99"
+            priceUsd = "$0.99",
+            priceToman = "10,000 T"
         ),
         CoinPack(
             id = "starter",
             productId = BillingConstants.COINS_PACK_300,
             nameEn = "Starter Pack",
             coins = 300,
-            priceUsd = "$2.49"
+            priceUsd = "$2.49",
+            priceToman = "29,000 T"
         ),
         CoinPack(
             id = "gamer",
             productId = BillingConstants.COINS_PACK_600,
             nameEn = "Gamer Pack",
             coins = 600,
-            priceUsd = "$4.99"
+            priceUsd = "$4.99",
+            priceToman = "58,000 T"
         ),
         CoinPack(
             id = "pro",
@@ -78,6 +82,7 @@ class CoinShopViewModel @Inject constructor(
             nameEn = "Pro Pack",
             coins = 1300,
             priceUsd = "$8.99",
+            priceToman = "129,000 T",
             popularTag = "POPULAR"
         ),
         CoinPack(
@@ -86,6 +91,7 @@ class CoinShopViewModel @Inject constructor(
             nameEn = "Master Pack",
             coins = 3000,
             priceUsd = "$17.99",
+            priceToman = "299,000 T",
             popularTag = "GREAT VALUE"
         ),
         CoinPack(
@@ -94,6 +100,7 @@ class CoinShopViewModel @Inject constructor(
             nameEn = "Champion Vault",
             coins = 7500,
             priceUsd = "$39.99",
+            priceToman = "748,000 T",
             popularTag = "BEST VALUE"
         )
     )

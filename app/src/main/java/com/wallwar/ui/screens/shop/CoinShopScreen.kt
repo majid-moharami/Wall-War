@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.wallwar.data.billing.BillingConstants
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.EmojiEvents
@@ -566,6 +567,12 @@ private fun CoinPackItemCard(
             Spacer(modifier = Modifier.width(12.dp))
 
             // Buy Button
+            val displayPrice = if (activeStore == StoreBillingType.MYKET || activeStore == StoreBillingType.CAFE_BAZAAR) {
+                BillingConstants.getTomanPriceForCoins(pack.coins)
+            } else {
+                pack.priceUsd
+            }
+
             Button(
                 onClick = onBuy,
                 enabled = !isPurchasing,
@@ -587,7 +594,7 @@ private fun CoinPackItemCard(
                     )
                 } else {
                     Text(
-                        text = pack.priceUsd,
+                        text = displayPrice,
                         fontWeight = FontWeight.Black,
                         fontSize = 13.sp
                     )
