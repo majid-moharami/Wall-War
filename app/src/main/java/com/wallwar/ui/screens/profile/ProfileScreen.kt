@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
@@ -595,13 +594,6 @@ fun ProfileScreen(
                     title = "Settings & Sound",
                     subtitle = "Board theme, audio effects & vibration",
                     iconColor = NeonAmber,
-                    onClick = onNavigateToSettings
-                )
-                ProfileOptionRow(
-                    icon = Icons.Default.Backup,
-                    title = "Data Backup & Restore",
-                    subtitle = "Cloud sync, JSON backup & restore data",
-                    iconColor = NeonEmerald,
                     onClick = onNavigateToSettings
                 )
             }
