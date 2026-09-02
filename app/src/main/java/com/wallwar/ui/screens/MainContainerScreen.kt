@@ -53,7 +53,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.res.Configuration
+import android.content.res.Resources
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalConfiguration
@@ -91,6 +94,19 @@ sealed class BottomTab(
     object Profile : BottomTab(ProfileRoute, R.string.tab_profile, Icons.Filled.Person, Icons.Outlined.Person)
 }
 
+private class LocalizedContextWrapper(
+    base: Context,
+    private val localizedContext: Context
+) : ContextWrapper(base) {
+    override fun getResources(): Resources {
+        return localizedContext.resources
+    }
+
+    override fun createConfigurationContext(overrideConfiguration: Configuration): Context {
+        return localizedContext.createConfigurationContext(overrideConfiguration)
+    }
+}
+
 @Composable
 fun MainContainerScreen(
     viewModel: MainViewModel = hiltViewModel()
@@ -113,7 +129,10 @@ fun MainContainerScreen(
     }
     val currentCtx = LocalContext.current
     val localizedContext = remember(currentCtx, updatedConfig) {
-        currentCtx.createConfigurationContext(updatedConfig)
+        LocalizedContextWrapper(
+            base = currentCtx,
+            localizedContext = currentCtx.createConfigurationContext(updatedConfig)
+        )
     }
     val layoutDir = if (selectedLanguage == "fa") LayoutDirection.Rtl else LayoutDirection.Ltr
 

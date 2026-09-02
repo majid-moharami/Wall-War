@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">WallWar</string>
     <string name="app_tagline">Strategic Wall Placement &amp; Pawn Duels</string>
-    <string name="default_web_client_id">969192049743-0tmm7r7hrt6216kk0m0pfi7a4fqfkron.apps.googleusercontent.com</string>
+    <string name="default_web_client_id" translatable="false">969192049743-0tmm7r7hrt6216kk0m0pfi7a4fqfkron.apps.googleusercontent.com</string>
 
     <!-- Navigation Tabs -->
     <string name="tab_home">Home</string>
