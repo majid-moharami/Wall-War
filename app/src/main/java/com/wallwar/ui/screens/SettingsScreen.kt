@@ -27,7 +27,9 @@ import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material3.Button
@@ -53,14 +55,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wallwar.BuildConfig
+import com.wallwar.R
 import com.wallwar.audio.SoundManager
 import com.wallwar.data.UserProfile
 import com.wallwar.data.nakama.NakamaConfig
+import com.wallwar.model.BoardTheme
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonEmerald
@@ -72,6 +77,10 @@ fun SettingsScreen(
     soundManager: SoundManager,
     userProfile: UserProfile,
     nakamaConfig: NakamaConfig = NakamaConfig(),
+    selectedLanguage: String = "en",
+    onSetLanguage: (String) -> Unit = {},
+    boardTheme: BoardTheme = BoardTheme.ELEGANT_DARK,
+    onSetBoardTheme: (BoardTheme) -> Unit = {},
     onUpdateNakamaConfig: (host: String, port: Int, key: String, ssl: Boolean) -> Unit = { _, _, _, _ -> },
     onTestConnection: ((Boolean, String) -> Unit) -> Unit = {},
     onUpdateCoinsAndLevel: (coins: Int, level: Int, onResult: (Boolean, String) -> Unit) -> Unit = { _, _, _ -> },
@@ -111,18 +120,108 @@ fun SettingsScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
+                    contentDescription = stringResource(R.string.btn_back)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Settings",
+                text = stringResource(R.string.settings_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // Language Switcher Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(20.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Language,
+                        contentDescription = null,
+                        tint = NeonCyan,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_language),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = stringResource(R.string.settings_language_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    val isEn = selectedLanguage == "en"
+                    val isFa = selectedLanguage == "fa"
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isEn) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+                            .border(
+                                1.5.dp,
+                                if (isEn) NeonCyan else Color.Transparent,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onSetLanguage("en") }
+                            .padding(vertical = 12.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "English",
+                            fontWeight = if (isEn) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = if (isEn) NeonCyan else Color(0xFFA0ACCC),
+                            fontSize = 14.sp
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isFa) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+                            .border(
+                                1.5.dp,
+                                if (isFa) NeonCyan else Color.Transparent,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable { onSetLanguage("fa") }
+                            .padding(vertical = 12.dp, horizontal = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "فارسی",
+                            fontWeight = if (isFa) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = if (isFa) NeonCyan else Color(0xFFA0ACCC),
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Sound Effects Toggle
         Card(
@@ -145,12 +244,12 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Sound Effects",
+                        text = stringResource(R.string.settings_sound_effects),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Move ticks & wall placement audio",
+                        text = stringResource(R.string.settings_sound_effects_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -188,12 +287,12 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Haptic Vibration",
+                        text = stringResource(R.string.settings_vibration),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Vibrate on moves & wall placements",
+                        text = stringResource(R.string.settings_vibration_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -227,7 +326,7 @@ fun SettingsScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "DEBUG & DEV CONTROLS",
+                    text = stringResource(R.string.settings_debug_controls),
                     style = MaterialTheme.typography.titleSmall,
                     color = NeonAmber,
                     fontWeight = FontWeight.Black,

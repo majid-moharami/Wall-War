@@ -52,6 +52,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import com.wallwar.data.DailyStreakManager
 import com.wallwar.data.DailyStreakState
 import com.wallwar.ui.theme.NeonAmber
@@ -142,14 +144,14 @@ fun DailyStreakRewardsCard(
                     }
                     Column {
                         Text(
-                            text = "7-DAY STREAK REWARDS",
+                            text = stringResource(R.string.daily_rewards_card_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Black,
                             color = Color.White,
                             letterSpacing = 0.8.sp
                         )
                         Text(
-                            text = if (canClaim) "Claim today's reward to keep streak!" else "Streak active! Come back tomorrow",
+                            text = if (canClaim) stringResource(R.string.daily_rewards_claim_hint) else stringResource(R.string.daily_rewards_active_hint),
                             style = MaterialTheme.typography.bodySmall,
                             fontSize = 11.sp,
                             color = if (canClaim) NeonAmber else NeonEmerald,
@@ -282,7 +284,7 @@ fun DailyStreakRewardsCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "CLAIM DAY $nextClaimDay REWARD (+${dailyStreakState.todayReward} COINS)",
+                            text = stringResource(R.string.daily_rewards_claim_btn, nextClaimDay, dailyStreakState.todayReward),
                             fontWeight = FontWeight.Black,
                             fontSize = 13.sp,
                             letterSpacing = 0.5.sp
@@ -311,7 +313,7 @@ fun DailyStreakRewardsCard(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Day $currentDay Reward Claimed ✓  Come back tomorrow for Day ${if (currentDay >= 7) 1 else currentDay + 1}!",
+                            text = stringResource(R.string.daily_rewards_claimed_msg, currentDay, if (currentDay >= 7) 1 else currentDay + 1),
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             color = NeonEmerald
@@ -374,7 +376,7 @@ fun DailyStreakDayItem(
                 }
             ) {
                 Text(
-                    text = "DAY $dayNumber",
+                    text = stringResource(R.string.daily_rewards_day_n, dayNumber),
                     fontSize = 9.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = when {
@@ -438,9 +440,9 @@ fun DailyStreakDayItem(
                 )
                 Text(
                     text = when {
-                        isClaimed -> "Done"
-                        isToday -> "CLAIM!"
-                        else -> "Coins"
+                        isClaimed -> stringResource(R.string.daily_rewards_done)
+                        isToday -> stringResource(R.string.daily_rewards_claim_excl)
+                        else -> stringResource(R.string.coins)
                     },
                     fontSize = 8.sp,
                     fontWeight = FontWeight.Bold,
@@ -541,7 +543,7 @@ fun DailyStreakGrandPrizeCard(
                                 color = if (isToday) NeonAmber.copy(alpha = 0.3f) else Color.Black.copy(alpha = 0.4f)
                             ) {
                                 Text(
-                                    text = "DAY 7 ★ GRAND PRIZE",
+                                    text = stringResource(R.string.daily_rewards_day7_title),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Black,
                                     color = if (isToday) NeonAmber else if (isClaimed) NeonEmerald else Color(0xFFFFD700),
@@ -551,7 +553,7 @@ fun DailyStreakGrandPrizeCard(
                         }
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Ultimate 7-Day Jackpot Chest",
+                            text = stringResource(R.string.daily_rewards_day7_desc),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFA0ACCC)
@@ -572,9 +574,9 @@ fun DailyStreakGrandPrizeCard(
                     )
                     Text(
                         text = when {
-                            isClaimed -> "Claimed ✓"
-                            isToday -> "TAP TO CLAIM"
-                            else -> "Locked 🔒"
+                            isClaimed -> stringResource(R.string.daily_rewards_status_claimed)
+                            isToday -> stringResource(R.string.daily_rewards_status_tap_claim)
+                            else -> stringResource(R.string.daily_rewards_status_locked)
                         },
                         fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,

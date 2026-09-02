@@ -17,6 +17,7 @@ import org.json.JSONObject
 import java.time.LocalDate
 import java.time.ZoneOffset
 import javax.inject.Inject
+import com.wallwar.R
 import javax.inject.Singleton
 import kotlin.random.Random
 
@@ -31,7 +32,31 @@ data class DailyMission(
     val xpReward: Int,
     val isCompleted: Boolean,
     val isClaimed: Boolean
-)
+) {
+    val titleResId: Int
+        get() = when (id) {
+            "win_3_matches" -> R.string.quest_win_3_matches_title
+            "place_15_walls" -> R.string.quest_place_15_walls_title
+            "win_online_match" -> R.string.quest_win_online_match_title
+            "speed_demon" -> R.string.quest_speed_demon_title
+            "defeat_pro_ai" -> R.string.quest_defeat_pro_ai_title
+            "wall_fortress" -> R.string.quest_wall_fortress_title
+            "win_streak_2" -> R.string.quest_win_streak_2_title
+            else -> 0
+        }
+
+    val descResId: Int
+        get() = when (id) {
+            "win_3_matches" -> R.string.quest_win_3_matches_desc
+            "place_15_walls" -> R.string.quest_place_15_walls_desc
+            "win_online_match" -> R.string.quest_win_online_match_desc
+            "speed_demon" -> R.string.quest_speed_demon_desc
+            "defeat_pro_ai" -> R.string.quest_defeat_pro_ai_desc
+            "wall_fortress" -> R.string.quest_wall_fortress_desc
+            "win_streak_2" -> R.string.quest_win_streak_2_desc
+            else -> 0
+        }
+}
 
 @Singleton
 class DailyMissionManager @Inject constructor(

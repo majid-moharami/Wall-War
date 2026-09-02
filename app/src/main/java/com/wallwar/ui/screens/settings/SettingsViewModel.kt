@@ -30,8 +30,13 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val boardTheme: StateFlow<BoardTheme> = settingsRepository.boardTheme
+    val selectedLanguage: StateFlow<String> = settingsRepository.selectedLanguage
     val nakamaConfig: StateFlow<NakamaConfig> = nakamaRepository.config
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
+
+    fun setLanguage(langCode: String) {
+        settingsRepository.setSelectedLanguage(langCode)
+    }
 
     fun updateCoinsAndLevel(targetCoins: Int, targetLevel: Int, onResult: (Boolean, String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {

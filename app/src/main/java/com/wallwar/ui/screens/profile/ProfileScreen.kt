@@ -67,6 +67,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -111,7 +113,7 @@ fun ProfileScreen(
             onDismissRequest = { showEditNameDialog = false },
             title = {
                 Text(
-                    text = "Edit Display Name",
+                    text = stringResource(R.string.profile_edit_name_title),
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
@@ -119,7 +121,7 @@ fun ProfileScreen(
             text = {
                 Column {
                     Text(
-                        text = "Choose the display name that appears to other players during matches.",
+                        text = stringResource(R.string.profile_edit_name_desc),
                         color = Color(0xFFA0ACCC),
                         fontSize = 13.sp
                     )
@@ -128,7 +130,7 @@ fun ProfileScreen(
                         value = editedNameText,
                         onValueChange = { editedNameText = it },
                         singleLine = true,
-                        placeholder = { Text("Display Name", color = Color(0xFF6B7280)) },
+                        placeholder = { Text(stringResource(R.string.profile_display_name_hint), color = Color(0xFF6B7280)) },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = NeonCyan,
                             unfocusedBorderColor = Color(0xFF2E334D),
@@ -151,12 +153,12 @@ fun ProfileScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
                 ) {
-                    Text("Save", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.btn_save), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showEditNameDialog = false }) {
-                    Text("Cancel", color = Color(0xFFA0ACCC))
+                    Text(stringResource(R.string.btn_cancel), color = Color(0xFFA0ACCC))
                 }
             },
             containerColor = NeonDarkCard,
@@ -279,7 +281,7 @@ fun ProfileScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Edit,
-                            contentDescription = "Edit Display Name",
+                            contentDescription = stringResource(R.string.profile_edit_name_title),
                             tint = NeonCyan,
                             modifier = Modifier.size(16.dp)
                         )
@@ -308,20 +310,20 @@ fun ProfileScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.MonetizationOn,
-                        contentDescription = "Coins",
+                        contentDescription = stringResource(R.string.coins),
                         tint = NeonAmber,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "${userProfile.coins} Coins",
+                        text = "${userProfile.coins} " + stringResource(R.string.coins),
                         color = NeonAmber,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 15.sp
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "(+75 / Win)",
+                        text = stringResource(R.string.profile_coins_win_rate),
                         color = Color(0xFFE2C275),
                         fontSize = 11.sp
                     )
@@ -345,7 +347,7 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = if (userProfile.isLoggedIn) "Google Verified" else "Guest Duelist",
+                        text = if (userProfile.isLoggedIn) stringResource(R.string.profile_google_verified) else stringResource(R.string.profile_guest_duelist),
                         color = if (userProfile.isLoggedIn) NeonEmerald else Color(0xFFA0ACCC),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold
@@ -366,7 +368,7 @@ fun ProfileScreen(
                         )
                     ) {
                         Text(
-                            text = "Log In or Create Account",
+                            text = stringResource(R.string.profile_login_or_create),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp
                         )
@@ -393,7 +395,7 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Sign in with Google",
+                                text = stringResource(R.string.profile_sign_in_google),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
@@ -413,11 +415,11 @@ fun ProfileScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Sign Out",
+                                contentDescription = stringResource(R.string.profile_sign_out_nakama),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Sign Out from Nakama", fontWeight = FontWeight.Bold)
+                            Text(text = stringResource(R.string.profile_sign_out_nakama), fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -443,7 +445,7 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "LEVEL ${userProfile.level}",
+                        text = "LVL ${userProfile.level}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = NeonCyan
@@ -475,12 +477,12 @@ fun ProfileScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "${userProfile.xp % 100} / 100 XP to next level",
+                        text = stringResource(R.string.profile_xp_to_next, userProfile.xp % 100),
                         fontSize = 11.sp,
                         color = Color(0xFFA0ACCC)
                     )
                     Text(
-                        text = "${userProfile.trophies} Trophies",
+                        text = stringResource(R.string.trophies_format, userProfile.trophies),
                         fontSize = 11.sp,
                         color = NeonAmber,
                         fontWeight = FontWeight.Bold
@@ -511,7 +513,7 @@ fun ProfileScreen(
                         color = NeonAmber
                     )
                     Text(
-                        text = "Current Streak",
+                        text = stringResource(R.string.profile_current_streak),
                         fontSize = 12.sp,
                         color = Color(0xFFA0ACCC)
                     )
@@ -530,7 +532,7 @@ fun ProfileScreen(
                         color = NeonCyan
                     )
                     Text(
-                        text = "Best Streak",
+                        text = stringResource(R.string.profile_best_streak),
                         fontSize = 12.sp,
                         color = Color(0xFFA0ACCC)
                     )
@@ -542,7 +544,7 @@ fun ProfileScreen(
 
         // Stats Summary
         Text(
-            text = "BATTLE STATISTICS",
+            text = stringResource(R.string.profile_battle_stats),
             style = MaterialTheme.typography.labelMedium,
             color = Color(0xFFA0ACCC),
             fontWeight = FontWeight.Bold,
@@ -554,19 +556,19 @@ fun ProfileScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             StatCard(
-                title = "Total Matches",
+                title = stringResource(R.string.profile_total_matches),
                 value = "${userProfile.totalMatches}",
                 color = NeonCyan,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
-                title = "Victories",
+                title = stringResource(R.string.profile_victories),
                 value = "${userProfile.wins}",
                 color = NeonEmerald,
                 modifier = Modifier.weight(1f)
             )
             StatCard(
-                title = "Walls Placed",
+                title = stringResource(R.string.profile_walls_placed),
                 value = "${userProfile.wallsPlaced}",
                 color = NeonMagenta,
                 modifier = Modifier.weight(1f)
@@ -584,15 +586,15 @@ fun ProfileScreen(
             Column {
                 ProfileOptionRow(
                     icon = Icons.Default.History,
-                    title = "Match History",
-                    subtitle = "Review past duel records and stats",
+                    title = stringResource(R.string.profile_match_history_title),
+                    subtitle = stringResource(R.string.profile_match_history_sub),
                     iconColor = NeonCyan,
                     onClick = onNavigateToHistory
                 )
                 ProfileOptionRow(
                     icon = Icons.Default.Settings,
-                    title = "Settings & Sound",
-                    subtitle = "Board theme, audio effects & vibration",
+                    title = stringResource(R.string.profile_settings_title),
+                    subtitle = stringResource(R.string.profile_settings_sub),
                     iconColor = NeonAmber,
                     onClick = onNavigateToSettings
                 )

@@ -53,10 +53,23 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
+import android.content.res.Configuration
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.LayoutDirection
+import java.util.Locale
+import com.wallwar.R
+import com.wallwar.data.SettingsRepository
+
 @HiltViewModel
 class MainViewModel @Inject constructor(
     authRepository: AuthRepository,
-    val adManager: AdManager
+    val adManager: AdManager,
+    settingsRepository: SettingsRepository
 ) : ViewModel() {
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
     val isAdPlaying = adManager.isAdPlaying
@@ -64,23 +77,25 @@ class MainViewModel @Inject constructor(
     val currentAdType = adManager.currentAdType
     val adCountdown = adManager.adCountdown
     val rewardDescription = adManager.rewardDescription
+    val selectedLanguage = settingsRepository.selectedLanguage
 }
 
 sealed class BottomTab(
     val route: Any,
-    val title: String,
+    val titleRes: Int,
     val selectedIcon: androidx.compose.ui.graphics.vector.ImageVector,
     val unselectedIcon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
-    object Home : BottomTab(HomeRoute, "Home", Icons.Filled.Home, Icons.Outlined.Home)
-    object Ranking : BottomTab(RankingRoute, "Ranking", Icons.Filled.EmojiEvents, Icons.Outlined.EmojiEvents)
-    object Profile : BottomTab(ProfileRoute, "Profile", Icons.Filled.Person, Icons.Outlined.Person)
+    object Home : BottomTab(HomeRoute, R.string.tab_home, Icons.Filled.Home, Icons.Outlined.Home)
+    object Ranking : BottomTab(RankingRoute, R.string.tab_ranking, Icons.Filled.EmojiEvents, Icons.Outlined.EmojiEvents)
+    object Profile : BottomTab(ProfileRoute, R.string.tab_profile, Icons.Filled.Person, Icons.Outlined.Person)
 }
 
 @Composable
 fun MainContainerScreen(
     viewModel: MainViewModel = hiltViewModel()
 ) {
+    val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val isAdPlaying by viewModel.isAdPlaying.collectAsStateWithLifecycle()
     val activeNetwork by viewModel.activeNetwork.collectAsStateWithLifecycle()
@@ -88,102 +103,123 @@ fun MainContainerScreen(
     val adCountdown by viewModel.adCountdown.collectAsStateWithLifecycle()
     val rewardDescription by viewModel.rewardDescription.collectAsStateWithLifecycle()
 
-    val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
-    val tabs = listOf(BottomTab.Home, BottomTab.Ranking, BottomTab.Profile)
-
-    val showBottomBar = currentDestination?.hierarchy?.any { destination ->
-        tabs.any { tab ->
-            val simpleName = tab.route::class.simpleName ?: ""
-            simpleName.isNotEmpty() && destination.route?.contains(simpleName) == true
+    val currentLocale = remember(selectedLanguage) { Locale(selectedLanguage) }
+    val currentConfig = LocalConfiguration.current
+    val updatedConfig = remember(currentConfig, currentLocale) {
+        Configuration(currentConfig).apply {
+            setLocale(currentLocale)
+            setLayoutDirection(currentLocale)
         }
-    } == true
+    }
+    val currentCtx = LocalContext.current
+    val localizedContext = remember(currentCtx, updatedConfig) {
+        currentCtx.createConfigurationContext(updatedConfig)
+    }
+    val layoutDir = if (selectedLanguage == "fa") LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = NeonDarkBg,
-            bottomBar = {
-                if (showBottomBar) {
-                    Surface(
-                        color = NeonDarkSurface,
-                        tonalElevation = 8.dp
-                    ) {
-                        Column {
-                            // Glowing Cyber Accent Line
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(2.dp)
-                                    .background(Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta, NeonCyan)))
-                            )
+    CompositionLocalProvider(
+        LocalConfiguration provides updatedConfig,
+        LocalContext provides localizedContext,
+        LocalLayoutDirection provides layoutDir
+    ) {
+        val navController = rememberNavController()
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentDestination = navBackStackEntry?.destination
 
-                            NavigationBar(
-                                containerColor = NeonDarkSurface,
-                                contentColor = Color.White,
-                                tonalElevation = 0.dp
-                            ) {
-                                tabs.forEach { tab ->
-                                    val tabName = tab.route::class.simpleName ?: ""
-                                    val isSelected = currentDestination?.hierarchy?.any {
-                                        it.route?.contains(tabName) == true
-                                    } == true
+        val tabs = listOf(BottomTab.Home, BottomTab.Ranking, BottomTab.Profile)
 
-                                    NavigationBarItem(
-                                        selected = isSelected,
-                                        onClick = {
-                                            navController.navigate(tab.route) {
-                                                popUpTo(navController.graph.findStartDestination().id) {
-                                                    saveState = true
+        val showBottomBar = currentDestination?.hierarchy?.any { destination ->
+            tabs.any { tab ->
+                val simpleName = tab.route::class.simpleName ?: ""
+                simpleName.isNotEmpty() && destination.route?.contains(simpleName) == true
+            }
+        } == true
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = NeonDarkBg,
+                bottomBar = {
+                    if (showBottomBar) {
+                        Surface(
+                            color = NeonDarkSurface,
+                            tonalElevation = 8.dp
+                        ) {
+                            Column {
+                                // Glowing Cyber Accent Line
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(2.dp)
+                                        .background(Brush.horizontalGradient(listOf(NeonCyan, NeonMagenta, NeonCyan)))
+                                )
+
+                                NavigationBar(
+                                    containerColor = NeonDarkSurface,
+                                    contentColor = Color.White,
+                                    tonalElevation = 0.dp
+                                ) {
+                                    tabs.forEach { tab ->
+                                        val tabName = tab.route::class.simpleName ?: ""
+                                        val isSelected = currentDestination?.hierarchy?.any {
+                                            it.route?.contains(tabName) == true
+                                        } == true
+                                        val tabTitle = stringResource(tab.titleRes)
+
+                                        NavigationBarItem(
+                                            selected = isSelected,
+                                            onClick = {
+                                                navController.navigate(tab.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
                                                 }
-                                                launchSingleTop = true
-                                                restoreState = true
-                                            }
-                                        },
-                                        icon = {
-                                            Icon(
-                                                imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
-                                                contentDescription = tab.title,
-                                                modifier = Modifier.size(24.dp)
+                                            },
+                                            icon = {
+                                                Icon(
+                                                    imageVector = if (isSelected) tab.selectedIcon else tab.unselectedIcon,
+                                                    contentDescription = tabTitle,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            },
+                                            label = {
+                                                Text(
+                                                    text = tabTitle,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    fontSize = 11.sp
+                                                )
+                                            },
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = NeonCyan,
+                                                selectedTextColor = NeonCyan,
+                                                indicatorColor = Color(0xFF003847),
+                                                unselectedIconColor = Color(0xFFA0ACCC),
+                                                unselectedTextColor = Color(0xFFA0ACCC)
                                             )
-                                        },
-                                        label = {
-                                            Text(
-                                                text = tab.title,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                fontSize = 11.sp
-                                            )
-                                        },
-                                        colors = NavigationBarItemDefaults.colors(
-                                            selectedIconColor = NeonCyan,
-                                            selectedTextColor = NeonCyan,
-                                            indicatorColor = Color(0xFF003847),
-                                            unselectedIconColor = Color(0xFFA0ACCC),
-                                            unselectedTextColor = Color(0xFFA0ACCC)
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            ) { innerPadding ->
+                WallWarNavGraph(
+                    navController = navController,
+                    modifier = Modifier.padding(innerPadding)
+                )
             }
-        ) { innerPadding ->
-            WallWarNavGraph(
-                navController = navController,
-                modifier = Modifier.padding(innerPadding)
+
+            // Global Dual Ad Overlay Dialog
+            AdOverlayDialog(
+                isAdPlaying = isAdPlaying,
+                network = activeNetwork,
+                adType = currentAdType,
+                countdown = adCountdown,
+                rewardDescription = rewardDescription
             )
         }
-
-        // Global Dual Ad Overlay Dialog
-        AdOverlayDialog(
-            isAdPlaying = isAdPlaying,
-            network = activeNetwork,
-            adType = currentAdType,
-            countdown = adCountdown,
-            rewardDescription = rewardDescription
-        )
     }
 }

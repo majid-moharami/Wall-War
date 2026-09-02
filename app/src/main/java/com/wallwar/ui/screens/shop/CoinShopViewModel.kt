@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.wallwar.R
 import javax.inject.Inject
 
 data class CoinPack(
@@ -27,7 +28,18 @@ data class CoinPack(
     val priceUsd: String,
     val priceToman: String = BillingConstants.getTomanPriceForCoins(coins),
     val popularTag: String? = null
-)
+) {
+    val titleResId: Int
+        get() = when (id) {
+            "micro" -> R.string.pack_micro
+            "starter" -> R.string.pack_starter
+            "gamer" -> R.string.pack_gamer
+            "pro" -> R.string.pack_pro
+            "master" -> R.string.pack_master
+            "champion" -> R.string.pack_champion
+            else -> R.string.pack_starter
+        }
+}
 
 @HiltViewModel
 class CoinShopViewModel @Inject constructor(

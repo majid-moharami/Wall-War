@@ -45,6 +45,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import com.wallwar.data.DailyStreakState
 import com.wallwar.data.UserProfile
 import com.wallwar.ui.components.DailyStreakRewardsCard
@@ -95,7 +97,7 @@ fun DailyRewardsScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.btn_back),
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -103,14 +105,14 @@ fun DailyRewardsScreen(
 
                         Column {
                             Text(
-                                text = "DAILY REWARDS",
+                                text = stringResource(R.string.daily_rewards_header_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Black,
                                 color = NeonAmber,
                                 letterSpacing = 1.sp
                             )
                             Text(
-                                text = "7-Day Login Streak",
+                                text = stringResource(R.string.daily_rewards_7day_sub),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFA0ACCC),
                                 fontSize = 11.sp
@@ -139,7 +141,7 @@ fun DailyRewardsScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.AddCircle,
-                            contentDescription = "Get Coins",
+                            contentDescription = stringResource(R.string.coins),
                             tint = NeonAmber,
                             modifier = Modifier.size(16.dp)
                         )
@@ -198,20 +200,20 @@ fun DailyRewardsScreen(
 
                         Column {
                             Text(
-                                text = "CURRENT STREAK",
+                                text = stringResource(R.string.profile_current_streak),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = NeonAmber,
                                 letterSpacing = 1.sp
                             )
                             Text(
-                                text = "Day ${dailyStreakState.currentDay} of 7",
+                                text = stringResource(R.string.daily_streak_day_format, dailyStreakState.currentDay),
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
                             )
                             Text(
-                                text = if (dailyStreakState.canClaim) "Claim available now!" else "Next reward tomorrow",
+                                text = if (dailyStreakState.canClaim) stringResource(R.string.daily_streak_claim_ready) else stringResource(R.string.daily_streak_claim_tomorrow),
                                 fontSize = 11.sp,
                                 color = if (dailyStreakState.canClaim) NeonEmerald else Color(0xFFA0ACCC),
                                 fontWeight = FontWeight.SemiBold
@@ -225,7 +227,7 @@ fun DailyRewardsScreen(
                             color = NeonAmber
                         ) {
                             Text(
-                                text = "READY",
+                                text = stringResource(R.string.daily_streak_ready_btn),
                                 fontWeight = FontWeight.Black,
                                 fontSize = 11.sp,
                                 color = Color.Black,
@@ -239,7 +241,7 @@ fun DailyRewardsScreen(
                             border = BorderStroke(1.dp, NeonBorder)
                         ) {
                             Text(
-                                text = "✓ CLAIMED",
+                                text = stringResource(R.string.daily_streak_claimed_pill),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 10.sp,
                                 color = NeonEmerald,
@@ -284,7 +286,7 @@ fun DailyRewardsScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            text = "Streak Rules & Jackpots",
+                            text = stringResource(R.string.daily_streak_rules_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -294,9 +296,7 @@ fun DailyRewardsScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "• Log in daily to claim escalating coin rewards and arena entry funds.\n" +
-                                "• Completing Day 7 grants the +500 Mega Jackpot and resets the streak.\n" +
-                                "• Missing a day resets the streak back to Day 1.",
+                        text = stringResource(R.string.daily_streak_rules_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFA0ACCC),
                         lineHeight = 18.sp

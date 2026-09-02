@@ -61,6 +61,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import com.wallwar.data.DailyMission
 import com.wallwar.data.UserProfile
 import com.wallwar.ui.theme.NeonAmber
@@ -131,7 +133,7 @@ fun DailyQuestsScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.btn_back),
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -139,14 +141,14 @@ fun DailyQuestsScreen(
 
                         Column {
                             Text(
-                                text = "DAILY QUESTS",
+                                text = stringResource(R.string.daily_quests_header_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = 1.sp
                             )
                             Text(
-                                text = "Earn Coins & XP Daily",
+                                text = stringResource(R.string.daily_quests_sub),
                                 fontSize = 11.sp,
                                 color = NeonCyan
                             )
@@ -175,7 +177,7 @@ fun DailyQuestsScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.AddCircle,
-                            contentDescription = "Buy Coins",
+                            contentDescription = stringResource(R.string.coins),
                             tint = NeonAmber,
                             modifier = Modifier.size(14.dp)
                         )
@@ -228,7 +230,7 @@ fun DailyQuestsScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "TODAY'S MISSION PROGRESS",
+                                    text = stringResource(R.string.daily_quests_progress_title),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
                                     color = NeonCyan,
@@ -236,7 +238,7 @@ fun DailyQuestsScreen(
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "$completedCount of $totalCount Completed",
+                                    text = stringResource(R.string.daily_quests_completed_format, completedCount, totalCount),
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color.White
@@ -257,7 +259,7 @@ fun DailyQuestsScreen(
                                     modifier = Modifier.testTag("claim_all_quests_btn")
                                 ) {
                                     Text(
-                                        text = "Claim All ($claimableCount)",
+                                        text = stringResource(R.string.daily_quests_claim_all, claimableCount),
                                         fontWeight = FontWeight.Black,
                                         color = Color.Black,
                                         fontSize = 11.sp
@@ -270,7 +272,7 @@ fun DailyQuestsScreen(
                                     border = BorderStroke(1.dp, NeonBorder)
                                 ) {
                                     Text(
-                                        text = "🔄 Resets 00:00 UTC",
+                                        text = stringResource(R.string.daily_quests_resets),
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color(0xFFA0ACCC),
@@ -311,7 +313,7 @@ fun DailyQuestsScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (allCompleted) "🔥 All Daily Missions Completed!" else "Complete missions to earn coin rewards & XP boosts.",
+                                text = if (allCompleted) stringResource(R.string.daily_quests_all_done) else stringResource(R.string.daily_quests_in_progress_hint),
                                 fontSize = 11.sp,
                                 color = if (allCompleted) NeonAmber else Color(0xFFA0ACCC),
                                 fontWeight = if (allCompleted) FontWeight.Bold else FontWeight.Normal
@@ -336,7 +338,7 @@ fun DailyQuestsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "ACTIVE MISSIONS",
+                        text = stringResource(R.string.daily_quests_active_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Black,
                         color = Color.White,
@@ -344,7 +346,7 @@ fun DailyQuestsScreen(
                     )
 
                     Text(
-                        text = "$claimedCount / $totalCount Claimed",
+                        text = stringResource(R.string.daily_quests_claimed_format, claimedCount, totalCount),
                         fontSize = 11.sp,
                         color = Color(0xFFA0ACCC),
                         fontWeight = FontWeight.SemiBold
@@ -370,14 +372,14 @@ fun DailyQuestsScreen(
                             Text(text = "🎯", fontSize = 36.sp)
                             Spacer(modifier = Modifier.height(10.dp))
                             Text(
-                                text = "Missions Loading...",
+                                text = stringResource(R.string.daily_quests_loading),
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 fontSize = 14.sp
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Your daily tactical challenges are generating.",
+                                text = stringResource(R.string.daily_quests_loading_desc),
                                 fontSize = 12.sp,
                                 color = Color(0xFFA0ACCC),
                                 textAlign = TextAlign.Center
@@ -427,14 +429,14 @@ fun DailyQuestsScreen(
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Daily Quest Guidelines",
+                                text = stringResource(R.string.daily_quests_guidelines_title),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Daily missions reset every midnight UTC. Completed matches in Online Arena, AI Bot, and Pass & Play count towards your progress!",
+                                text = stringResource(R.string.daily_quests_guidelines_desc),
                                 fontSize = 11.sp,
                                 color = Color(0xFFA0ACCC),
                                 lineHeight = 15.sp
@@ -512,15 +514,17 @@ fun DailyMissionCard(
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column {
+                        val titleText = if (mission.titleResId != 0) stringResource(mission.titleResId) else mission.title
+                        val descText = if (mission.descResId != 0) stringResource(mission.descResId) else mission.description
                         Text(
-                            text = mission.title,
+                            text = titleText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = if (isFinished) Color(0xFFA0ACCC) else Color.White
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = mission.description,
+                            text = descText,
                             fontSize = 11.sp,
                             color = Color(0xFFA0ACCC)
                         )
@@ -569,7 +573,7 @@ fun DailyMissionCard(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = if (isFinished) "Claimed" else "${mission.currentProgress} / ${mission.target}",
+                            text = if (isFinished) stringResource(R.string.daily_quest_claimed) else "${mission.currentProgress} / ${mission.target}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = when {
@@ -624,7 +628,7 @@ fun DailyMissionCard(
                             modifier = Modifier.testTag("claim_mission_${mission.id}")
                         ) {
                             Text(
-                                text = "Claim 🪙",
+                                text = stringResource(R.string.daily_quests_claim_btn),
                                 fontWeight = FontWeight.Black,
                                 color = Color.Black,
                                 fontSize = 12.sp
@@ -649,7 +653,7 @@ fun DailyMissionCard(
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Done",
+                                    text = stringResource(R.string.daily_quests_done),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = NeonEmerald
@@ -664,7 +668,7 @@ fun DailyMissionCard(
                             border = BorderStroke(1.dp, Color(0xFF222B42))
                         ) {
                             Text(
-                                text = "In Progress",
+                                text = stringResource(R.string.daily_quests_in_progress),
                                 fontSize = 11.sp,
                                 color = Color(0xFF8B98B5),
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)

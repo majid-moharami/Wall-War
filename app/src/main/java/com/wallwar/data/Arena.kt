@@ -1,6 +1,8 @@
 package com.wallwar.data
 
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.Color
+import com.wallwar.R
 import com.wallwar.model.BoardTheme
 
 data class Arena(
@@ -17,6 +19,32 @@ data class Arena(
     val isOffline: Boolean = false
 ) {
     val houseFee: Int get() = if (winningPrize > 0) (entryFee * 2) - winningPrize else 0
+
+    val titleResId: Int
+        @StringRes get() = when (id) {
+            "starter" -> R.string.arena_starter_title
+            "novice" -> R.string.arena_novice_title
+            "amateur" -> R.string.arena_amateur_title
+            "pro" -> R.string.arena_pro_title
+            "highroller" -> R.string.arena_highroller_title
+            "master" -> R.string.arena_master_title
+            "grandchampion" -> R.string.arena_grandchampion_title
+            "offline_ai" -> R.string.arena_offline_ai_title
+            else -> R.string.arena_starter_title
+        }
+
+    val subtitleResId: Int
+        @StringRes get() = when (id) {
+            "starter" -> R.string.arena_starter_sub
+            "novice" -> R.string.arena_novice_sub
+            "amateur" -> R.string.arena_amateur_sub
+            "pro" -> R.string.arena_pro_sub
+            "highroller" -> R.string.arena_highroller_sub
+            "master" -> R.string.arena_master_sub
+            "grandchampion" -> R.string.arena_grandchampion_sub
+            "offline_ai" -> R.string.arena_offline_ai_sub
+            else -> R.string.arena_starter_sub
+        }
 }
 
 object ArenaConfig {

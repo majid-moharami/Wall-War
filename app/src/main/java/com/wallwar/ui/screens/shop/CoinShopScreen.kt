@@ -60,6 +60,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -123,14 +125,14 @@ fun CoinShopScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.btn_back),
                         tint = Color.White
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "Coin Store",
+                        text = stringResource(R.string.shop_coin_store),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Black,
                         color = Color.White
@@ -157,13 +159,13 @@ fun CoinShopScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.MonetizationOn,
-                        contentDescription = "Coins",
+                        contentDescription = stringResource(R.string.coins),
                         tint = NeonAmber,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "${userProfile.coins} Coins",
+                        text = "${userProfile.coins} " + stringResource(R.string.coins),
                         fontWeight = FontWeight.ExtraBold,
                         color = NeonAmber,
                         fontSize = 14.sp
@@ -336,7 +338,7 @@ fun CoinShopScreen(
                             border = BorderStroke(1.dp, NeonCyan)
                         ) {
                             Text(
-                                text = "FREE REWARD",
+                                text = stringResource(R.string.spinner_free_spin),
                                 color = NeonCyan,
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 10.sp,
@@ -346,14 +348,14 @@ fun CoinShopScreen(
                     }
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "Watch Ad (+50 Coins)",
+                        text = stringResource(R.string.shop_watch_ad_title),
                         color = Color.White,
                         fontWeight = FontWeight.Black,
                         fontSize = 17.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Watch a quick sponsored video to earn +50 Free Coins instantly!",
+                        text = stringResource(R.string.shop_watch_ad_desc),
                         color = Color(0xFFA0ACCC),
                         fontSize = 12.sp
                     )
@@ -381,20 +383,20 @@ fun CoinShopScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isAdPlaying) "Playing..." else "Loading...",
+                            text = stringResource(R.string.shop_ad_loading),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 13.sp
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.OndemandVideo,
-                            contentDescription = "Watch Ad",
+                            contentDescription = stringResource(R.string.shop_watch_ad_btn),
                             tint = Color.Black,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Watch",
+                            text = stringResource(R.string.shop_watch_ad_btn),
                             fontWeight = FontWeight.Black,
                             fontSize = 13.sp
                         )
@@ -416,7 +418,7 @@ fun CoinShopScreen(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "COIN PACKAGES",
+                text = stringResource(R.string.shop_coin_packs_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Black,
                 color = Color.White,
@@ -533,7 +535,7 @@ private fun CoinPackItemCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = pack.nameEn,
+                            text = stringResource(pack.titleResId),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -545,8 +547,13 @@ private fun CoinPackItemCard(
                                 color = tagColor.copy(alpha = 0.16f),
                                 border = BorderStroke(1.dp, tagColor.copy(alpha = 0.8f))
                             ) {
+                                val tagText = when (pack.popularTag) {
+                                    "BEST VALUE" -> stringResource(R.string.home_badge_best_value)
+                                    "POPULAR" -> stringResource(R.string.home_badge_popular)
+                                    else -> pack.popularTag
+                                }
                                 Text(
-                                    text = pack.popularTag,
+                                    text = tagText,
                                     color = tagColor,
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 9.sp,
@@ -569,7 +576,7 @@ private fun CoinPackItemCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "+${pack.coins} Coins",
+                            text = "+${pack.coins} " + stringResource(R.string.coins),
                             color = NeonAmber,
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 13.sp

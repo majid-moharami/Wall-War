@@ -79,10 +79,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.wallwar.R
 import com.wallwar.data.Arena
 import com.wallwar.data.ArenaConfig
 import com.wallwar.data.DailyMission
@@ -175,7 +177,7 @@ fun HomeScreen(
             containerColor = NeonDarkCard,
             title = {
                 Text(
-                    text = "Match Forfeited ⚠️",
+                    text = stringResource(R.string.home_forfeit_title),
                     color = NeonAmber,
                     fontWeight = FontWeight.Bold
                 )
@@ -191,7 +193,7 @@ fun HomeScreen(
                     onClick = onClearAbandonedMatchNotice,
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCyan)
                 ) {
-                    Text("Got It", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.btn_got_it), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -204,7 +206,7 @@ fun HomeScreen(
             containerColor = NeonDarkCard,
             title = {
                 Text(
-                    text = "Insufficient Coins 🪙",
+                    text = stringResource(R.string.home_insufficient_coins_title),
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
@@ -223,7 +225,7 @@ fun HomeScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = NeonAmber)
                 ) {
-                    Text("Open Coin Shop", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.home_open_coin_shop), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -231,7 +233,7 @@ fun HomeScreen(
                     onClick = onClearArenaError,
                     border = BorderStroke(1.dp, NeonBorder)
                 ) {
-                    Text("Cancel", color = Color.White)
+                    Text(stringResource(R.string.btn_cancel), color = Color.White)
                 }
             }
         )
@@ -244,7 +246,7 @@ fun HomeScreen(
             containerColor = NeonDarkCard,
             title = {
                 Text(
-                    text = "Reward Received! 🎉",
+                    text = stringResource(R.string.home_reward_received_title),
                     color = NeonAmber,
                     fontWeight = FontWeight.Bold
                 )
@@ -260,7 +262,7 @@ fun HomeScreen(
                     onClick = onClearBonusMessage,
                     colors = ButtonDefaults.buttonColors(containerColor = NeonAmber)
                 ) {
-                    Text("Awesome!", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.btn_awesome), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -399,7 +401,7 @@ fun HomeHeaderSection(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.AddCircle,
-                    contentDescription = "Buy Coins",
+                    contentDescription = stringResource(R.string.home_buy_coins),
                     tint = NeonAmber,
                     modifier = Modifier.size(15.dp)
                 )
@@ -424,7 +426,7 @@ fun HomeHeaderSection(
             ) {
                 Icon(
                     imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
+                    contentDescription = stringResource(R.string.settings_title),
                     tint = Color(0xFFBAC5E1),
                     modifier = Modifier.size(20.dp)
                 )
@@ -591,13 +593,13 @@ fun ShiningSkinButton(
                     // High-appeal Cosmetic Sparkle Icon with dynamic glowing tint
                     Icon(
                         imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = "Skins Vault",
+                        contentDescription = stringResource(R.string.home_skins_btn),
                         tint = currentGlowColor,
                         modifier = Modifier.size(17.dp)
                     )
                     Spacer(modifier = Modifier.width(5.dp))
                     Text(
-                        text = "Skins",
+                        text = stringResource(R.string.home_skins_btn),
                         color = Color.White,
                         fontWeight = FontWeight.Black,
                         fontSize = 12.sp,
@@ -648,7 +650,7 @@ fun HeroRatingCard(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "GLOBAL RANKING TIER",
+                        text = stringResource(R.string.home_global_ranking_tier).uppercase(),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFFA0ACCC),
                         fontWeight = FontWeight.Bold,
@@ -661,7 +663,7 @@ fun HeroRatingCard(
                             .padding(horizontal = 4.dp, vertical = 1.dp)
                     ) {
                         Text(
-                            text = "📋 DAILY QUESTS",
+                            text = stringResource(R.string.home_daily_quests_badge),
                             color = NeonEmerald,
                             fontSize = 7.sp,
                             fontWeight = FontWeight.Black,
@@ -680,7 +682,7 @@ fun HeroRatingCard(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "⚡ LVL ${userProfile.level}",
+                            text = stringResource(R.string.lvl_format, userProfile.level),
                             fontWeight = FontWeight.Black,
                             fontSize = 9.5.sp,
                             color = NeonAmber
@@ -715,7 +717,7 @@ fun HeroRatingCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "${userProfile.trophies} Trophies",
+                        text = stringResource(R.string.trophies_format, userProfile.trophies),
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         fontSize = 14.sp
@@ -723,7 +725,7 @@ fun HeroRatingCard(
                 }
 
                 Text(
-                    text = "${userProfile.xp % 1000} / 1,000 XP",
+                    text = stringResource(R.string.xp_format, userProfile.xp % 1000, 1000),
                     fontSize = 12.sp,
                     color = Color(0xFFA0ACCC),
                     fontWeight = FontWeight.SemiBold
@@ -773,7 +775,7 @@ fun HeroRatingCard(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "🎯 $winRate% Win",
+                            text = stringResource(R.string.home_win_rate_tag, winRate),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonEmerald,
@@ -795,7 +797,7 @@ fun HeroRatingCard(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "🏆 $actualWins Wins",
+                            text = stringResource(R.string.home_total_wins_tag, actualWins),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonCyan,
@@ -817,7 +819,7 @@ fun HeroRatingCard(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "🔥 ${userProfile.currentWinStreak} Streak",
+                            text = stringResource(R.string.home_streak_tag, userProfile.currentWinStreak),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonAmber,
@@ -879,14 +881,14 @@ fun QuickDailyAccessSection(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "DAILY REWARD",
+                            text = stringResource(R.string.home_daily_reward_title).uppercase(),
                             fontWeight = FontWeight.Black,
                             fontSize = 10.5.sp,
                             color = Color.White,
                             maxLines = 1
                         )
                         Text(
-                            text = if (dailyStreakState.canClaim) "Day ${dailyStreakState.currentDay} • Ready!" else "Day ${dailyStreakState.currentDay}/7 Streak",
+                            text = if (dailyStreakState.canClaim) stringResource(R.string.home_daily_reward_ready, dailyStreakState.currentDay) else stringResource(R.string.home_daily_reward_streak, dailyStreakState.currentDay),
                             fontSize = 9.5.sp,
                             fontWeight = if (dailyStreakState.canClaim) FontWeight.Bold else FontWeight.Normal,
                             color = if (dailyStreakState.canClaim) NeonAmber else Color(0xFFA0ACCC),
@@ -929,14 +931,14 @@ fun QuickDailyAccessSection(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "LUCKY WHEEL",
+                            text = stringResource(R.string.home_lucky_wheel_title).uppercase(),
                             fontWeight = FontWeight.Black,
                             fontSize = 10.5.sp,
                             color = Color.White,
                             maxLines = 1
                         )
                         Text(
-                            text = if (spinnerState.canSpinToday) "🪙 500 • 1/Day" else "Spun Today ✓",
+                            text = if (spinnerState.canSpinToday) stringResource(R.string.home_lucky_wheel_sub_ready) else stringResource(R.string.home_lucky_wheel_sub_done),
                             fontSize = 9.5.sp,
                             fontWeight = if (spinnerState.canSpinToday) FontWeight.Bold else FontWeight.Normal,
                             color = if (spinnerState.canSpinToday) NeonCyan else Color(0xFFA0ACCC),
@@ -967,14 +969,14 @@ fun OnlineArenasSection(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "⚔️ ONLINE ARENA TABLES",
+                    text = stringResource(R.string.home_online_arenas_title).uppercase(),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Black,
                     color = Color.White
                 )
             }
             Text(
-                text = "${arenas.size} Tables Available",
+                text = stringResource(R.string.home_tables_available, arenas.size),
                 fontSize = 11.sp,
                 color = Color(0xFFA0ACCC),
                 fontWeight = FontWeight.SemiBold
@@ -1083,7 +1085,7 @@ fun OnlineArenaCard(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = arena.title,
+                        text = stringResource(arena.titleResId),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black,
                         color = Color.White
@@ -1096,7 +1098,7 @@ fun OnlineArenaCard(
                         color = NeonCyan
                     ) {
                         Text(
-                            text = "POPULAR",
+                            text = stringResource(R.string.home_badge_popular).uppercase(),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Black,
                             color = Color.Black,
@@ -1109,7 +1111,7 @@ fun OnlineArenaCard(
                         color = NeonAmber
                     ) {
                         Text(
-                            text = "APEX TIER",
+                            text = stringResource(R.string.home_badge_best_value).uppercase(),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Black,
                             color = Color.Black,
@@ -1122,7 +1124,7 @@ fun OnlineArenaCard(
             Spacer(modifier = Modifier.height(6.dp))
 
             Text(
-                text = arena.subtitle,
+                text = stringResource(arena.subtitleResId),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color(0xFFA0ACCC),
                 fontSize = 11.sp,
@@ -1152,7 +1154,7 @@ fun OnlineArenaCard(
                     // Entry Fee
                     Column {
                         Text(
-                            text = "ENTRY FEE",
+                            text = stringResource(R.string.home_arena_entry_fee).uppercase(),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFBAC5E1)
@@ -1175,13 +1177,13 @@ fun OnlineArenaCard(
                     // Winning Prize
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
-                            text = "WINNER REWARD",
+                            text = stringResource(R.string.home_arena_win_prize).uppercase(),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFFBAC5E1)
                         )
                         Text(
-                            text = "🏆 ${arena.winningPrize} Coins",
+                            text = "🏆 ${arena.winningPrize} ${stringResource(R.string.coins)}",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = arenaColor
@@ -1208,7 +1210,7 @@ fun OnlineArenaCard(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Play (🪙 ${arena.entryFee})",
+                            text = "${stringResource(R.string.home_arena_play_now)} (🪙 ${arena.entryFee})",
                             fontWeight = FontWeight.Black,
                             color = Color.Black,
                             fontSize = 13.sp
@@ -1233,7 +1235,7 @@ fun OnlineArenaCard(
                         .height(44.dp)
                 ) {
                     Text(
-                        text = "Need 🪙 ${arena.entryFee}",
+                        text = "${stringResource(R.string.home_arena_get_coins)} (🪙 ${arena.entryFee})",
                         fontWeight = FontWeight.Bold,
                         color = NeonAmber,
                         fontSize = 12.sp
@@ -1299,7 +1301,7 @@ fun SimpleOfflinePlaySection(
                 Column {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = "⚔️ OFFLINE & PRACTICE",
+                            text = stringResource(R.string.home_offline_ai_title),
                             fontWeight = FontWeight.Black,
                             fontSize = 13.sp,
                             color = Color.White
@@ -1307,7 +1309,7 @@ fun SimpleOfflinePlaySection(
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Play without internet • AI Bot & Pass/Play",
+                        text = stringResource(R.string.home_offline_ai_subtitle),
                         fontSize = 11.sp,
                         color = Color(0xFFA0ACCC)
                     )
@@ -1324,7 +1326,7 @@ fun SimpleOfflinePlaySection(
                 modifier = Modifier.testTag("play_offline_btn")
             ) {
                 Text(
-                    text = "Play",
+                    text = stringResource(R.string.home_arena_play_now),
                     fontWeight = FontWeight.Black,
                     color = Color.Black,
                     fontSize = 12.sp
@@ -1377,7 +1379,7 @@ fun BottomUtilitySection(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Book,
-                        contentDescription = "Rules",
+                        contentDescription = stringResource(R.string.home_how_to_play_title),
                         tint = NeonCyan,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1385,15 +1387,16 @@ fun BottomUtilitySection(
 
                 Column {
                     Text(
-                        text = "How to Play",
+                        text = stringResource(R.string.home_how_to_play_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         color = Color.White
                     )
                     Text(
-                        text = "Rules & Guide",
+                        text = stringResource(R.string.home_how_to_play_subtitle),
                         fontSize = 10.sp,
-                        color = Color(0xFFA0ACCC)
+                        color = Color(0xFFA0ACCC),
+                        maxLines = 1
                     )
                 }
             }
@@ -1425,7 +1428,7 @@ fun BottomUtilitySection(
                 ) {
                     Icon(
                         imageVector = Icons.Default.BarChart,
-                        contentDescription = "History",
+                        contentDescription = stringResource(R.string.home_match_history_title),
                         tint = NeonAmber,
                         modifier = Modifier.size(18.dp)
                     )
@@ -1433,15 +1436,16 @@ fun BottomUtilitySection(
 
                 Column {
                     Text(
-                        text = "Match History",
+                        text = stringResource(R.string.home_match_history_title),
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp,
                         color = Color.White
                     )
                     Text(
-                        text = "Logs & Stats",
+                        text = stringResource(R.string.home_match_history_subtitle),
                         fontSize = 10.sp,
-                        color = Color(0xFFA0ACCC)
+                        color = Color(0xFFA0ACCC),
+                        maxLines = 1
                     )
                 }
             }

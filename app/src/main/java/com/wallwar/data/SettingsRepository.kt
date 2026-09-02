@@ -2,6 +2,7 @@ package com.wallwar.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.wallwar.BuildConfig
 import com.wallwar.data.nakama.NakamaRepository
 import com.wallwar.model.BoardTheme
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -25,6 +26,27 @@ class SettingsRepository @Inject constructor(
     private val _boardTheme = MutableStateFlow(loadStoredTheme())
     val boardTheme: StateFlow<BoardTheme> = _boardTheme.asStateFlow()
 
+    private val _selectedLanguage = MutableStateFlow(loadStoredLanguage())
+    val selectedLanguage: StateFlow<String> = _selectedLanguage.asStateFlow()
+
+    private fun getDefaultLanguage(): String {
+        return when (BuildConfig.TARGET_STORE.uppercase()) {
+            "BAZAAR", "MYKET" -> "fa"
+            else -> "en"
+        }
+    }
+
+    private fun loadStoredLanguage(): String {
+        val defaultLang = getDefaultLanguage()
+        return prefs.getString("selected_language", defaultLang) ?: defaultLang
+    }
+
+    fun setSelectedLanguage(langCode: String) {
+        val validLang = if (langCode == "fa") "fa" else "en"
+        _selectedLanguage.value = validLang
+        prefs.edit().putString("selected_language", validLang).apply()
+    }
+
     private fun loadStoredTheme(): BoardTheme {
         val themeName = prefs.getString("selected_board_theme", BoardTheme.ELEGANT_DARK.name) ?: BoardTheme.ELEGANT_DARK.name
         return try {
@@ -46,5 +68,6 @@ class SettingsRepository @Inject constructor(
 
     fun restoreDefaults() {
         setBoardTheme(BoardTheme.ELEGANT_DARK)
+        setSelectedLanguage(getDefaultLanguage())
     }
 }

@@ -39,28 +39,33 @@ object BillingConstants {
         CoinPackDefinition(COINS_PACK_7500, "champion", "Champion Vault", 7500, "$39.99", "748,000 T", popularTag = "BEST VALUE")
     )
 
-    fun getTomanPriceForCoins(coins: Int): String {
-        return when (coins) {
-            100 -> "10,000 T"
-            300 -> "29,000 T"
-            600 -> "58,000 T"
-            1300 -> "129,000 T"
-            3000 -> "299,000 T"
-            7500 -> "748,000 T"
-            else -> when {
-                coins <= 100 -> "10,000 T"
-                coins <= 300 -> "29,000 T"
-                coins <= 600 -> "58,000 T"
-                coins <= 1300 -> "129,000 T"
-                coins <= 3000 -> "299,000 T"
-                else -> "748,000 T"
-            }
-        }
+    fun isPersianLocale(): Boolean {
+        return java.util.Locale.getDefault().language == "fa"
     }
 
-    fun getTomanPriceForProductId(productId: String): String {
-        val def = getDefinitionByProductId(productId)
-        return def?.defaultPriceToman ?: getTomanPriceForCoins(getCoinsForProductId(productId))
+    fun getTomanPriceForCoins(coins: Int, isPersian: Boolean = isPersianLocale()): String {
+        val suffix = if (isPersian) " تومان" else " T"
+        val amount = when (coins) {
+            100 -> "10,000"
+            300 -> "29,000"
+            600 -> "58,000"
+            1300 -> "129,000"
+            3000 -> "299,000"
+            7500 -> "748,000"
+            else -> when {
+                coins <= 100 -> "10,000"
+                coins <= 300 -> "29,000"
+                coins <= 600 -> "58,000"
+                coins <= 1300 -> "129,000"
+                coins <= 3000 -> "299,000"
+                else -> "748,000"
+            }
+        }
+        return "$amount$suffix"
+    }
+
+    fun getTomanPriceForProductId(productId: String, isPersian: Boolean = isPersianLocale()): String {
+        return getTomanPriceForCoins(getCoinsForProductId(productId), isPersian)
     }
 
     fun getDefinitionByProductId(productId: String): CoinPackDefinition? {

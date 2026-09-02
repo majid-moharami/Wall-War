@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import com.wallwar.data.Arena
 import com.wallwar.model.AiDifficulty
 import com.wallwar.model.OpponentType
@@ -128,13 +130,13 @@ fun OfflinePlayDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "OFFLINE PRACTICE",
+                                text = stringResource(R.string.offline_practice_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
                             )
                             Text(
-                                text = "Play without internet connection",
+                                text = stringResource(R.string.offline_practice_subtitle),
                                 fontSize = 11.sp,
                                 color = Color(0xFFA0ACCC)
                             )
@@ -152,7 +154,7 @@ fun OfflinePlayDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.btn_close),
                             tint = if (isRewardedAdLoading || isAdPlaying) Color(0xFF4A5568) else Color(0xFFA0ACCC)
                         )
                     }
@@ -162,7 +164,7 @@ fun OfflinePlayDialog(
 
                 // Mode Tabs (VS AI vs Local Pass & Play)
                 Text(
-                    text = "SELECT OPPONENT TYPE",
+                    text = stringResource(R.string.offline_select_opponent),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFFA0ACCC),
@@ -195,7 +197,7 @@ fun OfflinePlayDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "🤖 VS AI Bot",
+                            text = stringResource(R.string.offline_mode_ai_bot),
                             fontSize = 13.sp,
                             fontWeight = if (selectedOpponent == OpponentType.AI) FontWeight.Black else FontWeight.Bold,
                             color = if (selectedOpponent == OpponentType.AI) Color.White else Color(0xFF6B7A99)
@@ -217,7 +219,7 @@ fun OfflinePlayDialog(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "⚡ Pass & Play",
+                            text = stringResource(R.string.offline_mode_pass_and_play),
                             fontSize = 13.sp,
                             fontWeight = if (selectedOpponent == OpponentType.LOCAL_PASS_PLAY) FontWeight.Black else FontWeight.Bold,
                             color = if (selectedOpponent == OpponentType.LOCAL_PASS_PLAY) Color.White else Color(0xFF6B7A99)
@@ -229,7 +231,7 @@ fun OfflinePlayDialog(
                 if (selectedOpponent == OpponentType.AI) {
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "AI BOT DIFFICULTY",
+                        text = stringResource(R.string.offline_ai_diff_title),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFFA0ACCC),
@@ -258,8 +260,13 @@ fun OfflinePlayDialog(
                                     .padding(vertical = 8.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                val diffName = when (diff) {
+                                    AiDifficulty.EASY -> stringResource(R.string.difficulty_easy)
+                                    AiDifficulty.NORMAL -> stringResource(R.string.difficulty_normal)
+                                    AiDifficulty.PRO -> stringResource(R.string.difficulty_hard)
+                                }
                                 Text(
-                                    text = diff.displayName,
+                                    text = diffName,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
                                     color = if (isSelected) sectionColor else Color(0xFFA0ACCC)
@@ -285,7 +292,7 @@ fun OfflinePlayDialog(
                         Text(text = "🛡️", fontSize = 14.sp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Practice mode features 10 walls per player and 0 coin rewards to prevent exploit farming.",
+                            text = stringResource(R.string.offline_practice_rules_note),
                             fontSize = 11.sp,
                             color = Color(0xFFBAC5E1),
                             lineHeight = 15.sp
@@ -311,7 +318,7 @@ fun OfflinePlayDialog(
                             .testTag("offline_play_pay_coins_btn")
                     ) {
                         Text(
-                            text = "Play (🪙 $entryFee Coins)",
+                            text = stringResource(R.string.offline_play_coins_btn, entryFee),
                             fontWeight = FontWeight.Black,
                             color = Color.Black,
                             fontSize = 13.sp
@@ -332,7 +339,7 @@ fun OfflinePlayDialog(
                             .height(46.dp)
                     ) {
                         Text(
-                            text = "Need 🪙 $entryFee Coins (Open Shop)",
+                            text = stringResource(R.string.offline_need_coins_btn, entryFee),
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp
                         )
@@ -370,7 +377,7 @@ fun OfflinePlayDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = if (isAdPlaying) "Playing Ad..." else "Loading Ad...",
+                            text = if (isAdPlaying) stringResource(R.string.offline_ad_playing) else stringResource(R.string.offline_ad_loading),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonCyan
@@ -385,7 +392,7 @@ fun OfflinePlayDialog(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Free Entry (Watch Video Ad)",
+                                text = stringResource(R.string.offline_free_entry_ad),
                                 fontWeight = FontWeight.Bold,
                                 color = NeonCyan,
                                 fontSize = 12.sp

@@ -58,6 +58,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import com.wallwar.data.DailySpinnerManager
 import com.wallwar.data.SpinOutcome
 import com.wallwar.data.SpinnerState
@@ -121,13 +123,13 @@ fun LuckySpinnerDialog(
                 ) {
                     Column {
                         Text(
-                            text = "Lucky Wheel",
+                            text = stringResource(R.string.spinner_title),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Black,
                             color = Color.White
                         )
                         Text(
-                            text = if (spinnerState.canSpinToday) "Cost: 🪙 $spinFee • 1 Spin / Day" else "Already Spun Today • 1 Spin / Day",
+                            text = if (spinnerState.canSpinToday) stringResource(R.string.spinner_cost_format, spinFee) else stringResource(R.string.spinner_spun_today_format),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = if (spinnerState.canSpinToday) NeonAmber else Color(0xFFA0ACCC)
@@ -139,7 +141,7 @@ fun LuckySpinnerDialog(
                         enabled = !isSpinning,
                         modifier = Modifier.size(32.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                        Icon(imageVector = Icons.Default.Close, contentDescription = stringResource(R.string.btn_close), tint = Color.White)
                     }
                 }
 
@@ -284,7 +286,7 @@ fun LuckySpinnerDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "⚠️ Notice: Exclusive Ball Skins (Cyber Core, Quantum Energy, Micro Blackhole) have rare drop chance in the Wheel.",
+                        text = stringResource(R.string.spinner_notice_skins),
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF93C5FD),
@@ -301,13 +303,13 @@ fun LuckySpinnerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Balance: 🪙 $userCoins",
+                        text = stringResource(R.string.spinner_balance_format, userCoins),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFA0ACCC)
                     )
                     Text(
-                        text = "Cost: 🪙 $spinFee",
+                        text = stringResource(R.string.spinner_cost_single_format, spinFee),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = NeonAmber
@@ -355,28 +357,28 @@ fun LuckySpinnerDialog(
                 ) {
                     if (isSpinning) {
                         Text(
-                            text = "Spinning...",
+                            text = stringResource(R.string.spinner_spinning),
                             fontWeight = FontWeight.Black,
                             fontSize = 14.sp,
                             color = Color.Black
                         )
                     } else if (!canSpinToday) {
                         Text(
-                            text = "Already Spun Today (1/Day)",
+                            text = stringResource(R.string.spinner_already_spun_btn),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = Color(0xFF8895AE)
                         )
                     } else if (canAffordPaid) {
                         Text(
-                            text = "Spin (🪙 $spinFee)",
+                            text = stringResource(R.string.spinner_spin_btn_format, spinFee),
                             fontWeight = FontWeight.Black,
                             fontSize = 14.sp,
                             color = Color.Black
                         )
                     } else {
                         Text(
-                            text = "Need 🪙 $spinFee",
+                            text = stringResource(R.string.spinner_need_coins_format, spinFee),
                             fontWeight = FontWeight.Black,
                             fontSize = 13.sp,
                             color = Color(0xFF8895AE)
@@ -395,8 +397,13 @@ fun LuckySpinnerDialog(
             containerColor = Color(0xFF0F172A),
             shape = RoundedCornerShape(20.dp),
             title = {
+                val titleText = when {
+                    outcome.isJackpot -> stringResource(R.string.spinner_jackpot_title)
+                    outcome.isCosmetic -> stringResource(R.string.spinner_skin_title)
+                    else -> stringResource(R.string.spinner_win_title)
+                }
                 Text(
-                    text = if (outcome.isJackpot) "🎉 Grand Jackpot!" else if (outcome.isCosmetic) "✨ Special Skin!" else "🎉 You Won!",
+                    text = titleText,
                     color = if (outcome.isJackpot) NeonAmber else if (outcome.isCosmetic) NeonMagenta else NeonCyan,
                     fontWeight = FontWeight.Black,
                     fontSize = 18.sp
@@ -436,7 +443,7 @@ fun LuckySpinnerDialog(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Collect", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text(stringResource(R.string.spinner_collect_btn), color = Color.Black, fontWeight = FontWeight.Black)
                 }
             }
         )
