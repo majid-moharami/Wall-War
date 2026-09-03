@@ -64,6 +64,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -127,7 +129,11 @@ fun SkinShopScreen(
         }
     }
 
-    val tabs = listOf("⚽ Ball Skins", "🧱 Wall Skins", "😄 Emojis")
+    val tabs = listOf(
+        stringResource(R.string.skin_tab_balls),
+        stringResource(R.string.skin_tab_walls),
+        stringResource(R.string.skin_tab_emojis)
+    )
 
     // Insufficient Coins Dialog with direct link to Coin Shop
     if (insufficientCoinsInfo != null) {
@@ -141,7 +147,7 @@ fun SkinShopScreen(
                     Text(text = "🪙", fontSize = 24.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Need More Coins!",
+                        text = stringResource(R.string.skin_need_coins_title),
                         color = NeonAmber,
                         fontWeight = FontWeight.Black,
                         fontSize = 18.sp
@@ -151,14 +157,19 @@ fun SkinShopScreen(
             text = {
                 Column {
                     Text(
-                        text = "You need ${numberFormatter.format(insufficientCoinsInfo.shortage)} more coins to unlock '${insufficientCoinsInfo.itemName}' (Price: 🪙 ${numberFormatter.format(insufficientCoinsInfo.price)}).",
+                        text = stringResource(
+                            R.string.skin_need_coins_desc,
+                            numberFormatter.format(insufficientCoinsInfo.shortage),
+                            insufficientCoinsInfo.itemName,
+                            numberFormatter.format(insufficientCoinsInfo.price)
+                        ),
                         color = Color.White,
                         fontSize = 14.sp,
                         lineHeight = 20.sp
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     Text(
-                        text = "You can purchase coins in the Coins Store and return to claim your skin right away!",
+                        text = stringResource(R.string.skin_need_coins_hint),
                         color = Color(0xFFA0ACCC),
                         fontSize = 12.sp,
                         lineHeight = 17.sp
@@ -174,7 +185,7 @@ fun SkinShopScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("🪙 Open Coins Store", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text(stringResource(R.string.skin_open_store), color = Color.Black, fontWeight = FontWeight.Black)
                 }
             },
             dismissButton = {
@@ -183,7 +194,7 @@ fun SkinShopScreen(
                     border = BorderStroke(1.dp, NeonBorder),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Cancel", color = Color.White)
+                    Text(stringResource(R.string.btn_cancel), color = Color.White)
                 }
             }
         )
@@ -249,7 +260,7 @@ fun SkinShopScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.btn_back),
                         tint = Color.White
                     )
                 }
@@ -263,13 +274,13 @@ fun SkinShopScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     Text(
-                        text = "Skin Vault & Armory",
+                        text = stringResource(R.string.skin_vault_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black,
                         color = Color.White
                     )
                     Text(
-                        text = "Level ${userProfile.level} Duelist Armory",
+                        text = stringResource(R.string.skin_vault_subtitle, userProfile.level),
                         fontSize = 11.sp,
                         color = NeonCyan,
                         fontWeight = FontWeight.Bold
@@ -299,7 +310,7 @@ fun SkinShopScreen(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.AddCircle,
-                    contentDescription = "Buy Coins",
+                    contentDescription = stringResource(R.string.home_buy_coins),
                     tint = NeonAmber,
                     modifier = Modifier.size(15.dp)
                 )
@@ -528,7 +539,7 @@ fun WallSkinCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "EQUIPPED",
+                            text = stringResource(R.string.skin_equipped_badge),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Black,
                             color = NeonCyan
@@ -536,7 +547,7 @@ fun WallSkinCard(
                     }
                 } else if (isUnlocked) {
                     Text(
-                        text = "OWNED",
+                        text = stringResource(R.string.skin_active),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeonEmerald
@@ -550,7 +561,7 @@ fun WallSkinCard(
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "🔒 Lv.${skin.requiredLevel}",
+                            text = stringResource(R.string.skin_locked_lvl, skin.requiredLevel),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
                             color = NeonMagenta
@@ -558,7 +569,7 @@ fun WallSkinCard(
                     }
                 } else {
                     Text(
-                        text = "Lv.${skin.requiredLevel}",
+                        text = stringResource(R.string.lvl_format, skin.requiredLevel),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeonCyan
@@ -629,7 +640,7 @@ fun WallSkinCard(
                 ) {
                     Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("ACTIVE", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_active), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             } else if (isUnlocked) {
                 Button(
@@ -645,7 +656,7 @@ fun WallSkinCard(
                         .height(34.dp)
                         .testTag("equip_wall_${skin.id}")
                 ) {
-                    Text("EQUIP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_equip), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             } else if (isLevelLocked) {
                 Button(
@@ -662,7 +673,7 @@ fun WallSkinCard(
                         .testTag("buy_wall_${skin.id}")
                 ) {
                     Text(
-                        text = "🔒 Lv.${skin.requiredLevel} · 🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        text = "${stringResource(R.string.skin_locked_lvl, skin.requiredLevel)} · 🪙 ${numberFormatter.format(skin.priceCoins)}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -757,7 +768,7 @@ fun BallSkinCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "EQUIPPED",
+                            text = stringResource(R.string.skin_equipped_badge),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Black,
                             color = NeonCyan
@@ -765,7 +776,7 @@ fun BallSkinCard(
                     }
                 } else if (isUnlocked) {
                     Text(
-                        text = "OWNED",
+                        text = stringResource(R.string.skin_active),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeonEmerald
@@ -779,7 +790,7 @@ fun BallSkinCard(
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "🎰 SPINNER",
+                            text = stringResource(R.string.skin_spinner_badge),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
                             color = NeonAmber
@@ -794,7 +805,7 @@ fun BallSkinCard(
                             .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "🔒 Lv.${skin.requiredLevel}",
+                            text = stringResource(R.string.skin_locked_lvl, skin.requiredLevel),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Black,
                             color = NeonMagenta
@@ -802,7 +813,7 @@ fun BallSkinCard(
                     }
                 } else {
                     Text(
-                        text = "Lv.${skin.requiredLevel}",
+                        text = stringResource(R.string.lvl_format, skin.requiredLevel),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = NeonCyan
@@ -872,7 +883,7 @@ fun BallSkinCard(
                 ) {
                     Icon(imageVector = Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("ACTIVE", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_active), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             } else if (isUnlocked) {
                 Button(
@@ -888,7 +899,7 @@ fun BallSkinCard(
                         .height(34.dp)
                         .testTag("equip_ball_${skin.id}")
                 ) {
-                    Text("EQUIP", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_equip), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             } else if (skin.isSpinnerReward) {
                 Button(
@@ -905,7 +916,7 @@ fun BallSkinCard(
                         .testTag("buy_ball_${skin.id}")
                 ) {
                     Text(
-                        text = "🎰 Spin to Win",
+                        text = stringResource(R.string.skin_dialog_spinner_hint),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -925,7 +936,7 @@ fun BallSkinCard(
                         .testTag("buy_ball_${skin.id}")
                 ) {
                     Text(
-                        text = "🔒 Lv.${skin.requiredLevel} · 🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        text = "${stringResource(R.string.skin_locked_lvl, skin.requiredLevel)} · 🪙 ${numberFormatter.format(skin.priceCoins)}",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -1054,7 +1065,7 @@ fun EmojiSkinCard(
                 ) {
                     Icon(imageVector = Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(15.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("PLAY SOUND", fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_dialog_play_sound), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -1220,7 +1231,7 @@ fun BallSkinDetailDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "🎰 Exclusive Lucky Spinner Reward!\nSpin the Wheel on the Home screen to win this skin.",
+                            text = stringResource(R.string.skin_dialog_spinner_exclusive),
                             color = NeonAmber,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -1238,9 +1249,9 @@ fun BallSkinDetailDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Price:", color = Color(0xFFA0ACCC), fontSize = 13.sp)
+                        Text(stringResource(R.string.skin_price_label), color = Color(0xFFA0ACCC), fontSize = 13.sp)
                         Text(
-                            text = "🪙 ${numberFormatter.format(skin.priceCoins)} Coins",
+                            text = "🪙 ${numberFormatter.format(skin.priceCoins)}",
                             fontWeight = FontWeight.Black,
                             fontSize = 14.sp,
                             color = NeonAmber
@@ -1256,7 +1267,7 @@ fun BallSkinDetailDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Currently Equipped", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_currently_equipped), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             } else if (isUnlocked) {
                 Button(
@@ -1267,7 +1278,7 @@ fun BallSkinDetailDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Equip Ball Skin", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_equip_ball), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             } else if (skin.isSpinnerReward) {
                 Button(
@@ -1275,7 +1286,7 @@ fun BallSkinDetailDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonAmber),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("🎰 Win in Lucky Spinner", color = Color.Black, fontWeight = FontWeight.Black)
+                    Text(stringResource(R.string.skin_win_spinner), color = Color.Black, fontWeight = FontWeight.Black)
                 }
             } else if (isLevelLocked) {
                 Button(
@@ -1288,7 +1299,7 @@ fun BallSkinDetailDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "🔒 Requires Level ${skin.requiredLevel} (🪙 ${numberFormatter.format(skin.priceCoins)})",
+                        text = "${stringResource(R.string.skin_locked_lvl, skin.requiredLevel)} (🪙 ${numberFormatter.format(skin.priceCoins)})",
                         color = NeonMagenta,
                         fontWeight = FontWeight.Black,
                         fontSize = 12.sp
@@ -1304,7 +1315,7 @@ fun BallSkinDetailDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "Unlock for 🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        text = stringResource(R.string.skin_unlock_for, numberFormatter.format(skin.priceCoins)),
                         color = Color.Black,
                         fontWeight = FontWeight.Black
                     )
@@ -1317,7 +1328,7 @@ fun BallSkinDetailDialog(
                 border = BorderStroke(1.dp, NeonBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Close", color = Color.White)
+                Text(stringResource(R.string.dialog_close), color = Color.White)
             }
         }
     )
@@ -1380,9 +1391,9 @@ fun EmojiDetailDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Price:", color = Color(0xFFA0ACCC), fontSize = 13.sp)
+                        Text(stringResource(R.string.skin_price_label), color = Color(0xFFA0ACCC), fontSize = 13.sp)
                         Text(
-                            text = "🪙 ${numberFormatter.format(emoji.priceCoins)} Coins",
+                            text = "🪙 ${numberFormatter.format(emoji.priceCoins)}",
                             fontWeight = FontWeight.Black,
                             fontSize = 14.sp,
                             color = NeonAmber
@@ -1398,7 +1409,7 @@ fun EmojiDetailDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonEmerald),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Owned & Ready", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_owned_ready), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -1410,7 +1421,7 @@ fun EmojiDetailDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "Unlock for 🪙 ${numberFormatter.format(emoji.priceCoins)}",
+                        text = stringResource(R.string.skin_unlock_for, numberFormatter.format(emoji.priceCoins)),
                         color = Color.Black,
                         fontWeight = FontWeight.Black
                     )
@@ -1423,7 +1434,7 @@ fun EmojiDetailDialog(
                 border = BorderStroke(1.dp, NeonBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Close", color = Color.White)
+                Text(stringResource(R.string.dialog_close), color = Color.White)
             }
         }
     )
@@ -1550,7 +1561,7 @@ fun WallSkinDetailDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Currently Equipped", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_currently_equipped), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             } else if (isUnlocked) {
                 Button(
@@ -1561,7 +1572,7 @@ fun WallSkinDetailDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = NeonCyan),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Equip Wall Skin", color = Color.Black, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_equip_wall), color = Color.Black, fontWeight = FontWeight.Bold)
                 }
             } else if (isLevelLocked) {
                 Button(
@@ -1570,7 +1581,7 @@ fun WallSkinDetailDialog(
                     border = BorderStroke(1.dp, NeonMagenta),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("🔒 Level ${skin.requiredLevel} Required", color = NeonMagenta, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.skin_lvl_required, skin.requiredLevel), color = NeonMagenta, fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(
@@ -1582,7 +1593,7 @@ fun WallSkinDetailDialog(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
-                        text = "Unlock for 🪙 ${numberFormatter.format(skin.priceCoins)}",
+                        text = stringResource(R.string.skin_unlock_for, numberFormatter.format(skin.priceCoins)),
                         color = Color.Black,
                         fontWeight = FontWeight.Black
                     )
@@ -1595,7 +1606,7 @@ fun WallSkinDetailDialog(
                 border = BorderStroke(1.dp, NeonBorder),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Close", color = Color.White)
+                Text(stringResource(R.string.dialog_close), color = Color.White)
             }
         }
     )

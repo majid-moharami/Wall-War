@@ -329,11 +329,17 @@ fun WallWarNavGraph(
             val viewModel: SettingsViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val nakamaConfig by viewModel.nakamaConfig.collectAsStateWithLifecycle()
+            val selectedLanguage by viewModel.selectedLanguage.collectAsStateWithLifecycle()
+            val boardTheme by viewModel.boardTheme.collectAsStateWithLifecycle()
 
             SettingsScreen(
                 soundManager = viewModel.soundManager,
                 userProfile = userProfile,
                 nakamaConfig = nakamaConfig,
+                selectedLanguage = selectedLanguage,
+                onSetLanguage = viewModel::setLanguage,
+                boardTheme = boardTheme,
+                onSetBoardTheme = viewModel::setBoardTheme,
                 onUpdateNakamaConfig = viewModel::updateNakamaConfig,
                 onTestConnection = viewModel::testNakamaConnection,
                 onUpdateCoinsAndLevel = viewModel::updateCoinsAndLevel,

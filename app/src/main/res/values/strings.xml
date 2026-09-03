@@ -353,4 +353,73 @@
     <string name="auth_email_hint">Email Address</string>
     <string name="auth_password_hint">Password</string>
     <string name="auth_username_hint">Username</string>
+
+    <!-- Additional Skin Vault, Ranking, Rules & Game Strings -->
+    <string name="skin_vault_title">Skin Vault &amp; Armory</string>
+    <string name="skin_vault_subtitle">Level %1$d Duelist Armory</string>
+    <string name="skin_tab_balls">⚽ Ball Skins</string>
+    <string name="skin_tab_walls">🧱 Wall Skins</string>
+    <string name="skin_tab_emojis">😄 Emojis</string>
+    <string name="skin_need_coins_title">Need More Coins!</string>
+    <string name="skin_need_coins_desc">You need %1$s more coins to unlock \'%2$s\' (Price: 🪙 %3$s).</string>
+    <string name="skin_need_coins_hint">You can purchase coins in the Coins Store and return to claim your skin right away!</string>
+    <string name="skin_open_store">🪙 Open Coins Store</string>
+    <string name="skin_active">ACTIVE</string>
+    <string name="skin_equip">EQUIP</string>
+    <string name="skin_free">FREE</string>
+    <string name="skin_locked_lvl">🔒 LVL %1$d</string>
+    <string name="skin_spinner_only">🎰 SPINNER</string>
+    <string name="skin_equipped_badge">EQUIPPED</string>
+    <string name="skin_spinner_badge">SPINNER ONLY</string>
+    <string name="skin_locked_badge">LOCKED (LVL %1$d)</string>
+    <string name="skin_dialog_equipped">Currently Equipped</string>
+    <string name="skin_dialog_equip_ball">Equip Ball Skin</string>
+    <string name="skin_dialog_equip_wall">Equip Wall Skin</string>
+    <string name="skin_dialog_spinner_hint">🎰 Win in Lucky Spinner</string>
+    <string name="skin_dialog_unlock_price">Unlock (🪙 %1$s)</string>
+    <string name="skin_dialog_req_level">🔒 Level %1$d Required</string>
+    <string name="skin_dialog_owned_ready">Owned &amp; Ready</string>
+    <string name="skin_dialog_play_sound">PLAY SOUND</string>
+    <string name="skin_dialog_price">Price:</string>
+    <string name="skin_dialog_spinner_exclusive">🎰 Exclusive Lucky Spinner Reward!\nSpin the Wheel on the Home screen to win this skin.</string>
+    <string name="skin_price_label">Price:</string>
+    <string name="skin_currently_equipped">Currently Equipped</string>
+    <string name="skin_equip_ball">Equip Ball Skin</string>
+    <string name="skin_win_spinner">🎰 Win in Lucky Spinner</string>
+    <string name="skin_unlock_for">Unlock for 🪙 %1$s</string>
+    <string name="dialog_close">Close</string>
+    <string name="skin_owned_ready">Owned &amp; Ready</string>
+    <string name="skin_equip_wall">Equip Wall Skin</string>
+    <string name="skin_lvl_required">🔒 Level %1$d Required</string>
+    <string name="skin_rarity_common">COMMON</string>
+    <string name="skin_rarity_rare">RARE</string>
+    <string name="skin_rarity_epic">EPIC</string>
+    <string name="skin_rarity_legendary">LEGENDARY</string>
+    <string name="skin_rarity_mythic">MYTHIC</string>
+
+    <string name="ranking_arena_title">Ranking Arena</string>
+    <string name="ranking_global_leaderboard">GLOBAL LEADERBOARD</string>
+    <string name="ranking_season_1">Season 1</string>
+    <string name="ranking_all_duelists">ALL DUELISTS</string>
+    <string name="ranking_sign_in_desc">Sign in to view global leaderboard standings, track your position, and compete on the seasonal rank boards.</string>
+    <string name="ranking_sign_in_btn">Sign In to View Leaderboard</string>
+    <string name="ranking_you_badge">YOU</string>
+    <string name="ranking_lvl_format">•  Lvl %1$d</string>
+    <string name="ranking_win_rate_format">%1$d%% Win</string>
+
+    <string name="rules_screen_title">How to Play WallWar</string>
+    <string name="rules_step1_title">1. The Objective</string>
+    <string name="rules_step1_desc">Be the first player to reach any cell on your target goal row across the board.</string>
+    <string name="rules_step2_title">2. Turn Actions</string>
+    <string name="rules_step2_desc">On your turn, you can either move your pawn 1 square orthogonally OR place 1 wall from your reserve.</string>
+    <string name="rules_step3_title">3. Jumping over Opponents</string>
+    <string name="rules_step3_desc">When adjacent to your opponent without a wall in between, you can jump directly over them in that straight direction (top, bottom, left, or right) if the space behind is unblocked.</string>
+    <string name="rules_step4_title">4. The Golden Rule (No Trapping)</string>
+    <string name="rules_step4_desc">Walls span 2 spaces. You are STRICTLY FORBIDDEN from completely trapping any player. Every player must always have at least ONE clear path to their goal!</string>
+
+    <string name="game_total_moves_stat">Total Moves: %1$d</string>
+    <string name="game_walls_placed_stat">Walls Placed: %1$d</string>
+    <string name="game_main_menu">Main Menu</string>
+    <string name="game_retry_connection">Retry Connection</string>
+    <string name="game_return_to_base">Return to Base</string>
 </resources>

@@ -12,6 +12,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.ui.text.TextStyle
+
 private val NeonColorScheme = darkColorScheme(
     primary = NeonCyan,
     onPrimary = Color.Black,
@@ -35,6 +38,7 @@ private val NeonColorScheme = darkColorScheme(
 @Composable
 fun WallWarTheme(
     darkTheme: Boolean = true,
+    language: String = "en",
     content: @Composable () -> Unit
 ) {
     val view = LocalView.current
@@ -56,12 +60,18 @@ fun WallWarTheme(
         fontScale = 1.0f
     )
 
+    val activeFontFamily = if (language == "fa") VazirmatnFontFamily else RajdhaniFontFamily
+    val activeTypography = androidx.compose.runtime.remember(language) {
+        createWallWarTypography(activeFontFamily)
+    }
+
     CompositionLocalProvider(
-        LocalDensity provides nonScaledDensity
+        LocalDensity provides nonScaledDensity,
+        LocalTextStyle provides TextStyle(fontFamily = activeFontFamily)
     ) {
         MaterialTheme(
             colorScheme = NeonColorScheme,
-            typography = Typography,
+            typography = activeTypography,
             content = content
         )
     }

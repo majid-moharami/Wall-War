@@ -23,6 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -49,6 +50,11 @@ import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonDarkBg
 import com.wallwar.ui.theme.NeonDarkSurface
 import com.wallwar.ui.theme.NeonMagenta
+import com.wallwar.ui.theme.RajdhaniFontFamily
+import com.wallwar.ui.theme.VazirmatnFontFamily
+import com.wallwar.ui.theme.createWallWarTypography
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
@@ -120,6 +126,17 @@ fun MainContainerScreen(
     val rewardDescription by viewModel.rewardDescription.collectAsStateWithLifecycle()
 
     val currentLocale = remember(selectedLanguage) { Locale(selectedLanguage) }
+    val currentCtx = LocalContext.current
+    LaunchedEffect(selectedLanguage) {
+        Locale.setDefault(currentLocale)
+        try {
+            val config = currentCtx.resources.configuration
+            config.setLocale(currentLocale)
+            config.setLayoutDirection(currentLocale)
+            @Suppress("DEPRECATION")
+            currentCtx.resources.updateConfiguration(config, currentCtx.resources.displayMetrics)
+        } catch (_: Exception) {}
+    }
     val currentConfig = LocalConfiguration.current
     val updatedConfig = remember(currentConfig, currentLocale) {
         Configuration(currentConfig).apply {
@@ -127,7 +144,6 @@ fun MainContainerScreen(
             setLayoutDirection(currentLocale)
         }
     }
-    val currentCtx = LocalContext.current
     val localizedContext = remember(currentCtx, updatedConfig) {
         LocalizedContextWrapper(
             base = currentCtx,
@@ -135,13 +151,22 @@ fun MainContainerScreen(
         )
     }
     val layoutDir = if (selectedLanguage == "fa") LayoutDirection.Rtl else LayoutDirection.Ltr
+    val activeFontFamily = if (selectedLanguage == "fa") VazirmatnFontFamily else RajdhaniFontFamily
+    val activeTypography = remember(selectedLanguage) {
+        createWallWarTypography(activeFontFamily)
+    }
 
-    CompositionLocalProvider(
-        LocalConfiguration provides updatedConfig,
-        LocalContext provides localizedContext,
-        LocalLayoutDirection provides layoutDir
+    MaterialTheme(
+        colorScheme = MaterialTheme.colorScheme,
+        typography = activeTypography
     ) {
-        val navController = rememberNavController()
+        CompositionLocalProvider(
+            LocalConfiguration provides updatedConfig,
+            LocalContext provides localizedContext,
+            LocalLayoutDirection provides layoutDir,
+            LocalTextStyle provides LocalTextStyle.current.copy(fontFamily = activeFontFamily)
+        ) {
+            val navController = rememberNavController()
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
 
@@ -241,4 +266,5 @@ fun MainContainerScreen(
             )
         }
     }
+}
 }

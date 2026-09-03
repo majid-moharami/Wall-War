@@ -352,4 +352,73 @@
     <string name="auth_email_hint">آدرس ایمیل</string>
     <string name="auth_password_hint">رمز عبور</string>
     <string name="auth_username_hint">نام کاربری</string>
+
+    <!-- Additional Skin Vault, Ranking, Rules & Game Strings -->
+    <string name="skin_vault_title">گنجینه پوسته‌ها و سلاح‌ها</string>
+    <string name="skin_vault_subtitle">زرادخانه مبارز سطح %1$d</string>
+    <string name="skin_tab_balls">⚽ پوسته مهره‌ها</string>
+    <string name="skin_tab_walls">🧱 پوسته دیوارها</string>
+    <string name="skin_tab_emojis">😄 ایموجی‌ها</string>
+    <string name="skin_need_coins_title">سکه بیشتری نیاز است!</string>
+    <string name="skin_need_coins_desc">برای آزادسازی «%2$s» به %1$s سکه دیگر نیاز دارید (قیمت: 🪙 %3$s).</string>
+    <string name="skin_need_coins_hint">می‌توانید از فروشگاه سکه تهیه کرده و پوسته خود را فوراً دریافت نمایید!</string>
+    <string name="skin_open_store">🪙 ورود به فروشگاه سکه</string>
+    <string name="skin_active">انتخاب شده</string>
+    <string name="skin_equip">انتخاب</string>
+    <string name="skin_free">رایگان</string>
+    <string name="skin_locked_lvl">🔒 سطح %1$d</string>
+    <string name="skin_spinner_only">🎰 گردونه</string>
+    <string name="skin_equipped_badge">انتخاب شده</string>
+    <string name="skin_spinner_badge">فقط در گردونه</string>
+    <string name="skin_locked_badge">قفل (سطح %1$d)</string>
+    <string name="skin_dialog_equipped">در حال حاضر انتخاب شده</string>
+    <string name="skin_dialog_equip_ball">انتخاب پوسته مهره</string>
+    <string name="skin_dialog_equip_wall">انتخاب پوسته دیوار</string>
+    <string name="skin_dialog_spinner_hint">🎰 قابل دریافت در گردونه شانس</string>
+    <string name="skin_dialog_unlock_price">آزادسازی (🪙 %1$s)</string>
+    <string name="skin_dialog_req_level">🔒 نیاز به سطح %1$d</string>
+    <string name="skin_dialog_owned_ready">خریداری شده و آماده</string>
+    <string name="skin_dialog_play_sound">پخش صدا</string>
+    <string name="skin_dialog_price">قیمت:</string>
+    <string name="skin_dialog_spinner_exclusive">🎰 جایزه ویژه گردونه شانس!\nبرای بردن این پوسته، گردونه شانس را در صفحه اصلی بچرخانید.</string>
+    <string name="skin_price_label">قیمت:</string>
+    <string name="skin_currently_equipped">در حال حاضر انتخاب شده</string>
+    <string name="skin_equip_ball">انتخاب پوسته مهره</string>
+    <string name="skin_win_spinner">🎰 برد در گردونه شانس</string>
+    <string name="skin_unlock_for">خرید با 🪙 %1$s</string>
+    <string name="dialog_close">بستن</string>
+    <string name="skin_owned_ready">خریداری شده و آماده</string>
+    <string name="skin_equip_wall">انتخاب پوسته دیوار</string>
+    <string name="skin_lvl_required">🔒 نیاز به سطح %1$d</string>
+    <string name="skin_rarity_common">معمولی</string>
+    <string name="skin_rarity_rare">کمیاب</string>
+    <string name="skin_rarity_epic">حماسی</string>
+    <string name="skin_rarity_legendary">افسانه‌ای</string>
+    <string name="skin_rarity_mythic">اسطوره‌ای</string>
+
+    <string name="ranking_arena_title">میدان رتبه‌بندی</string>
+    <string name="ranking_global_leaderboard">رتبه‌بندی جهانی</string>
+    <string name="ranking_season_1">فصل ۱</string>
+    <string name="ranking_all_duelists">همه مبارزان</string>
+    <string name="ranking_sign_in_desc">برای مشاهده جدول رتبه‌بندی جهانی، پیگیری جایگاه خود و رقابت در فصل جاری وارد شوید.</string>
+    <string name="ranking_sign_in_btn">ورود برای مشاهده رتبه‌بندی</string>
+    <string name="ranking_you_badge">شما</string>
+    <string name="ranking_lvl_format">•  سطح %1$d</string>
+    <string name="ranking_win_rate_format">%1$d٪ برد</string>
+
+    <string name="rules_screen_title">آموزش و قوانین وال‌وار</string>
+    <string name="rules_step1_title">۱. هدف بازی</string>
+    <string name="rules_step1_desc">اولین بازیکنی باشید که مهره خود را به هر خانه‌ای از ردیف انتهایی سمت مقابل زمین می‌رساند.</string>
+    <string name="rules_step2_title">۲. کارهای مجاز در هر نوبت</string>
+    <string name="rules_step2_desc">در نوبت خود می‌توانید یا مهره خود را ۱ خانه مستقیم (افقی/عمودی) حرکت دهید یا ۱ دیوار از ذخیره‌تان روی صفحه قرار دهید.</string>
+    <string name="rules_step3_title">۳. پریدن از روی حریف</string>
+    <string name="rules_step3_desc">هنگامی که مهره شما کنار حریف است و دیواری بین شما نیست، اگر خانه پشت حریف خالی باشد می‌توانید مستقیم از روی او بپرید.</string>
+    <string name="rules_step4_title">۴. قانون طلایی (عدم مسدودسازی کامل)</string>
+    <string name="rules_step4_desc">دیوارها ۲ خانه‌ای هستند. مسدود کردن کامل و بدون راه هر یک از بازیکنان اکیداً ممنوع است. هر بازیکن همیشه باید حداقل یک راه آزاد به خط پایان داشته باشد!</string>
+
+    <string name="game_total_moves_stat">کل حرکت‌ها: %1$d</string>
+    <string name="game_walls_placed_stat">دیوارهای گذاشته شده: %1$d</string>
+    <string name="game_main_menu">منوی اصلی</string>
+    <string name="game_retry_connection">تلاش مجدد برای اتصال</string>
+    <string name="game_return_to_base">بازگشت به منو</string>
 </resources>
