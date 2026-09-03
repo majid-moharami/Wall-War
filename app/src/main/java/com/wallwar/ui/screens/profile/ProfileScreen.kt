@@ -451,7 +451,7 @@ fun ProfileScreen(
                         color = NeonCyan
                     )
                     Text(
-                        text = userProfile.rankTitle,
+                        text = stringResource(userProfile.rankTitleResId),
                         style = MaterialTheme.typography.bodySmall,
                         color = NeonMagenta,
                         fontWeight = FontWeight.Bold

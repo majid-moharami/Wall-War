@@ -358,7 +358,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Coins & Level Modifier",
+                                text = stringResource(R.string.settings_coins_level_mod),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
@@ -372,7 +372,7 @@ fun SettingsScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "DEV ONLY",
+                                text = stringResource(R.string.settings_dev_only),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
                                 color = NeonAmber
@@ -383,7 +383,12 @@ fun SettingsScreen(
                     Spacer(modifier = Modifier.height(10.dp))
 
                     Text(
-                        text = "Current: Level ${userProfile.level} (${userProfile.rankTitle}) • ${userProfile.coins} Coins",
+                        text = stringResource(
+                            R.string.settings_current_level_coins_format,
+                            userProfile.level,
+                            stringResource(userProfile.rankTitleResId),
+                            userProfile.coins
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFA0ACCC)
                     )
@@ -395,7 +400,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = targetCoinsInput,
                             onValueChange = { targetCoinsInput = it.filter { ch -> ch.isDigit() } },
-                            label = { Text("Target Coins") },
+                            label = { Text(stringResource(R.string.settings_target_coins)) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.MonetizationOn,
@@ -418,7 +423,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = targetLevelInput,
                             onValueChange = { targetLevelInput = it.filter { ch -> ch.isDigit() } },
-                            label = { Text("Level (1-50)") },
+                            label = { Text(stringResource(R.string.settings_target_level)) },
                             leadingIcon = {
                                 Icon(
                                     imageVector = Icons.Default.Star,
@@ -441,7 +446,7 @@ fun SettingsScreen(
 
                     // Quick Preset Chips
                     Text(
-                        text = "Quick Presets:",
+                        text = stringResource(R.string.settings_quick_presets),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF8A99AD)
@@ -517,7 +522,7 @@ fun SettingsScreen(
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Syncing with Server...", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.settings_syncing), color = Color.Black, fontWeight = FontWeight.Bold)
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Casino,
@@ -525,7 +530,7 @@ fun SettingsScreen(
                                 tint = Color.Black
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Update Server & Profile", color = Color.Black, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.settings_update_server_profile), color = Color.Black, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -575,12 +580,12 @@ fun SettingsScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "Nakama Server Config",
+                                    text = stringResource(R.string.settings_nakama_config),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Docker / Custom Nakama IP",
+                                    text = stringResource(R.string.settings_nakama_config_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -595,7 +600,7 @@ fun SettingsScreen(
                                 .padding(horizontal = 8.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "DEBUG ONLY",
+                                text = stringResource(R.string.settings_dev_only),
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Black,
                                 color = NeonCyan
@@ -608,7 +613,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = serverHost,
                         onValueChange = { serverHost = it },
-                        label = { Text("Server Host / URL (e.g. https://nakama.wallwargame.com)") },
+                        label = { Text(stringResource(R.string.settings_server_host)) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
                         modifier = Modifier.fillMaxWidth()
@@ -620,7 +625,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = serverPort,
                             onValueChange = { serverPort = it },
-                            label = { Text("Port (7350 API)") },
+                            label = { Text(stringResource(R.string.settings_server_port)) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
                             modifier = Modifier.weight(1f)
@@ -629,7 +634,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = serverKey,
                             onValueChange = { serverKey = it },
-                            label = { Text("Server Key") },
+                            label = { Text(stringResource(R.string.settings_server_key)) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = NeonCyan),
                             modifier = Modifier.weight(1f)
@@ -644,7 +649,7 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Port:", style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontSize = 11.sp)
+                        Text(stringResource(R.string.settings_port_prefix), style = MaterialTheme.typography.bodySmall, color = Color.Gray, fontSize = 11.sp)
                         
                         val portOptions = remember {
                             listOf(
@@ -694,13 +699,13 @@ fun SettingsScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Use SSL / TLS",
+                                text = stringResource(R.string.settings_use_ssl),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = if (serverUseSsl) "SSL Enabled (HTTPS / WSS)" else "SSL Disabled (Plain HTTP / TCP)",
+                                text = if (serverUseSsl) stringResource(R.string.settings_ssl_enabled) else stringResource(R.string.settings_ssl_disabled),
                                 style = MaterialTheme.typography.bodySmall,
                                 fontSize = 11.sp,
                                 color = if (serverUseSsl) NeonCyan else Color.Gray
@@ -815,7 +820,7 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "WallWar Android v1.0 • Nakama Online Engine",
+            text = stringResource(R.string.settings_footer_text),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier.align(Alignment.CenterHorizontally)

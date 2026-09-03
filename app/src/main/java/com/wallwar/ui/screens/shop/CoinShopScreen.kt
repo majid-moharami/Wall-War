@@ -139,7 +139,7 @@ fun CoinShopScreen(
                     )
                     if (BuildConfig.DEBUG) {
                         Text(
-                            text = "In-App Billing • ${activeStore.displayName}",
+                            text = stringResource(R.string.shop_in_app_billing_format, activeStore.displayName),
                             style = MaterialTheme.typography.labelSmall,
                             color = NeonCyan
                         )
@@ -221,7 +221,7 @@ fun CoinShopScreen(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "Payment Method",
+                                text = stringResource(R.string.shop_payment_method),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFA0ACCC)
@@ -256,7 +256,7 @@ fun CoinShopScreen(
                         )
                     ) {
                         Text(
-                            text = "ACTIVE",
+                            text = stringResource(R.string.shop_active_badge),
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
                             color = when (activeStore) {
@@ -451,14 +451,14 @@ fun CoinShopScreen(
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
                 Text(
-                    text = "🔒 Secure In-App Billing",
+                    text = stringResource(R.string.shop_secure_billing_title),
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
                     fontSize = 13.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Payments are processed securely via ${activeStore.displayName}. Coins are instantly credited to your wallet and synced with Nakama Online Servers.",
+                    text = stringResource(R.string.shop_secure_billing_desc, activeStore.displayName),
                     color = Color(0xFF8E95AA),
                     fontSize = 11.sp,
                     lineHeight = 15.sp

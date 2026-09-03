@@ -160,9 +160,12 @@
     <string name="settings_debug_controls">کنترل‌های عیب‌یابی و توسعه</string>
     <string name="settings_coins_level_mod">تغییر دهنده سکه و سطح</string>
     <string name="settings_dev_only">مخصوص توسعه</string>
+    <string name="settings_current_level_coins_format">فعلی: سطح %1$d (%2$s) • %3$d سکه</string>
     <string name="settings_target_coins">سکه مورد نظر</string>
     <string name="settings_target_level">سطح (1-50)</string>
     <string name="settings_quick_presets">مقادیر آماده:</string>
+    <string name="settings_syncing">در حال همگام‌سازی با سرور…</string>
+    <string name="settings_port_prefix">پورت:</string>
     <string name="settings_update_server_profile">به‌روزرسانی سرور و پروفایل</string>
     <string name="settings_nakama_config">تنظیمات سرور ناکاما</string>
     <string name="settings_nakama_config_desc">هاست و پورت سرور ناکاما</string>
@@ -179,6 +182,11 @@
 
     <!-- Shop Screen -->
     <string name="shop_coin_store">فروشگاه سکه</string>
+    <string name="shop_in_app_billing_format">پرداخت درون‌برنامه‌ای • %1$s</string>
+    <string name="shop_payment_method">روش پرداخت</string>
+    <string name="shop_active_badge">فعال</string>
+    <string name="shop_secure_billing_title">🔒 پرداخت امن درون‌برنامه‌ای</string>
+    <string name="shop_secure_billing_desc">پرداخت‌ها به صورت کاملاً امن از طریق %1$s پردازش می‌شوند. سکه‌ها بلافاصله به حساب شما افزوده شده و با سرور همگام‌سازی می‌گردند.</string>
     <string name="shop_watch_ad_title">تماشای ویدیو و دریافت سکه رایگان</string>
     <string name="shop_watch_ad_desc">با مشاهده یک ویدیوی کوتاه، سکه هدیه دریافت کنید!</string>
     <string name="shop_watch_ad_btn">تماشای ویدیو (+50 🪙)</string>
@@ -202,6 +210,16 @@
     <string name="skins_unlock">خرید و آزادسازی</string>
     <string name="skins_locked">قفل است</string>
     <string name="emoji_shop_title">مجموعه ایموجی‌ها</string>
+    <string name="emoji_skins_chart">جدول شکلک‌ها</string>
+    <string name="emoji_chart_subtitle">ابراز احساسات در دوئل‌های آنلاین</string>
+    <string name="emoji_get_coins">دریافت سکه</string>
+    <string name="emoji_preview_active">پیش‌نمایش شکلک فعال</string>
+    <string name="emoji_preview_tap_hint">روی هر شکلک بزنید تا تست کنید</string>
+    <string name="emoji_preview_showing_format">نمایش %1$s %2$s (۳ ثانیه در مسابقه)</string>
+    <string name="emoji_preview_desc">شکلک‌های باز شده به صورت زنده روی نمایه شما به حریف نمایش داده می‌شوند.</string>
+    <string name="emoji_unlocked_count_format">%1$d/۹ باز شده</string>
+    <string name="emoji_owned_badge">مالک</string>
+    <string name="emoji_test_action">تست</string>
     <string name="emoji_send_emote">ارسال ایموجی</string>
     <string name="emoji_tap_to_send">روی هر ایموجی ضربه بزنید تا برای حریف ارسال شود</string>
 
@@ -421,4 +439,81 @@
     <string name="game_main_menu">منوی اصلی</string>
     <string name="game_retry_connection">تلاش مجدد برای اتصال</string>
     <string name="game_return_to_base">بازگشت به منو</string>
+
+    <string name="game_turn_badge">نوبت</string>
+    <string name="game_win_title">🏆 شما برنده شدید!</string>
+    <string name="game_lose_title">💀 شما باختید!</string>
+    <string name="game_player1_wins_title">🏆 بازیکن ۱ برنده شد!</string>
+    <string name="game_player2_wins_title">🏆 بازیکن ۲ برنده شد!</string>
+    <string name="game_win_desc">استراتژی هوشمندانه! شما از سد دفاعی حریف عبور کردید.</string>
+    <string name="game_lose_desc">این بار حریف شما با تدبیر بهتری پیش رفت.</string>
+    <string name="game_result_trophies">کاپ‌ها</string>
+    <string name="game_result_xp_gained">تجربه کسب‌شده</string>
+    <string name="game_result_coins_rewarded">سکه‌های جایزه</string>
+    <string name="game_result_streak_bonus">🔥 %1$d برد پیاپی (+%2$d سکه پاداش!)</string>
+    <string name="game_result_levelup">⭐ ارتقای سطح! رسیدن به سطح %1$d ⭐</string>
+    <string name="game_result_practice_note">🎮 حالت تمرینی • در بازی‌های آفلاین سکه و تجربه افزوده نمی‌شود</string>
+    <string name="game_emote_title">😎 ارسال شکلک</string>
+    <string name="game_emote_sub">ارسال واکنش سریع به حریف (۳ ثانیه)</string>
+    <string name="game_open_emoji_shop">🛒 فروشگاه شکلک‌ها</string>
+    <string name="game_opp_lost_conn">ارتباط %1$s قطع شد.</string>
+    <string name="game_opp_waiting_format">زمان انتظار: %1$d ثانیه</string>
+    <string name="game_opp_disconnect_details">اگر حریف ظرف ۶۰ ثانیه متصل شود، بازی ادامه می‌یابد.\nدر غیر این صورت، برنده اعلام می‌شوید!</string>
+    <string name="game_conn_error_generic">امکان برقراری ارتباط با سرور بازی وجود ندارد.</string>
+    <string name="error_title">خطای اتصال</string>
+    <string name="game_conn_check_internet">لطفاً اتصال اینترنت خود را بررسی کرده و مجدداً تلاش کنید.</string>
+    <string name="sender_you">شما:</string>
+    <string name="sender_opponent_format">%1$s:</string>
+
+    <!-- History Screen Strings -->
+    <string name="history_clear_title">پاک کردن تاریخچه مسابقات؟</string>
+    <string name="history_clear_desc">این کار تمام آمار ثبت‌شده مسابقات و گزارش‌های عملکرد را بازنشانی می‌کند. این عمل غیرقابل بازگشت است.</string>
+    <string name="history_clear_confirm">پاک کردن همه</string>
+    <string name="history_analytics_badge">تحلیل‌های تاکتیکی</string>
+    <string name="history_online_history_title">تاریخچه مسابقات آنلاین</string>
+    <string name="history_rating_trend">روند امتیاز</string>
+    <string name="history_empty_analytics">تاریخچه مسابقات آنلاین موجود نیست.\nبرای مشاهده تحلیل‌ها، مسابقه آنلاین انجام دهید!</string>
+    <string name="history_vs_opponent">در برابر %1$s</string>
+    <string name="history_logs_header">گزارش بازی‌های آنلاین</string>
+    <string name="history_records_count">%1$d مورد</string>
+    <string name="history_empty_log">هیچ تاریخچه مسابقه آنلاینی موجود نیست.</string>
+    <string name="history_rating_path">مسیر امتیاز</string>
+    <string name="history_win_stat">برد (+۲۵)</string>
+    <string name="history_loss_stat">باخت (-۱۸)</string>
+    <string name="history_rating_selected">امتیاز: %1$s</string>
+    <string name="history_match_vs">%1$s در برابر %2$s</string>
+    <string name="history_match_duration">⏱️ مدت مسابقه: %1$d ثانیه</string>
+    <string name="history_online_duel">⚔️ دوئل آنلاین</string>
+    <string name="history_victory">پیروزی</string>
+    <string name="history_defeat">شکست</string>
+    <string name="history_total_matches">کل مسابقات</string>
+    <string name="history_win_rate">درصد برد</string>
+    <string name="history_victory_gain">پیروزی (+۲۵)</string>
+    <string name="history_defeat_loss">شکست (-۱۸)</string>
+    <string name="history_online_arena_match">⚔️ مسابقه آنلاین</string>
+
+    <!-- Auth Strings -->
+    <string name="auth_display_username">نام کاربری</string>
+    <string name="auth_username_placeholder">مثلاً: شوالیه_نئون</string>
+    <string name="auth_email_address">آدرس ایمیل</string>
+    <string name="auth_email_placeholder">duelist@wallwar.app</string>
+    <string name="auth_password">رمز عبور</string>
+    <string name="auth_nakama_cyber_account">حساب کاربری آنلاین</string>
+    <string name="auth_tab_login">ورود</string>
+    <string name="auth_tab_register">ثبت‌نام</string>
+    <string name="auth_btn_create_account">ساخت حساب کاربری</string>
+    <string name="auth_btn_login_account">ورود به حساب کاربری</string>
+    <string name="auth_or_divider">یا</string>
+    <string name="auth_btn_google">ورود با حساب گوگل</string>
+    <string name="auth_btn_guest">بازی به عنوان مهمان (شناسه دستگاه)</string>
+    <string name="auth_footer_sync">اطلاعات بازی شما به صورت امن ذخیره و همگام‌سازی می‌شود.</string>
+    <string name="auth_toggle_password">نمایش رمز عبور</string>
+
+    <!-- Ranks -->
+    <string name="rank_novice_duelist">دوئل‌باز مبتدی</string>
+    <string name="rank_neon_knight">شوالیه نئون</string>
+    <string name="rank_tactical_adept">متخصص تاکتیک</string>
+    <string name="rank_grid_master">استاد شبکه</string>
+    <string name="rank_grand_champion">قهرمان بزرگ</string>
+    <string name="rank_apex_duelist">دوئل‌باز برتر</string>
 </resources>

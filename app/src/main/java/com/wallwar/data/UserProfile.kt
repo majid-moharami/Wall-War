@@ -16,4 +16,15 @@ data class UserProfile(
     val currentWinStreak: Int = 0,
     val longestWinStreak: Int = 0,
     val nakamaUserId: String? = null
-)
+) {
+    val rankTitleResId: Int
+        @androidx.annotation.StringRes get() = when (rankTitle) {
+            "Novice Duelist" -> com.wallwar.R.string.rank_novice_duelist
+            "Neon Knight" -> com.wallwar.R.string.rank_neon_knight
+            "Tactical Adept" -> com.wallwar.R.string.rank_tactical_adept
+            "Grid Master" -> com.wallwar.R.string.rank_grid_master
+            "Grand Champion" -> com.wallwar.R.string.rank_grand_champion
+            "Apex Duelist" -> com.wallwar.R.string.rank_apex_duelist
+            else -> com.wallwar.R.string.rank_novice_duelist
+        }
+}

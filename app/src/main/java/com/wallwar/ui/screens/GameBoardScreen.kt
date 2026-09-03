@@ -78,11 +78,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.wallwar.audio.SoundManager
 import com.wallwar.engine.GameEngine
+import com.wallwar.model.AiDifficulty
 import com.wallwar.model.BoardTheme
 import com.wallwar.model.GameMode
 import com.wallwar.model.GameState
 import com.wallwar.model.Position
 import com.wallwar.model.Wall
+import androidx.compose.ui.res.stringResource
 import com.wallwar.ui.components.GameBoardComposable
 import com.wallwar.ui.theme.NeonBorder
 import com.wallwar.ui.theme.NeonCyan
@@ -375,7 +377,7 @@ fun GameBoardScreen(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "🏆 Reward: ",
+                                text = stringResource(R.string.game_reward_label) + " ",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFFFFE082)
@@ -389,8 +391,20 @@ fun GameBoardScreen(
                         }
                     }
                 } else {
+                    val modeTitle = when {
+                        opponentType == OpponentType.ONLINE -> stringResource(R.string.game_online_multiplayer)
+                        gameState.isAiMatch -> {
+                            val diffName = when (gameState.aiDifficulty) {
+                                AiDifficulty.EASY -> stringResource(R.string.difficulty_easy)
+                                AiDifficulty.NORMAL -> stringResource(R.string.difficulty_normal)
+                                AiDifficulty.PRO -> stringResource(R.string.difficulty_hard)
+                            }
+                            stringResource(R.string.game_vs_ai_format, diffName)
+                        }
+                        else -> stringResource(R.string.game_pass_and_play)
+                    }
                     Text(
-                        text = if (opponentType == OpponentType.ONLINE) "ONLINE MULTIPLAYER" else if (gameState.isAiMatch) "VS AI (${gameState.aiDifficulty.displayName})" else "Pass & Play",
+                        text = modeTitle,
                         style = MaterialTheme.typography.bodySmall,
                         color = themePrimary,
                         fontWeight = FontWeight.Bold
@@ -455,7 +469,7 @@ fun GameBoardScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Top Section: Competitor Score Card / Player 2 Section
-        val opponentName = if (opponentType == OpponentType.ONLINE) onlineOpponentName else if (gameState.isAiMatch) "AI Bot" else "Player 2"
+        val opponentName = if (opponentType == OpponentType.ONLINE) onlineOpponentName else if (gameState.isAiMatch) stringResource(R.string.game_ai_bot) else stringResource(R.string.game_player_2)
         val opponentIndex = if (opponentType == OpponentType.ONLINE) (1 - myPlayerIndex) else 1
         val opponentPawnColor = if (opponentIndex == 0) NeonCyan else NeonMagenta
         val isQuickPassPlay = (opponentType == OpponentType.LOCAL_PASS_PLAY && gameState.mode == GameMode.DUEL)
@@ -509,7 +523,7 @@ fun GameBoardScreen(
 
                 // Player 2 Score Card (Second in rotated column -> appears at top edge of screen, above wall items from Player 2 point of view)
                 PlayerScoreCard(
-                    playerName = "Player 2",
+                    playerName = stringResource(R.string.game_player_2),
                     wallsLeft = gameState.leftWalls[1],
                     isTurn = gameState.turn == 1 && gameState.winner == null,
                     pawnColor = NeonMagenta,
@@ -663,7 +677,7 @@ fun GameBoardScreen(
                             fontSize = 18.sp
                         )
                         Text(
-                            text = "EMOTE",
+                            text = stringResource(R.string.game_emote),
                             fontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonCyan,
@@ -687,7 +701,11 @@ fun GameBoardScreen(
         val localPawnColor = if (localPlayerIndex == 0) NeonCyan else NeonMagenta
 
         PlayerScoreCard(
-            playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) "Player 1" else "$userDisplayName (You)",
+            playerName = if (opponentType == OpponentType.LOCAL_PASS_PLAY) {
+                stringResource(R.string.game_player_1)
+            } else {
+                stringResource(R.string.game_player_you, userDisplayName)
+            },
             wallsLeft = gameState.leftWalls[localPlayerIndex],
             isTurn = gameState.turn == localPlayerIndex && gameState.winner == null,
             pawnColor = localPawnColor,
@@ -711,7 +729,7 @@ fun GameBoardScreen(
             ) {
                 Icon(imageVector = Icons.AutoMirrored.Filled.Undo, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Undo", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(stringResource(R.string.game_undo), fontWeight = FontWeight.Bold, fontSize = 13.sp)
             }
         } else if (gameState.winner != null) {
             Spacer(modifier = Modifier.height(10.dp))
@@ -725,7 +743,7 @@ fun GameBoardScreen(
             ) {
                 Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("Play Again", fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
+                Text(stringResource(R.string.game_play_again), fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
             }
         }
     }
@@ -735,8 +753,8 @@ fun GameBoardScreen(
         AlertDialog(
             onDismissRequest = { showResignConfirmation = false },
             containerColor = NeonDarkCard,
-            title = { Text("Resign Match?", color = Color.White) },
-            text = { Text("Are you sure you want to surrender this battle? You will lose trophies.", color = Color(0xFFA0ACCC)) },
+            title = { Text(stringResource(R.string.game_resign_title), color = Color.White) },
+            text = { Text(stringResource(R.string.game_resign_desc), color = Color(0xFFA0ACCC)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -745,12 +763,12 @@ fun GameBoardScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
                 ) {
-                    Text("Yes, Resign", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.game_resign_confirm), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showResignConfirmation = false }) {
-                    Text("Cancel", color = Color.White)
+                    Text(stringResource(R.string.btn_cancel), color = Color.White)
                 }
             }
         )
@@ -760,8 +778,8 @@ fun GameBoardScreen(
         AlertDialog(
             onDismissRequest = { showExitConfirmation = false },
             containerColor = NeonDarkCard,
-            title = { Text("Exit Game?", color = Color.White) },
-            text = { Text("The match is still in progress. Exiting now will count as a loss.", color = Color(0xFFA0ACCC)) },
+            title = { Text(stringResource(R.string.game_exit_title), color = Color.White) },
+            text = { Text(stringResource(R.string.game_exit_desc), color = Color(0xFFA0ACCC)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -771,12 +789,12 @@ fun GameBoardScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = NeonMagenta)
                 ) {
-                    Text("Exit & Concede", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.game_exit_confirm), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showExitConfirmation = false }) {
-                    Text("Stay", color = Color.White)
+                    Text(stringResource(R.string.game_exit_stay), color = Color.White)
                 }
             }
         )
@@ -808,7 +826,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "ESTABLISHING UPLINK",
+                        text = stringResource(R.string.game_uplink_title),
                         style = MaterialTheme.typography.labelLarge,
                         color = NeonCyan,
                         letterSpacing = 2.sp
@@ -818,14 +836,14 @@ fun GameBoardScreen(
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = if (onlineMatchState == OnlineMatchState.CONNECTING) "Syncing with Battle Grid..." else "Scanning for Elite Duelists...",
+                        text = if (onlineMatchState == OnlineMatchState.CONNECTING) stringResource(R.string.game_uplink_sync) else stringResource(R.string.game_uplink_scan),
                         color = Color.White,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "You are currently in the competitive queue. Finding the best match for your skill level...",
+                        text = stringResource(R.string.game_uplink_desc),
                         color = Color(0xFFA0ACCC),
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
@@ -844,7 +862,7 @@ fun GameBoardScreen(
                     border = BorderStroke(1.dp, NeonBorder),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Abort Matchmaking", color = Color.White)
+                    Text(stringResource(R.string.game_abort_matchmaking), color = Color.White)
                 }
             }
         )
@@ -875,7 +893,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "CONNECTION LOST",
+                        text = stringResource(R.string.game_conn_lost_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = NeonAmber,
@@ -887,7 +905,7 @@ fun GameBoardScreen(
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Attempting to reconnect to server...",
+                        text = stringResource(R.string.game_conn_lost_sub),
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
@@ -910,7 +928,7 @@ fun GameBoardScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Reconnecting: ${localDisconnectSeconds}s",
+                                text = stringResource(R.string.game_reconnecting_format, localDisconnectSeconds),
                                 color = NeonCyan,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
@@ -919,7 +937,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "Re-establishing connection to match...\nIf restored within 60 seconds, the match will automatically resume!",
+                        text = stringResource(R.string.game_conn_lost_desc),
                         color = Color(0xFFA0ACCC),
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -933,7 +951,7 @@ fun GameBoardScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Forfeit & Leave Match", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.game_forfeit_leave), color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {}
@@ -966,7 +984,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(14.dp))
                     Text(
-                        text = "OPPONENT DISCONNECTED",
+                        text = stringResource(R.string.game_opponent_disconnected_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = NeonAmber,
@@ -978,7 +996,7 @@ fun GameBoardScreen(
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "$onlineOpponentName lost connection.",
+                        text = stringResource(R.string.game_opp_lost_conn, onlineOpponentName),
                         color = Color.White,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
@@ -1001,7 +1019,7 @@ fun GameBoardScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Waiting: ${disconnectSecondsRemaining}s",
+                                text = stringResource(R.string.game_opp_waiting_format, disconnectSecondsRemaining),
                                 color = NeonCyan,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
@@ -1010,7 +1028,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "If opponent reconnects within 60 seconds, the match will resume.\nOtherwise, you will automatically win!",
+                        text = stringResource(R.string.game_opp_disconnect_details),
                         color = Color(0xFFA0ACCC),
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -1049,7 +1067,7 @@ fun GameBoardScreen(
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "CONNECTION ERROR",
+                        text = stringResource(R.string.error_title).uppercase(),
                         style = MaterialTheme.typography.labelLarge,
                         color = NeonMagenta,
                         letterSpacing = 2.sp
@@ -1059,14 +1077,14 @@ fun GameBoardScreen(
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = onlineErrorMessage ?: "Unable to connect to the game server.",
+                        text = onlineErrorMessage ?: stringResource(R.string.game_conn_error_generic),
                         color = Color.White,
                         fontSize = 14.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Please check your internet connection and try again.",
+                        text = stringResource(R.string.game_conn_check_internet),
                         color = Color(0xFFA0ACCC),
                         fontSize = 12.sp,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -1080,7 +1098,7 @@ fun GameBoardScreen(
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Retry Connection", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.game_retry_connection), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -1093,7 +1111,7 @@ fun GameBoardScreen(
                     border = BorderStroke(1.dp, NeonBorder),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Return to Base", color = Color.White)
+                    Text(stringResource(R.string.game_return_to_base), color = Color.White)
                 }
             }
         )
@@ -1102,12 +1120,12 @@ fun GameBoardScreen(
     // Victory/Defeat Celebration Dialog Modal
     if (gameState.winner != null) {
         val isWinner = gameState.winner == myPlayerIndex
-        val titleText = if (opponentType == OpponentType.LOCAL_PASS_PLAY) {
-            if (gameState.winner == 0) "🏆 PLAYER 1 WINS!" else "🏆 PLAYER 2 WINS!"
+        val titleText: String = if (opponentType == OpponentType.LOCAL_PASS_PLAY) {
+            if (gameState.winner == 0) stringResource(R.string.game_player1_wins_title) else stringResource(R.string.game_player2_wins_title)
         } else if (isWinner) {
-            "🏆 YOU WIN!"
+            stringResource(R.string.game_win_title)
         } else {
-            "💀 YOU LOSE!"
+            stringResource(R.string.game_lose_title)
         }
         val titleColor = if (opponentType == OpponentType.LOCAL_PASS_PLAY || isWinner) NeonCyan else NeonMagenta
 
@@ -1127,7 +1145,7 @@ fun GameBoardScreen(
             text = {
                 Column {
                     Text(
-                        text = if (isWinner) "Masterful strategy! You breached the enemy defense." else "Your opponent outmaneuvered you this time.",
+                        text = if (isWinner) stringResource(R.string.game_win_desc) else stringResource(R.string.game_lose_desc),
                         color = Color.White,
                         fontSize = 14.sp
                     )
@@ -1148,7 +1166,7 @@ fun GameBoardScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = "Trophies",
+                                            text = stringResource(R.string.game_result_trophies),
                                             fontSize = 13.sp,
                                             color = Color(0xFFA0ACCC)
                                         )
@@ -1165,7 +1183,7 @@ fun GameBoardScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = "XP Gained",
+                                            text = stringResource(R.string.game_result_xp_gained),
                                             fontSize = 13.sp,
                                             color = Color(0xFFA0ACCC)
                                         )
@@ -1182,7 +1200,7 @@ fun GameBoardScreen(
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Text(
-                                            text = "Coins Rewarded",
+                                            text = stringResource(R.string.game_result_coins_rewarded),
                                             fontSize = 13.sp,
                                             color = Color(0xFFA0ACCC)
                                         )
@@ -1205,7 +1223,7 @@ fun GameBoardScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = "🔥 ${delta.currentWinStreak}-WIN STREAK (+${delta.streakBonusCoins} Bonus Coins!)",
+                                                text = stringResource(R.string.game_result_streak_bonus, delta.currentWinStreak, delta.streakBonusCoins),
                                                 color = com.wallwar.ui.theme.NeonAmber,
                                                 fontWeight = FontWeight.Black,
                                                 fontSize = 11.sp
@@ -1224,7 +1242,7 @@ fun GameBoardScreen(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                text = "⭐ LEVEL UP! REACHED LEVEL ${delta.newLevel} ⭐",
+                                                text = stringResource(R.string.game_result_levelup, delta.newLevel),
                                                 color = NeonCyan,
                                                 fontWeight = FontWeight.Black,
                                                 fontSize = 11.sp
@@ -1247,7 +1265,7 @@ fun GameBoardScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "🎮 Practice Mode • No XP or Rewards in Offline/AI Games",
+                                        text = stringResource(R.string.game_result_practice_note),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = Color(0xFFA0ACCC)
@@ -1262,8 +1280,8 @@ fun GameBoardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total Moves: ${gameState.moveHistory.size}", fontSize = 12.sp, color = NeonCyan)
-                        Text("Walls Placed: ${gameState.walls.size}", fontSize = 12.sp, color = NeonMagenta)
+                        Text(stringResource(R.string.game_total_moves_stat, gameState.moveHistory.size), fontSize = 12.sp, color = NeonCyan)
+                        Text(stringResource(R.string.game_walls_placed_stat, gameState.walls.size), fontSize = 12.sp, color = NeonMagenta)
                     }
                 }
             },
@@ -1278,7 +1296,7 @@ fun GameBoardScreen(
                         colors = ButtonDefaults.buttonColors(containerColor = NeonCyan, contentColor = Color.Black),
                         shape = RoundedCornerShape(10.dp)
                     ) {
-                        Text("Play Again", fontWeight = FontWeight.ExtraBold)
+                        Text(stringResource(R.string.game_play_again), fontWeight = FontWeight.ExtraBold)
                     }
                 }
             },
@@ -1292,7 +1310,7 @@ fun GameBoardScreen(
                     border = BorderStroke(1.dp, NeonBorder),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Main Menu", color = Color.White)
+                    Text(stringResource(R.string.game_main_menu), color = Color.White)
                 }
             }
         )
@@ -1485,7 +1503,7 @@ fun PlayerScoreCard(
                     maxLines = 1
                 )
                 Text(
-                    text = "Walls: $wallsLeft",
+                    text = stringResource(R.string.game_walls_left_format, wallsLeft),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFA0ACCC)
                 )
@@ -1532,7 +1550,7 @@ fun PlayerScoreCard(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "TURN",
+                            text = stringResource(R.string.game_turn_badge),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.Black
@@ -1669,7 +1687,7 @@ fun CenterScreenEmoteOverlay(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = if (isOpponent) "$senderName:" else "You:",
+                            text = if (isOpponent) stringResource(R.string.sender_opponent_format, senderName) else stringResource(R.string.sender_you),
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             color = accentColor
@@ -1706,13 +1724,13 @@ fun EmotePickerDialog(
             ) {
                 Column {
                     Text(
-                        text = "😎 SEND EMOTE",
+                        text = stringResource(R.string.game_emote_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black,
                         color = Color.White
                     )
                     Text(
-                        text = "Taunt or react to your opponent (3s)",
+                        text = stringResource(R.string.game_emote_sub),
                         fontSize = 11.sp,
                         color = NeonCyan
                     )
@@ -1720,7 +1738,7 @@ fun EmotePickerDialog(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.btn_close),
                         tint = Color(0xFFA0ACCC)
                     )
                 }
@@ -1824,7 +1842,7 @@ fun EmotePickerDialog(
                     .testTag("btn_open_emoji_shop_from_dialog")
             ) {
                 Text(
-                    text = "🛒 Open Emoji Skins Shop",
+                    text = stringResource(R.string.game_open_emoji_shop),
                     fontWeight = FontWeight.Black,
                     fontSize = 13.sp
                 )

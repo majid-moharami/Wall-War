@@ -694,7 +694,7 @@ fun HeroRatingCard(
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = userProfile.rankTitle.uppercase(),
+                text = stringResource(userProfile.rankTitleResId).uppercase(),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Black,
                 color = NeonCyan

@@ -56,6 +56,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -63,6 +64,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wallwar.R
 import com.wallwar.ui.theme.NeonAmber
 import com.wallwar.ui.theme.NeonCyan
 import com.wallwar.ui.theme.NeonDarkBg
@@ -141,7 +143,7 @@ fun AuthScreen(
             )
 
             Text(
-                text = "NAKAMA CYBER ACCOUNT",
+                text = stringResource(R.string.auth_nakama_cyber_account),
                 style = MaterialTheme.typography.labelSmall,
                 color = NeonCyan,
                 fontWeight = FontWeight.Bold,
@@ -181,7 +183,7 @@ fun AuthScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "LOG IN",
+                                text = stringResource(R.string.auth_tab_login),
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (!isRegisterMode) Color.Black else Color(0xFFA0ACCC),
                                 fontSize = 13.sp
@@ -198,7 +200,7 @@ fun AuthScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "REGISTER",
+                                text = stringResource(R.string.auth_tab_register),
                                 fontWeight = FontWeight.ExtraBold,
                                 color = if (isRegisterMode) Color.White else Color(0xFFA0ACCC),
                                 fontSize = 13.sp
@@ -263,8 +265,8 @@ fun AuthScreen(
                         OutlinedTextField(
                             value = username,
                             onValueChange = { username = it },
-                            label = { Text("Display Username") },
-                            placeholder = { Text("e.g. CyberMaster") },
+                            label = { Text(stringResource(R.string.auth_display_username)) },
+                            placeholder = { Text(stringResource(R.string.auth_username_placeholder)) },
                             singleLine = true,
                             leadingIcon = {
                                 Icon(imageVector = Icons.Default.Person, contentDescription = null, tint = NeonMagenta)
@@ -288,8 +290,8 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it },
-                        label = { Text("Email Address") },
-                        placeholder = { Text("duelist@wallwar.app") },
+                        label = { Text(stringResource(R.string.auth_email_address)) },
+                        placeholder = { Text(stringResource(R.string.auth_email_placeholder)) },
                         singleLine = true,
                         leadingIcon = {
                             Icon(imageVector = Icons.Default.Email, contentDescription = null, tint = NeonCyan)
@@ -315,7 +317,7 @@ fun AuthScreen(
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Password") },
+                        label = { Text(stringResource(R.string.auth_password)) },
                         singleLine = true,
                         leadingIcon = {
                             Icon(imageVector = Icons.Default.Lock, contentDescription = null, tint = NeonCyan)
@@ -324,7 +326,7 @@ fun AuthScreen(
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = "Toggle password",
+                                    contentDescription = stringResource(R.string.auth_toggle_password),
                                     tint = Color(0xFFA0ACCC)
                                 )
                             }
@@ -374,7 +376,7 @@ fun AuthScreen(
                             )
                         } else {
                             Text(
-                                text = if (isRegisterMode) "CREATE NAKAMA ACCOUNT" else "LOG IN TO NAKAMA",
+                                text = if (isRegisterMode) stringResource(R.string.auth_btn_create_account) else stringResource(R.string.auth_btn_login_account),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp
                             )
@@ -395,7 +397,7 @@ fun AuthScreen(
                                 .background(Color(0xFF2C354A))
                         )
                         Text(
-                            text = " OR ",
+                            text = " ${stringResource(R.string.auth_or_divider)} ",
                             fontSize = 11.sp,
                             color = Color(0xFFA0ACCC),
                             fontWeight = FontWeight.Bold,
@@ -436,7 +438,7 @@ fun AuthScreen(
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Text(
-                                text = "Sign in with Google",
+                                text = stringResource(R.string.auth_btn_google),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = Color.Black
@@ -458,7 +460,7 @@ fun AuthScreen(
                         border = BorderStroke(1.5.dp, NeonAmber)
                     ) {
                         Text(
-                            text = "Play as Guest (Device ID)",
+                            text = stringResource(R.string.auth_btn_guest),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonAmber
@@ -471,7 +473,7 @@ fun AuthScreen(
 
             // Footer Info
             Text(
-                text = "Sessions are synced securely with Nakama Cloud Server.",
+                text = stringResource(R.string.auth_footer_sync),
                 fontSize = 11.sp,
                 color = Color(0xFF6B7280)
             )

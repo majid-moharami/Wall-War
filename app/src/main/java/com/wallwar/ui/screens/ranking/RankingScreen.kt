@@ -45,6 +45,8 @@ import com.wallwar.ui.theme.NeonDarkSurface
 import com.wallwar.ui.theme.NeonEmerald
 import com.wallwar.ui.theme.NeonMagenta
 import com.wallwar.ui.theme.NeonPurple
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -83,14 +85,14 @@ fun RankingScreen(
             }
             Spacer(modifier = Modifier.height(20.dp))
             Text(
-                text = "Ranking Arena",
+                text = stringResource(R.string.ranking_arena_title),
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Sign in to view global leaderboard standings, track your position, and compete on the seasonal rank boards.",
+                text = stringResource(R.string.ranking_sign_in_desc),
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFFA0ACCC),
                 textAlign = TextAlign.Center
@@ -102,7 +104,7 @@ fun RankingScreen(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
-                    text = "Sign In to View Leaderboard",
+                    text = stringResource(R.string.ranking_sign_in_btn),
                     color = Color.Black,
                     fontWeight = FontWeight.Bold
                 )
@@ -127,14 +129,14 @@ fun RankingScreen(
         ) {
             Column {
                 Text(
-                    text = "GLOBAL LEADERBOARD",
+                    text = stringResource(R.string.ranking_global_leaderboard),
                     style = MaterialTheme.typography.labelSmall,
                     color = NeonCyan,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.2.sp
                 )
                 Text(
-                    text = "Ranking Arena",
+                    text = stringResource(R.string.ranking_arena_title),
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White,
                     fontWeight = FontWeight.ExtraBold
@@ -150,13 +152,13 @@ fun RankingScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Default.EmojiEvents,
-                        contentDescription = "League",
+                        contentDescription = stringResource(R.string.ranking_season_1),
                         tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Season 1",
+                        text = stringResource(R.string.ranking_season_1),
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
                         fontSize = 12.sp
@@ -179,7 +181,7 @@ fun RankingScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "ALL DUELISTS",
+            text = stringResource(R.string.ranking_all_duelists),
             style = MaterialTheme.typography.labelMedium,
             color = Color(0xFFA0ACCC),
             fontWeight = FontWeight.Bold,
@@ -397,7 +399,7 @@ private fun LeaderboardCard(player: LeaderboardPlayer) {
                                 .padding(horizontal = 4.dp, vertical = 1.dp)
                         ) {
                             Text(
-                                text = "YOU",
+                                text = stringResource(R.string.ranking_you_badge),
                                 color = Color.Black,
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.ExtraBold
@@ -408,13 +410,13 @@ private fun LeaderboardCard(player: LeaderboardPlayer) {
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = player.title,
+                        text = stringResource(player.titleResId),
                         color = Color(0xFFA0ACCC),
                         fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "•  Lvl ${player.level}",
+                        text = stringResource(R.string.ranking_lvl_format, player.level),
                         color = NeonEmerald,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
@@ -431,7 +433,7 @@ private fun LeaderboardCard(player: LeaderboardPlayer) {
                     fontSize = 13.sp
                 )
                 Text(
-                    text = "${player.winRate}% Win",
+                    text = stringResource(R.string.ranking_win_rate_format, player.winRate),
                     color = Color(0xFFA0ACCC),
                     fontSize = 10.sp
                 )

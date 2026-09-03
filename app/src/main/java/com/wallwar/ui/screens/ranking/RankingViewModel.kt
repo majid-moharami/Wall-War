@@ -25,7 +25,15 @@ data class LeaderboardPlayer(
     val winRate: Int,
     val title: String,
     val level: Int
-)
+) {
+    val titleResId: Int
+        @androidx.annotation.StringRes get() = when {
+            trophies >= 1000 -> com.wallwar.R.string.rank_apex_duelist
+            trophies >= 500 -> com.wallwar.R.string.rank_grand_champion
+            trophies >= 200 -> com.wallwar.R.string.rank_neon_knight
+            else -> com.wallwar.R.string.rank_novice_duelist
+        }
+}
 
 @HiltViewModel
 class RankingViewModel @Inject constructor(

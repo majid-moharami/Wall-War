@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -257,7 +258,7 @@ fun WallWarNavGraph(
                 disconnectSecondsRemaining = disconnectSecondsRemaining,
                 isLocalDisconnected = isLocalDisconnected,
                 localDisconnectSeconds = localDisconnectSeconds,
-                arenaTitle = viewModel.selectedArena.title,
+                arenaTitle = stringResource(viewModel.selectedArena.titleResId),
                 winningPrize = viewModel.selectedArena.winningPrize,
                 onlineErrorMessage = onlineErrorMessage,
                 matchResultDelta = matchResultDelta,

@@ -161,9 +161,12 @@
     <string name="settings_debug_controls">DEBUG &amp; DEV CONTROLS</string>
     <string name="settings_coins_level_mod">Coins &amp; Level Modifier</string>
     <string name="settings_dev_only">DEV ONLY</string>
+    <string name="settings_current_level_coins_format">Current: Level %1$d (%2$s) • %3$d Coins</string>
     <string name="settings_target_coins">Target Coins</string>
     <string name="settings_target_level">Level (1-50)</string>
     <string name="settings_quick_presets">Quick Presets:</string>
+    <string name="settings_syncing">Syncing with Server…</string>
+    <string name="settings_port_prefix">Port:</string>
     <string name="settings_update_server_profile">Update Server &amp; Profile</string>
     <string name="settings_nakama_config">Nakama Server Config</string>
     <string name="settings_nakama_config_desc">Docker / Custom Nakama IP</string>
@@ -180,6 +183,11 @@
 
     <!-- Shop Screen -->
     <string name="shop_coin_store">Coin Store</string>
+    <string name="shop_in_app_billing_format">In-App Billing • %1$s</string>
+    <string name="shop_payment_method">Payment Method</string>
+    <string name="shop_active_badge">ACTIVE</string>
+    <string name="shop_secure_billing_title">🔒 Secure In-App Billing</string>
+    <string name="shop_secure_billing_desc">Payments are processed securely via %1$s. Coins are instantly credited to your wallet and synced with Nakama Online Servers.</string>
     <string name="shop_watch_ad_title">Watch Ad for Free Coins</string>
     <string name="shop_watch_ad_desc">Watch a short sponsored video to earn instant bonus coins!</string>
     <string name="shop_watch_ad_btn">Watch Video (+50 🪙)</string>
@@ -203,6 +211,16 @@
     <string name="skins_unlock">Unlock</string>
     <string name="skins_locked">Locked</string>
     <string name="emoji_shop_title">Emote Collection</string>
+    <string name="emoji_skins_chart">Emoji Skins Chart</string>
+    <string name="emoji_chart_subtitle">Taunt &amp; Express In Real-Time Duels</string>
+    <string name="emoji_get_coins">Get Coins</string>
+    <string name="emoji_preview_active">Active Emote Preview</string>
+    <string name="emoji_preview_tap_hint">Tap Any Emoji to Test</string>
+    <string name="emoji_preview_showing_format">Showing %1$s %2$s (lasts 3s in match)</string>
+    <string name="emoji_preview_desc">Unlocked emojis show over your avatar to opponents in real-time.</string>
+    <string name="emoji_unlocked_count_format">%1$d/9 Unlocked</string>
+    <string name="emoji_owned_badge">OWNED</string>
+    <string name="emoji_test_action">Test</string>
     <string name="emoji_send_emote">Send Emote</string>
     <string name="emoji_tap_to_send">Tap any unlocked emote to send to opponent</string>
 
@@ -422,4 +440,81 @@
     <string name="game_main_menu">Main Menu</string>
     <string name="game_retry_connection">Retry Connection</string>
     <string name="game_return_to_base">Return to Base</string>
+
+    <string name="game_turn_badge">TURN</string>
+    <string name="game_win_title">🏆 YOU WIN!</string>
+    <string name="game_lose_title">💀 YOU LOSE!</string>
+    <string name="game_player1_wins_title">🏆 PLAYER 1 WINS!</string>
+    <string name="game_player2_wins_title">🏆 PLAYER 2 WINS!</string>
+    <string name="game_win_desc">Masterful strategy! You breached the enemy defense.</string>
+    <string name="game_lose_desc">Your opponent outmaneuvered you this time.</string>
+    <string name="game_result_trophies">Trophies</string>
+    <string name="game_result_xp_gained">XP Gained</string>
+    <string name="game_result_coins_rewarded">Coins Rewarded</string>
+    <string name="game_result_streak_bonus">🔥 %1$d-WIN STREAK (+%2$d Bonus Coins!)</string>
+    <string name="game_result_levelup">⭐ LEVEL UP! REACHED LEVEL %1$d ⭐</string>
+    <string name="game_result_practice_note">🎮 Practice Mode • No XP or Rewards in Offline/AI Games</string>
+    <string name="game_emote_title">😎 SEND EMOTE</string>
+    <string name="game_emote_sub">Taunt or react to your opponent (3s)</string>
+    <string name="game_open_emoji_shop">🛒 Open Emoji Skins Shop</string>
+    <string name="game_opp_lost_conn">%1$s lost connection.</string>
+    <string name="game_opp_waiting_format">Waiting: %1$ds</string>
+    <string name="game_opp_disconnect_details">If opponent reconnects within 60 seconds, the match will resume.\nOtherwise, you will automatically win!</string>
+    <string name="game_conn_error_generic">Unable to connect to the game server.</string>
+    <string name="error_title">Connection Error</string>
+    <string name="game_conn_check_internet">Please check your internet connection and try again.</string>
+    <string name="sender_you">You:</string>
+    <string name="sender_opponent_format">%1$s:</string>
+
+    <!-- History Screen Strings -->
+    <string name="history_clear_title">Clear Match History?</string>
+    <string name="history_clear_desc">This will reset all recorded match statistics and performance logs. This action cannot be undone.</string>
+    <string name="history_clear_confirm">Clear All</string>
+    <string name="history_analytics_badge">TACTICAL ANALYTICS</string>
+    <string name="history_online_history_title">Online Match History</string>
+    <string name="history_rating_trend">Rating Trend</string>
+    <string name="history_empty_analytics">No online match history available.\nPlay online matches to populate analytics!</string>
+    <string name="history_vs_opponent">vs %1$s</string>
+    <string name="history_logs_header">ONLINE MATCH LOGS</string>
+    <string name="history_records_count">%1$d record(s)</string>
+    <string name="history_empty_log">No online match history available.</string>
+    <string name="history_rating_path">Rating Path</string>
+    <string name="history_win_stat">Win (+25)</string>
+    <string name="history_loss_stat">Loss (-18)</string>
+    <string name="history_rating_selected">Rating: %1$s</string>
+    <string name="history_match_vs">%1$s vs %2$s</string>
+    <string name="history_match_duration">⏱️ Match Duration: %1$ds</string>
+    <string name="history_online_duel">⚔️ Online Duel</string>
+    <string name="history_victory">VICTORY</string>
+    <string name="history_defeat">DEFEAT</string>
+    <string name="history_total_matches">Total Matches</string>
+    <string name="history_win_rate">Win Rate</string>
+    <string name="history_victory_gain">VICTORY (+25)</string>
+    <string name="history_defeat_loss">DEFEAT (-18)</string>
+    <string name="history_online_arena_match">⚔️ Online Arena Match</string>
+
+    <!-- Auth Strings -->
+    <string name="auth_display_username">Display Username</string>
+    <string name="auth_username_placeholder">e.g. CyberMaster</string>
+    <string name="auth_email_address">Email Address</string>
+    <string name="auth_email_placeholder">duelist@wallwar.app</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_nakama_cyber_account">NAKAMA CYBER ACCOUNT</string>
+    <string name="auth_tab_login">LOG IN</string>
+    <string name="auth_tab_register">REGISTER</string>
+    <string name="auth_btn_create_account">CREATE NAKAMA ACCOUNT</string>
+    <string name="auth_btn_login_account">LOG IN TO NAKAMA</string>
+    <string name="auth_or_divider">OR</string>
+    <string name="auth_btn_google">Sign in with Google</string>
+    <string name="auth_btn_guest">Play as Guest (Device ID)</string>
+    <string name="auth_footer_sync">Sessions are synced securely with Nakama Cloud Server.</string>
+    <string name="auth_toggle_password">Toggle password visibility</string>
+
+    <!-- Ranks -->
+    <string name="rank_novice_duelist">Novice Duelist</string>
+    <string name="rank_neon_knight">Neon Knight</string>
+    <string name="rank_tactical_adept">Tactical Adept</string>
+    <string name="rank_grid_master">Grid Master</string>
+    <string name="rank_grand_champion">Grand Champion</string>
+    <string name="rank_apex_duelist">Apex Duelist</string>
 </resources>

@@ -30,8 +30,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.wallwar.R
 import com.wallwar.ui.theme.WallWarAmber
 import com.wallwar.ui.theme.WallWarPurple
 
@@ -57,12 +59,12 @@ fun RulesScreen(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back"
+                    contentDescription = stringResource(R.string.btn_back)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "How to Play WallWar",
+                text = stringResource(R.string.rules_screen_title),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -71,8 +73,8 @@ fun RulesScreen(
         Spacer(modifier = Modifier.height(20.dp))
 
         RuleCard(
-            title = "1. The Objective",
-            description = "Be the first player to reach any cell on your target goal row across the board.",
+            title = stringResource(R.string.rules_step1_title),
+            description = stringResource(R.string.rules_step1_desc),
             icon = Icons.Default.Navigation,
             iconTint = WallWarPurple
         )
@@ -80,8 +82,8 @@ fun RulesScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         RuleCard(
-            title = "2. Turn Actions",
-            description = "On your turn, you can either move your pawn 1 square orthogonally OR place 1 wall from your reserve.",
+            title = stringResource(R.string.rules_step2_title),
+            description = stringResource(R.string.rules_step2_desc),
             icon = Icons.Default.GridOn,
             iconTint = WallWarAmber
         )
@@ -89,8 +91,8 @@ fun RulesScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         RuleCard(
-            title = "3. Jumping over Opponents",
-            description = "When adjacent to your opponent without a wall in between, you can jump directly over them in that straight direction (top, bottom, left, or right) if the space behind is unblocked.",
+            title = stringResource(R.string.rules_step3_title),
+            description = stringResource(R.string.rules_step3_desc),
             icon = Icons.Default.SwapCalls,
             iconTint = WallWarPurple
         )
@@ -98,8 +100,8 @@ fun RulesScreen(
         Spacer(modifier = Modifier.height(14.dp))
 
         RuleCard(
-            title = "4. The Golden Rule (No Trapping)",
-            description = "Walls span 2 spaces. You are STRICTLY FORBIDDEN from completely trapping any player. Every player must always have at least ONE clear path to their goal!",
+            title = stringResource(R.string.rules_step4_title),
+            description = stringResource(R.string.rules_step4_desc),
             icon = Icons.Default.Lock,
             iconTint = WallWarAmber
         )

@@ -66,10 +66,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.wallwar.R
 import com.wallwar.data.MatchRecord
 import com.wallwar.data.UserProfile
 import com.wallwar.ui.theme.NeonAmber
@@ -110,8 +112,8 @@ fun HistoryScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear Match History?", color = Color.White, fontWeight = FontWeight.Bold) },
-            text = { Text("This will reset all recorded match statistics and performance logs. This action cannot be undone.", color = Color(0xFFA0ACCC)) },
+            title = { Text(stringResource(R.string.history_clear_title), color = Color.White, fontWeight = FontWeight.Bold) },
+            text = { Text(stringResource(R.string.history_clear_desc), color = Color(0xFFA0ACCC)) },
             containerColor = NeonDarkCard,
             confirmButton = {
                 TextButton(
@@ -121,12 +123,12 @@ fun HistoryScreen(
                         showClearDialog = false
                     }
                 ) {
-                    Text("Clear All", color = NeonMagenta, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_clear_confirm), color = NeonMagenta, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel", color = Color.White)
+                    Text(stringResource(R.string.btn_cancel), color = Color.White)
                 }
             }
         )
@@ -157,21 +159,21 @@ fun HistoryScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.btn_back),
                         tint = NeonCyan
                     )
                 }
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "TACTICAL ANALYTICS",
+                        text = stringResource(R.string.history_analytics_badge),
                         style = MaterialTheme.typography.labelSmall,
                         color = NeonCyan,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.2.sp
                     )
                     Text(
-                        text = "Online Match History",
+                        text = stringResource(R.string.history_online_history_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
@@ -188,7 +190,7 @@ fun HistoryScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = "Clear History",
+                            contentDescription = stringResource(R.string.history_clear_confirm),
                             tint = NeonMagenta
                         )
                     }
@@ -203,14 +205,14 @@ fun HistoryScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 StatBentoCard(
-                    title = "Total Matches",
+                    title = stringResource(R.string.history_total_matches),
                     value = "$totalMatches",
                     icon = Icons.Default.SportsEsports,
                     accentColor = NeonCyan,
                     modifier = Modifier.weight(1f)
                 )
                 StatBentoCard(
-                    title = "Win Rate",
+                    title = stringResource(R.string.history_win_rate),
                     value = "$winRate%",
                     icon = Icons.Default.EmojiEvents,
                     accentColor = NeonEmerald,
@@ -248,7 +250,7 @@ fun HistoryScreen(
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Text(
-                            text = "Rating Trend",
+                            text = stringResource(R.string.history_rating_trend),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -269,7 +271,7 @@ fun HistoryScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No online match history available.\nPlay online matches to populate analytics!",
+                                text = stringResource(R.string.history_empty_analytics),
                                 color = Color(0xFFA0ACCC),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
@@ -333,7 +335,7 @@ fun HistoryScreen(
                                             )
                                             Spacer(modifier = Modifier.height(2.dp))
                                             Text(
-                                                text = "vs ${match.opponentName}",
+                                                text = stringResource(R.string.history_vs_opponent, match.opponentName),
                                                 style = MaterialTheme.typography.bodySmall,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = NeonCyan,
@@ -354,7 +356,7 @@ fun HistoryScreen(
                                                     .padding(horizontal = 8.dp, vertical = 5.dp)
                                             ) {
                                                 Text(
-                                                    text = if (isWin) "VICTORY (+25)" else "DEFEAT (-18)",
+                                                    text = if (isWin) stringResource(R.string.history_victory_gain) else stringResource(R.string.history_defeat_loss),
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = if (isWin) NeonEmerald else NeonMagenta
@@ -367,7 +369,7 @@ fun HistoryScreen(
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.Close,
-                                                    contentDescription = "Close",
+                                                    contentDescription = stringResource(R.string.btn_close),
                                                     tint = Color(0xFFA0ACCC),
                                                     modifier = Modifier.size(16.dp)
                                                 )
@@ -388,7 +390,7 @@ fun HistoryScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = if (match.durationSeconds > 0) "⏱️ Duration: ${match.durationSeconds}s" else "⚔️ Online Arena Match",
+                                            text = if (match.durationSeconds > 0) stringResource(R.string.history_match_duration, match.durationSeconds) else stringResource(R.string.history_online_arena_match),
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
                                             color = Color(0xFFA0ACCC)
@@ -425,7 +427,7 @@ fun HistoryScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "ONLINE MATCH LOGS",
+                        text = stringResource(R.string.history_logs_header),
                         style = MaterialTheme.typography.labelMedium,
                         color = Color(0xFFA0ACCC),
                         fontWeight = FontWeight.Bold,
@@ -434,7 +436,7 @@ fun HistoryScreen(
                 }
 
                 Text(
-                    text = "${matches.size} record(s)",
+                    text = stringResource(R.string.history_records_count, matches.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = NeonCyan,
                     fontWeight = FontWeight.Bold
@@ -457,7 +459,7 @@ fun HistoryScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No online match history available.",
+                            text = stringResource(R.string.history_empty_log),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color(0xFFA0ACCC),
                             fontWeight = FontWeight.Medium,
@@ -568,22 +570,22 @@ private fun NeonRatingTrendChart(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonCyan))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Rating Path", fontSize = 10.sp, color = Color(0xFFA0ACCC), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_rating_path), fontSize = 10.sp, color = Color(0xFFA0ACCC), fontWeight = FontWeight.Bold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonEmerald))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Win (+25)", fontSize = 10.sp, color = NeonEmerald, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_win_stat), fontSize = 10.sp, color = NeonEmerald, fontWeight = FontWeight.Bold)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(NeonMagenta))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Loss (-18)", fontSize = 10.sp, color = NeonMagenta, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.history_loss_stat), fontSize = 10.sp, color = NeonMagenta, fontWeight = FontWeight.Bold)
                 }
             }
             if (tappedIndex != null) {
                 Text(
-                    text = "Rating: ${points.getOrNull(tappedIndex ?: 0) ?: ""}",
+                    text = stringResource(R.string.history_rating_selected, points.getOrNull(tappedIndex ?: 0)?.toString() ?: ""),
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = NeonCyan
@@ -773,7 +775,7 @@ private fun NeonMatchHistoryCard(match: MatchRecord) {
                     .padding(end = 8.dp)
             ) {
                 Text(
-                    text = "${match.modeName} vs ${match.opponentName}",
+                    text = stringResource(R.string.history_match_vs, match.modeName, match.opponentName),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -782,7 +784,7 @@ private fun NeonMatchHistoryCard(match: MatchRecord) {
                 )
                 Spacer(modifier = Modifier.height(3.dp))
                 Text(
-                    text = if (match.durationSeconds > 0) "⏱️ Match Duration: ${match.durationSeconds}s" else "⚔️ Online Duel",
+                    text = if (match.durationSeconds > 0) stringResource(R.string.history_match_duration, match.durationSeconds) else stringResource(R.string.history_online_duel),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFA0ACCC),
                     maxLines = 1,
@@ -803,7 +805,7 @@ private fun NeonMatchHistoryCard(match: MatchRecord) {
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
                 Text(
-                    text = if (isUserWin) "VICTORY" else "DEFEAT",
+                    text = if (isUserWin) stringResource(R.string.history_victory) else stringResource(R.string.history_defeat),
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 11.sp,
                     color = if (isUserWin) NeonEmerald else NeonMagenta

@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.sp
 import com.wallwar.data.EmojiSkin
 import com.wallwar.data.UserProfile
 import com.wallwar.ui.theme.*
+import androidx.compose.ui.res.stringResource
+import com.wallwar.R
 import kotlinx.coroutines.delay
 
 @Composable
@@ -91,13 +93,13 @@ fun EmojiShopScreen(
                 Spacer(modifier = Modifier.width(6.dp))
                 Column {
                     Text(
-                        text = "Emoji Skins Chart",
+                        text = stringResource(R.string.emoji_skins_chart),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Black,
                         color = Color.White
                     )
                     Text(
-                        text = "Taunt & Express In Real-Time Duels",
+                        text = stringResource(R.string.emoji_chart_subtitle),
                         style = MaterialTheme.typography.labelSmall,
                         color = NeonCyan
                     )
@@ -177,7 +179,7 @@ fun EmojiShopScreen(
                                 modifier = Modifier.height(32.dp)
                             ) {
                                 Text(
-                                    text = "Get Coins",
+                                    text = stringResource(R.string.emoji_get_coins),
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color.Black
@@ -239,16 +241,16 @@ fun EmojiShopScreen(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = if (previewEmoji != null) "Active Emote Preview" else "Tap Any Emoji to Test",
+                        text = if (previewEmoji != null) stringResource(R.string.emoji_preview_active) else stringResource(R.string.emoji_preview_tap_hint),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Black,
                         color = if (previewEmoji != null) NeonCyan else Color.White
                     )
                     Text(
                         text = if (previewEmoji != null) {
-                            "Showing ${previewEmoji.symbol} ${previewEmoji.name} (lasts 3s in match)"
+                            stringResource(R.string.emoji_preview_showing_format, previewEmoji.symbol, previewEmoji.name)
                         } else {
-                            "Unlocked emojis show over your avatar to opponents in real-time."
+                            stringResource(R.string.emoji_preview_desc)
                         },
                         fontSize = 11.sp,
                         color = Color(0xFFA0ACCC),
@@ -263,7 +265,7 @@ fun EmojiShopScreen(
                         border = BorderStroke(1.dp, NeonCyan.copy(alpha = 0.5f))
                     ) {
                         Text(
-                            text = "${unlockedEmojiIds.size}/9 Unlocked",
+                            text = stringResource(R.string.emoji_unlocked_count_format, unlockedEmojiIds.size),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = NeonCyan,
@@ -350,13 +352,13 @@ fun EmojiSkinGridCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Unlocked",
+                        contentDescription = stringResource(R.string.emoji_owned_badge),
                         tint = NeonEmerald,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
-                        text = "OWNED",
+                        text = stringResource(R.string.emoji_owned_badge),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Black,
                         color = NeonEmerald
@@ -435,13 +437,13 @@ fun EmojiSkinGridCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Test",
+                        contentDescription = stringResource(R.string.emoji_test_action),
                         tint = NeonCyan,
                         modifier = Modifier.size(12.dp)
                     )
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
-                        text = "Test",
+                        text = stringResource(R.string.emoji_test_action),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
