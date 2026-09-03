@@ -37,11 +37,17 @@ class SettingsRepository @Inject constructor(
     }
 
     private fun loadStoredLanguage(): String {
+        if (BuildConfig.TARGET_STORE.equals("PLAY", ignoreCase = true)) {
+            return "en"
+        }
         val defaultLang = getDefaultLanguage()
         return prefs.getString("selected_language", defaultLang) ?: defaultLang
     }
 
     fun setSelectedLanguage(langCode: String) {
+        if (BuildConfig.TARGET_STORE.equals("PLAY", ignoreCase = true)) {
+            return
+        }
         val validLang = if (langCode == "fa") "fa" else "en"
         _selectedLanguage.value = validLang
         prefs.edit().putString("selected_language", validLang).apply()

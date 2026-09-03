@@ -133,95 +133,98 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Language Switcher Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Language,
-                        contentDescription = null,
-                        tint = NeonCyan,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.settings_language),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = stringResource(R.string.settings_language_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    val isEn = selectedLanguage == "en"
-                    val isFa = selectedLanguage == "fa"
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isEn) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
-                            .border(
-                                1.5.dp,
-                                if (isEn) NeonCyan else Color.Transparent,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .clickable { onSetLanguage("en") }
-                            .padding(vertical = 12.dp, horizontal = 12.dp),
-                        contentAlignment = Alignment.Center
+        // Language Switcher Card - Only displayed in Myket & Bazaar versions, hidden in Google Play
+        val showLanguageSwitcher = !BuildConfig.TARGET_STORE.equals("PLAY", ignoreCase = true)
+        if (showLanguageSwitcher) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
-                            text = "English",
-                            fontWeight = if (isEn) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isEn) NeonCyan else Color(0xFFA0ACCC),
-                            fontSize = 14.sp
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = null,
+                            tint = NeonCyan,
+                            modifier = Modifier.size(24.dp)
                         )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.settings_language),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_language_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isFa) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
-                            .border(
-                                1.5.dp,
-                                if (isFa) NeonCyan else Color.Transparent,
-                                RoundedCornerShape(12.dp)
-                            )
-                            .clickable { onSetLanguage("fa") }
-                            .padding(vertical = 12.dp, horizontal = 12.dp),
-                        contentAlignment = Alignment.Center
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "فارسی",
-                            fontWeight = if (isFa) FontWeight.ExtraBold else FontWeight.Medium,
-                            color = if (isFa) NeonCyan else Color(0xFFA0ACCC),
-                            fontSize = 14.sp
-                        )
+                        val isEn = selectedLanguage == "en"
+                        val isFa = selectedLanguage == "fa"
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isEn) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+                                .border(
+                                    1.5.dp,
+                                    if (isEn) NeonCyan else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onSetLanguage("en") }
+                                .padding(vertical = 12.dp, horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "English",
+                                fontWeight = if (isEn) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isEn) NeonCyan else Color(0xFFA0ACCC),
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isFa) NeonCyan.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
+                                .border(
+                                    1.5.dp,
+                                    if (isFa) NeonCyan else Color.Transparent,
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .clickable { onSetLanguage("fa") }
+                                .padding(vertical = 12.dp, horizontal = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "فارسی",
+                                fontWeight = if (isFa) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isFa) NeonCyan else Color(0xFFA0ACCC),
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(14.dp))
+        }
 
         // Sound Effects Toggle
         Card(
