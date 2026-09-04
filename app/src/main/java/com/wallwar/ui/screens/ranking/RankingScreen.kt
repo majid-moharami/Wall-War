@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextAlign
 fun RankingScreen(
     userProfile: UserProfile,
     leaderboard: List<LeaderboardPlayer>,
+    currentUserPlayer: LeaderboardPlayer? = null,
     isLoading: Boolean = false,
     onRefresh: () -> Unit = {},
     onNavigateToProfile: () -> Unit = {},
@@ -118,8 +119,8 @@ fun RankingScreen(
         return
     }
 
-    val currentUserPlayer = leaderboard.firstOrNull { it.isUser }
-    val isUserInTop5 = currentUserPlayer != null && currentUserPlayer.rank <= 5
+    val effectiveUser = currentUserPlayer ?: leaderboard.firstOrNull { it.isUser }
+    val isUserInTop3 = effectiveUser != null && effectiveUser.rank <= 3
 
     Column(
         modifier = modifier
@@ -253,7 +254,7 @@ fun RankingScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f)
         ) {
-            items(leaderboard, key = { if (it.id.isNotBlank()) "${it.id}_${it.rank}" else "${it.rank}_${it.name}" }) { player ->
+            items(leaderboard, key = { "${it.id}_${it.rank}_${it.name}" }) { player ->
                 LeaderboardCard(player = player)
             }
             item {
@@ -261,9 +262,9 @@ fun RankingScreen(
             }
         }
 
-        // Show player rank at bottom of screen if not in top 5
-        if (currentUserPlayer != null && !isUserInTop5) {
-            UserBottomRankCard(player = currentUserPlayer)
+        // Show player rank at bottom of screen if not on top 3 podium
+        if (effectiveUser != null && !isUserInTop3) {
+            UserBottomRankCard(player = effectiveUser)
         }
     }
 }
@@ -314,6 +315,15 @@ private fun UserBottomRankCard(player: LeaderboardPlayer) {
                         color = NeonCyan,
                         fontSize = 15.sp
                     )
+                    if (player.rank > 100) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "(خارج از ۱۰۰ برتر)",
+                            color = Color(0xFFA0ACCC),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 Text(

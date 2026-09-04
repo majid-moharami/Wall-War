@@ -171,11 +171,13 @@ fun WallWarNavGraph(
             val viewModel: RankingViewModel = hiltViewModel()
             val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
             val leaderboard by viewModel.leaderboard.collectAsStateWithLifecycle()
+            val currentUserPlayer by viewModel.currentUserPlayer.collectAsStateWithLifecycle()
             val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
             RankingScreen(
                 userProfile = userProfile,
                 leaderboard = leaderboard,
+                currentUserPlayer = currentUserPlayer,
                 isLoading = isLoading,
                 onRefresh = { viewModel.refreshLeaderboard() },
                 onNavigateToProfile = {

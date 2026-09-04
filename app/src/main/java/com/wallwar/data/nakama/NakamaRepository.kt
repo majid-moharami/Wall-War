@@ -265,7 +265,7 @@ class NakamaRepository @Inject constructor(
                 true
             } catch (e: Exception) {
                 Log.e("NakamaRepository", "Error in authenticateWithGoogle: ${e.message}")
-                authenticateWithDevice(username)
+                ensureAuthenticatedGuest(username)
             }
         }
 
@@ -436,10 +436,15 @@ class NakamaRepository @Inject constructor(
     }
 
     suspend fun syncUserProfileToNakama(profile: UserProfile) = withContext(Dispatchers.IO) {
+        if (session == null || session?.IsExpired() == true) {
+            val username = profile.displayName.ifBlank { "Duelist" }
+            ensureAuthenticatedGuest(username)
+        }
         val s = session ?: return@withContext
         try {
             val statsObj = JSONObject().apply {
                 put("displayName", profile.displayName)
+                put("username", nakamaUsername ?: profile.displayName)
                 if (profile.photoUrl != null) {
                     put("avatarUrl", profile.photoUrl)
                 }
@@ -967,7 +972,7 @@ class NakamaRepository @Inject constructor(
         // Ensure active session
         if (session == null || session?.IsExpired() == true) {
             val username = nakamaUsername ?: prefs.getString("nakama_username", null) ?: "player_${java.util.UUID.randomUUID().toString().take(8)}"
-            authenticateWithDevice(username)
+            ensureAuthenticatedGuest(username)
         }
         val s = session ?: return@withContext emptyList()
 
@@ -1030,22 +1035,24 @@ class NakamaRepository @Inject constructor(
         // 2. Fallback: If leaderboard has no records or is not created on server, list all users from public stats storage
         if (entries.isEmpty()) {
             try {
-                // Fetch all user storage objects with pagination support
+                // Fetch all user storage objects with pagination support using listUsersStorageObjects
                 val allStorageObjects = mutableListOf<com.heroiclabs.nakama.api.StorageObject>()
                 var cursor: String? = null
                 var page = 0
                 do {
                     page++
                     val storageResult = if (cursor.isNullOrBlank()) {
-                        client.listStorageObjects(s, "user_data", 100).await()
+                        client.listUsersStorageObjects(s, "user_data", null, 100).await()
                     } else {
-                        client.listStorageObjects(s, "user_data", 100, cursor).await()
+                        client.listUsersStorageObjects(s, "user_data", null, 100, cursor).await()
                     }
                     allStorageObjects.addAll(storageResult.objectsList)
                     cursor = storageResult.cursor?.takeIf { it.isNotBlank() }
-                } while (!cursor.isNullOrBlank() && page < 10)
+                    Log.d("NakamaRepository", "Storage fetch page $page: got ${storageResult.objectsList.size} objects (total: ${allStorageObjects.size}), next cursor=${cursor?.take(10)}")
+                } while (!cursor.isNullOrBlank() && page < 25)
 
                 val statsObjects = allStorageObjects.filter { it.key == "stats" }
+                Log.d("NakamaRepository", "Filtered ${statsObjects.size} 'stats' objects from ${allStorageObjects.size} total storage objects")
                 if (statsObjects.isNotEmpty()) {
                     // Deduplicate by userId
                     val uniqueStats = statsObjects.groupBy { it.userId }.map { (_, list) -> list.last() }
@@ -1073,18 +1080,32 @@ class NakamaRepository @Inject constructor(
                             val level = json.optInt("level", (trophies / 200) + 1)
                             val u = userMap[obj.userId]
                             val jsonDisplayName = json.optString("displayName", "").takeIf { it.isNotBlank() }
+                            val jsonUsername = json.optString("username", "").takeIf { it.isNotBlank() }
                             val jsonAvatarUrl = json.optString("avatarUrl", "").takeIf { it.isNotBlank() }
                             val name = when {
+                                !jsonDisplayName.isNullOrBlank() -> jsonDisplayName
                                 u != null && !u.displayName.isNullOrBlank() -> u.displayName
-                                jsonDisplayName != null -> jsonDisplayName
                                 u != null && !u.username.isNullOrBlank() -> u.username
-                                else -> "Duelist"
+                                !jsonUsername.isNullOrBlank() -> jsonUsername
+                                else -> null
+                            } ?: return@mapNotNull null
+
+                            // Filter out guest accounts from leaderboard rankings
+                            val cleanName = name.trim()
+                            if (cleanName.startsWith("Guest_", ignoreCase = true) ||
+                                cleanName.equals("Guest", ignoreCase = true) ||
+                                cleanName.startsWith("Guest Duelist", ignoreCase = true) ||
+                                cleanName.startsWith("Duelist", ignoreCase = true) ||
+                                cleanName.startsWith("player_", ignoreCase = true)
+                            ) {
+                                return@mapNotNull null
                             }
+
                             val avatar = u?.avatarUrl?.takeIf { it.isNotBlank() } ?: jsonAvatarUrl
                             LeaderboardEntry(
                                 rank = 0,
                                 userId = obj.userId,
-                                username = u?.username ?: name,
+                                username = u?.username ?: jsonUsername ?: name,
                                 displayName = name,
                                 trophies = trophies,
                                 wins = wins,
@@ -1202,7 +1223,7 @@ class NakamaRepository @Inject constructor(
             _matchEvents.emit(OnlineMatchEvent.SearchingForMatch)
 
             if (session == null || session!!.IsExpired()) {
-                if (!authenticateWithDevice(username)) {
+                if (!ensureAuthenticatedGuest(username)) {
                     _matchState.value = OnlineMatchState.ERROR
                     _matchEvents.emit(OnlineMatchEvent.Error("Authentication failed"))
                     return@launch
@@ -1445,7 +1466,7 @@ class NakamaRepository @Inject constructor(
             try {
                 if (session == null || session!!.IsExpired()) {
                     val username = nakamaUsername ?: "Player"
-                    authenticateWithDevice(username)
+                    ensureAuthenticatedGuest(username)
                 }
                 if (session != null) {
                     if (socket == null) {

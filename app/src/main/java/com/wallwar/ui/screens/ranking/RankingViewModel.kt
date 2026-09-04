@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -36,6 +37,11 @@ data class LeaderboardPlayer(
         }
 }
 
+data class RankingData(
+    val displayedLeaderboard: List<LeaderboardPlayer> = emptyList(),
+    val currentUserPlayer: LeaderboardPlayer? = null
+)
+
 @HiltViewModel
 class RankingViewModel @Inject constructor(
     private val authRepository: AuthRepository,
@@ -50,61 +56,115 @@ class RankingViewModel @Inject constructor(
 
     private val _nakamaLeaderboard = MutableStateFlow<List<LeaderboardPlayer>>(emptyList())
 
-    val leaderboard: StateFlow<List<LeaderboardPlayer>> = combine(
+    private fun isGuestName(name: String?): Boolean {
+        val clean = name?.trim() ?: ""
+        return clean.isBlank() ||
+                clean.startsWith("Guest_", ignoreCase = true) ||
+                clean.equals("Guest", ignoreCase = true) ||
+                clean.startsWith("Guest Duelist", ignoreCase = true) ||
+                clean.startsWith("Duelist", ignoreCase = true) ||
+                clean.startsWith("player_", ignoreCase = true)
+    }
+
+    private val _rankingData: StateFlow<RankingData> = combine(
         authRepository.userProfile,
         gameRepository.playerWins,
         _nakamaLeaderboard
     ) { user: UserProfile, winsCount: Int, nakamaList: List<LeaderboardPlayer> ->
         val userWins = winsCount.coerceAtLeast(user.wins)
-        val userPlayer = LeaderboardPlayer(
-            id = user.nakamaUserId ?: "local_user",
+        val currentUserId = user.nakamaUserId ?: nakamaRepository.getNakamaUserId()
+        val userDisplayName = user.displayName.trim()
+
+        // 1. Filter out all guest accounts (guest accounts are not shown on leaderboard)
+        val nonGuestList = nakamaList.filter { !isGuestName(it.name) }
+
+        // 2. Identify any entry matching the current user across different devices/sessions
+        fun isCurrentUser(player: LeaderboardPlayer): Boolean {
+            if (player.isUser) return true
+            if (!currentUserId.isNullOrBlank() && player.id == currentUserId) return true
+            if (userDisplayName.isNotBlank() && !isGuestName(userDisplayName) && player.name.equals(userDisplayName, ignoreCase = true)) return true
+            return false
+        }
+
+        val userMatches = nonGuestList.filter { isCurrentUser(it) }
+
+        // Determine best trophies, wins, and level for the current user
+        val bestUserTrophies = if (userMatches.isNotEmpty()) {
+            maxOf(user.trophies, userMatches.maxOf { it.trophies })
+        } else {
+            user.trophies
+        }
+        val bestUserWins = if (userMatches.isNotEmpty()) {
+            maxOf(userWins, userMatches.maxOf { it.wins })
+        } else {
+            userWins
+        }
+        val bestUserLevel = if (userMatches.isNotEmpty()) {
+            maxOf(user.level, userMatches.maxOf { it.level })
+        } else {
+            user.level
+        }
+        val bestAvatar = user.photoUrl ?: userMatches.firstOrNull { !it.avatarUrl.isNullOrBlank() }?.avatarUrl
+
+        val canonicalUserPlayer = LeaderboardPlayer(
+            id = currentUserId ?: userMatches.firstOrNull()?.id ?: "local_user",
             rank = 1,
-            name = if (user.displayName.isNotBlank()) user.displayName else "Duelist",
-            avatarUrl = user.photoUrl,
+            name = if (userDisplayName.isNotBlank()) userDisplayName else (userMatches.firstOrNull()?.name ?: "Player"),
+            avatarUrl = bestAvatar,
             isUser = true,
-            trophies = user.trophies,
-            wins = userWins,
-            winRate = if (user.totalMatches > 0) ((userWins.toFloat() / user.totalMatches) * 100).toInt() else 0,
+            trophies = bestUserTrophies,
+            wins = bestUserWins,
+            winRate = if (user.totalMatches > 0) ((bestUserWins.toFloat() / user.totalMatches) * 100).toInt() else if (bestUserWins > 0) 75 else 0,
             title = user.rankTitle,
-            level = user.level
+            level = bestUserLevel
         )
 
-        if (nakamaList.isEmpty()) {
-            listOf(userPlayer)
-        } else {
-            val hasUserInList = nakamaList.any { it.isUser || (!user.nakamaUserId.isNullOrBlank() && it.id == user.nakamaUserId) }
-            val mergedList = if (hasUserInList) {
-                nakamaList.map { player ->
-                    val isMatch = player.isUser || (!user.nakamaUserId.isNullOrBlank() && player.id == user.nakamaUserId)
-                    if (isMatch) {
-                        player.copy(
-                            id = if (player.id.isNotBlank()) player.id else (user.nakamaUserId ?: "local_user"),
-                            name = if (user.displayName.isNotBlank()) user.displayName else player.name,
-                            avatarUrl = user.photoUrl ?: player.avatarUrl,
-                            isUser = true,
-                            trophies = maxOf(player.trophies, user.trophies),
-                            wins = maxOf(player.wins, userWins),
-                            level = maxOf(player.level, user.level)
-                        )
-                    } else {
-                        player
-                    }
+        // 3. Deduplicate opponents by normalized name so no player appears twice (e.g. multi-phone logins)
+        val deduplicatedMap = mutableMapOf<String, LeaderboardPlayer>()
+
+        for (player in nonGuestList) {
+            if (!isCurrentUser(player)) {
+                val key = player.name.trim().lowercase()
+                val existing = deduplicatedMap[key]
+                if (existing == null || player.trophies > existing.trophies || (player.trophies == existing.trophies && player.wins > existing.wins)) {
+                    deduplicatedMap[key] = player.copy(isUser = false)
                 }
-            } else {
-                nakamaList + userPlayer
+            }
+        }
+
+        // Add the single canonical current user if logged in or has a valid profile
+        if (user.isLoggedIn || userDisplayName.isNotBlank()) {
+            val userKey = canonicalUserPlayer.name.trim().lowercase()
+            deduplicatedMap[userKey] = canonicalUserPlayer
+        }
+
+        // 4. Sort globally: Trophies (primary DESC), Wins (secondary DESC)
+        val sortedGlobalList = deduplicatedMap.values
+            .sortedWith(
+                compareByDescending<LeaderboardPlayer> { it.trophies }
+                    .thenByDescending { it.wins }
+            )
+            .mapIndexed { index, player ->
+                player.copy(rank = index + 1)
             }
 
-            // Always sort in global ranking order: Trophies (primary), Wins (secondary)
-            mergedList
-                .sortedWith(
-                    compareByDescending<LeaderboardPlayer> { it.trophies }
-                        .thenByDescending { it.wins }
-                )
-                .mapIndexed { index, player ->
-                    player.copy(rank = index + 1)
-                }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        // 5. Locate current user's entry with exact global rank
+        val currentUserWithRank = sortedGlobalList.firstOrNull { it.isUser } ?: canonicalUserPlayer
+
+        // 6. Limit displayed list to at most 100 players
+        val displayedList = sortedGlobalList.take(100)
+
+        RankingData(
+            displayedLeaderboard = displayedList,
+            currentUserPlayer = currentUserWithRank
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RankingData())
+
+    val leaderboard: StateFlow<List<LeaderboardPlayer>> = _rankingData.map { it.displayedLeaderboard }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val currentUserPlayer: StateFlow<LeaderboardPlayer?> = _rankingData.map { it.currentUserPlayer }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     init {
         refreshLeaderboard()
@@ -115,6 +175,10 @@ class RankingViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 val user = userProfile.value
+                val username = if (user.displayName.isNotBlank()) user.displayName else "Duelist"
+                if (!nakamaRepository.hasValidSession()) {
+                    nakamaRepository.ensureAuthenticatedGuest(username)
+                }
                 val currentNakamaUserId = user.nakamaUserId ?: nakamaRepository.getNakamaUserId()
                 try {
                     if (user.isLoggedIn || !user.displayName.isNullOrBlank()) {
@@ -125,10 +189,12 @@ class RankingViewModel @Inject constructor(
                 }
 
                 val entries = nakamaRepository.fetchGlobalLeaderboard()
+                android.util.Log.d("RankingViewModel", "fetchGlobalLeaderboard returned ${entries.size} entries")
                 if (entries.isNotEmpty()) {
                     val mapped = entries.map { entry ->
-                        // Match current user strictly by Nakama user ID to avoid overwriting or collapsing other accounts with the same display name
-                        val isCurr = !currentNakamaUserId.isNullOrBlank() && entry.userId == currentNakamaUserId
+                        // Match current user strictly by Nakama user ID, or display name if logged in
+                        val isCurr = (!currentNakamaUserId.isNullOrBlank() && entry.userId == currentNakamaUserId) ||
+                                (user.displayName.isNotBlank() && !user.displayName.startsWith("Guest_") && entry.displayName.equals(user.displayName, ignoreCase = true))
 
                         val trophies = if (isCurr) maxOf(entry.trophies, user.trophies) else entry.trophies
                         val wins = if (isCurr) maxOf(entry.wins, user.wins) else entry.wins
@@ -153,9 +219,12 @@ class RankingViewModel @Inject constructor(
                         )
                     }
                     _nakamaLeaderboard.value = mapped
+                    android.util.Log.d("RankingViewModel", "Updated _nakamaLeaderboard with ${mapped.size} mapped players")
+                } else {
+                    android.util.Log.w("RankingViewModel", "fetchGlobalLeaderboard returned empty entries list")
                 }
             } catch (e: Exception) {
-                android.util.Log.e("RankingViewModel", "Error in refreshLeaderboard: ${e.message}")
+                android.util.Log.e("RankingViewModel", "Error in refreshLeaderboard: ${e.message}", e)
             } finally {
                 _isLoading.value = false
             }
