@@ -1,5 +1,6 @@
 package com.wallwar.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -151,6 +152,34 @@ fun GameBoardScreen(
     var showResignConfirmation by remember { mutableStateOf(false) }
     var showExitConfirmation by remember { mutableStateOf(false) }
     var showEmotePicker by remember { mutableStateOf(false) }
+
+    // Intercept phone back button press to confirm resignation/exit if match is active
+    BackHandler {
+        when {
+            showExitConfirmation -> {
+                showExitConfirmation = false
+            }
+            showResignConfirmation -> {
+                showResignConfirmation = false
+            }
+            showEmotePicker -> {
+                showEmotePicker = false
+            }
+            gameState.winner != null -> {
+                onBack()
+            }
+            opponentType == OpponentType.ONLINE && (onlineMatchState == OnlineMatchState.CONNECTING || onlineMatchState == OnlineMatchState.SEARCHING_MATCH) -> {
+                onCancelOnlineMatchmaking()
+                onBack()
+            }
+            gameState.winner == null -> {
+                showExitConfirmation = true
+            }
+            else -> {
+                onBack()
+            }
+        }
+    }
 
     val initialP0Skin = if (myPlayerIndex == 0) equippedBallSkinId else opponentBallSkinId
     val initialP1Skin = if (myPlayerIndex == 1) equippedBallSkinId else opponentBallSkinId
@@ -326,7 +355,7 @@ fun GameBoardScreen(
             ) {
                 IconButton(
                     onClick = {
-                        if (gameState.winner == null && (opponentType == OpponentType.ONLINE || gameState.isAiMatch)) {
+                        if (gameState.winner == null) {
                             showExitConfirmation = true
                         } else {
                             onBack()
