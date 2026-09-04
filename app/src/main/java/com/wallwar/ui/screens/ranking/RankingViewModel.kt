@@ -44,6 +44,9 @@ class RankingViewModel @Inject constructor(
 
     val userProfile: StateFlow<UserProfile> = authRepository.userProfile
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading
+
     private val _nakamaLeaderboard = MutableStateFlow<List<LeaderboardPlayer>>(emptyList())
 
     val leaderboard: StateFlow<List<LeaderboardPlayer>> = combine(
@@ -104,45 +107,52 @@ class RankingViewModel @Inject constructor(
 
     fun refreshLeaderboard() {
         viewModelScope.launch {
-            val user = userProfile.value
+            _isLoading.value = true
             try {
-                if (user.isLoggedIn || !user.displayName.isNullOrBlank()) {
-                    nakamaRepository.syncUserProfileToNakama(user)
+                val user = userProfile.value
+                try {
+                    if (user.isLoggedIn || !user.displayName.isNullOrBlank()) {
+                        nakamaRepository.syncUserProfileToNakama(user)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("RankingViewModel", "Error syncing profile before leaderboard fetch: ${e.message}")
+                }
+
+                val entries = nakamaRepository.fetchGlobalLeaderboard()
+                if (entries.isNotEmpty()) {
+                    val mapped = entries.map { entry ->
+                        val isCurr = (!user.nakamaUserId.isNullOrBlank() && entry.userId == user.nakamaUserId) ||
+                                (user.displayName.isNotBlank() && entry.displayName.equals(user.displayName, ignoreCase = true)) ||
+                                (user.displayName.isNotBlank() && entry.username.equals(user.displayName, ignoreCase = true)) ||
+                                (!user.email.isNullOrBlank() && entry.username.equals(user.email, ignoreCase = true))
+
+                        val trophies = if (isCurr) maxOf(entry.trophies, user.trophies) else entry.trophies
+                        val wins = if (isCurr) maxOf(entry.wins, user.wins) else entry.wins
+                        val winRate = if (wins > 0) 75 else 0
+
+                        LeaderboardPlayer(
+                            rank = entry.rank,
+                            name = if (isCurr && user.displayName.isNotBlank()) user.displayName else entry.displayName,
+                            avatarUrl = if (isCurr) (user.photoUrl ?: entry.avatarUrl) else entry.avatarUrl,
+                            isUser = isCurr,
+                            trophies = trophies,
+                            wins = wins,
+                            winRate = winRate,
+                            title = when {
+                                trophies >= 1000 -> "Apex Cybermaster"
+                                trophies >= 500 -> "Neon Grandmaster"
+                                trophies >= 200 -> "Neon Knight"
+                                else -> "Novice Duelist"
+                            },
+                            level = entry.level
+                        )
+                    }
+                    _nakamaLeaderboard.value = mapped
                 }
             } catch (e: Exception) {
-                android.util.Log.w("RankingViewModel", "Error syncing profile before leaderboard fetch: ${e.message}")
-            }
-
-            val entries = nakamaRepository.fetchGlobalLeaderboard()
-            if (entries.isNotEmpty()) {
-                val mapped = entries.map { entry ->
-                    val isCurr = (!user.nakamaUserId.isNullOrBlank() && entry.userId == user.nakamaUserId) ||
-                            (user.displayName.isNotBlank() && entry.displayName.equals(user.displayName, ignoreCase = true)) ||
-                            (user.displayName.isNotBlank() && entry.username.equals(user.displayName, ignoreCase = true)) ||
-                            (!user.email.isNullOrBlank() && entry.username.equals(user.email, ignoreCase = true))
-
-                    val trophies = if (isCurr) maxOf(entry.trophies, user.trophies) else entry.trophies
-                    val wins = if (isCurr) maxOf(entry.wins, user.wins) else entry.wins
-                    val winRate = if (wins > 0) 75 else 0
-
-                    LeaderboardPlayer(
-                        rank = entry.rank,
-                        name = if (isCurr && user.displayName.isNotBlank()) user.displayName else entry.displayName,
-                        avatarUrl = if (isCurr) (user.photoUrl ?: entry.avatarUrl) else entry.avatarUrl,
-                        isUser = isCurr,
-                        trophies = trophies,
-                        wins = wins,
-                        winRate = winRate,
-                        title = when {
-                            trophies >= 1000 -> "Apex Cybermaster"
-                            trophies >= 500 -> "Neon Grandmaster"
-                            trophies >= 200 -> "Neon Knight"
-                            else -> "Novice Duelist"
-                        },
-                        level = entry.level
-                    )
-                }
-                _nakamaLeaderboard.value = mapped
+                android.util.Log.e("RankingViewModel", "Error in refreshLeaderboard: ${e.message}")
+            } finally {
+                _isLoading.value = false
             }
         }
     }

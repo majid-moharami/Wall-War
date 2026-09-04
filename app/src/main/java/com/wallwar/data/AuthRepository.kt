@@ -234,9 +234,11 @@ class AuthRepository @Inject constructor(
                 nakamaUserId = nakamaRepository.getNakamaUserId()
             )
             saveProfile(updated)
-            // If display name was newly set or changed, sync it to Nakama
-            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            // Immediately sync profile and stats to Nakama server
+            try {
                 nakamaRepository.syncUserProfileToNakama(updated)
+            } catch (e: Exception) {
+                Log.w("AuthRepository", "Failed to sync profile immediately to Nakama: ${e.message}")
             }
             SignInResult.Success(updated.displayName, cleanEmail)
         } catch (e: IllegalArgumentException) {

@@ -439,6 +439,10 @@ class NakamaRepository @Inject constructor(
         val s = session ?: return@withContext
         try {
             val statsObj = JSONObject().apply {
+                put("displayName", profile.displayName)
+                if (profile.photoUrl != null) {
+                    put("avatarUrl", profile.photoUrl)
+                }
                 put("level", profile.level)
                 put("xp", profile.xp)
                 put("trophies", profile.trophies)
@@ -1051,12 +1055,15 @@ class NakamaRepository @Inject constructor(
                             val wins = json.optInt("wins", 0)
                             val level = json.optInt("level", (trophies / 200) + 1)
                             val u = userMap[obj.userId]
+                            val jsonDisplayName = json.optString("displayName", "").takeIf { it.isNotBlank() }
+                            val jsonAvatarUrl = json.optString("avatarUrl", "").takeIf { it.isNotBlank() }
                             val name = when {
                                 u != null && !u.displayName.isNullOrBlank() -> u.displayName
+                                jsonDisplayName != null -> jsonDisplayName
                                 u != null && !u.username.isNullOrBlank() -> u.username
                                 else -> "Duelist"
                             }
-                            val avatar = u?.avatarUrl?.takeIf { it.isNotBlank() }
+                            val avatar = u?.avatarUrl?.takeIf { it.isNotBlank() } ?: jsonAvatarUrl
                             LeaderboardEntry(
                                 rank = 0,
                                 userId = obj.userId,

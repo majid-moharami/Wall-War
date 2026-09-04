@@ -425,6 +425,8 @@
     <string name="ranking_your_rank_label">YOUR RANK</string>
     <string name="ranking_lvl_format">•  Lvl %1$d</string>
     <string name="ranking_win_rate_format">%1$d%% Win</string>
+    <string name="ranking_syncing">Syncing leaderboard...</string>
+    <string name="ranking_refresh_content_desc">Refresh leaderboard</string>
 
     <string name="rules_screen_title">How to Play WallWar</string>
     <string name="rules_step1_title">1. The Objective</string>

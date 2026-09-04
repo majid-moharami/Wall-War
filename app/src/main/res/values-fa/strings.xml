@@ -424,6 +424,8 @@
     <string name="ranking_your_rank_label">رتبه شما</string>
     <string name="ranking_lvl_format">•  سطح %1$d</string>
     <string name="ranking_win_rate_format">%1$d٪ برد</string>
+    <string name="ranking_syncing">در حال دریافت رتبه‌بندی...</string>
+    <string name="ranking_refresh_content_desc">به‌روزرسانی رتبه‌بندی</string>
 
     <string name="rules_screen_title">آموزش و قوانین وال‌وار</string>
     <string name="rules_step1_title">۱. هدف بازی</string>
