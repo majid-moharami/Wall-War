@@ -422,6 +422,7 @@
     <string name="ranking_sign_in_desc">Sign in to view global leaderboard standings, track your position, and compete on the seasonal rank boards.</string>
     <string name="ranking_sign_in_btn">Sign In to View Leaderboard</string>
     <string name="ranking_you_badge">YOU</string>
+    <string name="ranking_your_rank_label">YOUR RANK</string>
     <string name="ranking_lvl_format">•  Lvl %1$d</string>
     <string name="ranking_win_rate_format">%1$d%% Win</string>
 

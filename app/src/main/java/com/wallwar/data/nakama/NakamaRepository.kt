@@ -960,37 +960,135 @@ class NakamaRepository @Inject constructor(
 
     // 3. Leaderboards
     suspend fun fetchGlobalLeaderboard(): List<LeaderboardEntry> = withContext(Dispatchers.IO) {
+        // Ensure active session
+        if (session == null || session?.IsExpired() == true) {
+            val username = nakamaUsername ?: prefs.getString("nakama_username", null) ?: "player_${java.util.UUID.randomUUID().toString().take(8)}"
+            authenticateWithDevice(username)
+        }
         val s = session ?: return@withContext emptyList()
+
+        var entries: List<LeaderboardEntry> = emptyList()
+
+        // 1. First attempt to query Nakama global_rankings leaderboard
         try {
             val result = client.listLeaderboardRecords(s, "global_rankings").await()
-            val list = result.recordsList.mapIndexed { index, rec ->
-                var avatarUrl: String? = null
-                val metaStr = rec.metadata
-                if (!metaStr.isNullOrBlank() && metaStr != "{}") {
+            if (result.recordsList.isNotEmpty()) {
+                val ownerIds = result.recordsList.map { it.ownerId }.filter { it.isNotBlank() }.distinct()
+                val userMap = mutableMapOf<String, com.heroiclabs.nakama.api.User>()
+                if (ownerIds.isNotEmpty()) {
                     try {
-                        val meta = JSONObject(metaStr)
-                        avatarUrl = if (meta.has("avatarUrl")) meta.getString("avatarUrl") else null
+                        val usersResult = client.getUsers(s, ownerIds).await()
+                        usersResult.usersList?.forEach { u ->
+                            userMap[u.id] = u
+                        }
                     } catch (e: Exception) {
-                        Log.w("NakamaRepository", "Error parsing leaderboard metadata: ${e.message}")
+                        Log.w("NakamaRepository", "Failed to fetch user profiles for leaderboard: ${e.message}")
                     }
                 }
-                LeaderboardEntry(
-                    rank = rec.rank.toInt().takeIf { it != 0 } ?: (index + 1),
-                    userId = rec.ownerId,
-                    username = if (rec.hasUsername()) rec.username.value else "Duelist",
-                    displayName = if (rec.hasUsername()) rec.username.value else "Duelist",
-                    trophies = rec.score.toInt(),
-                    wins = rec.subscore.toInt(),
-                    level = (rec.score.toInt() / 200) + 1,
-                    avatarUrl = avatarUrl
-                )
+
+                entries = result.recordsList.mapIndexed { index, rec ->
+                    var avatarUrl: String? = null
+                    val metaStr = rec.metadata
+                    if (!metaStr.isNullOrBlank() && metaStr != "{}") {
+                        try {
+                            val meta = JSONObject(metaStr)
+                            avatarUrl = if (meta.has("avatarUrl")) meta.getString("avatarUrl") else null
+                        } catch (e: Exception) {
+                            Log.w("NakamaRepository", "Error parsing leaderboard metadata: ${e.message}")
+                        }
+                    }
+                    val userObj = userMap[rec.ownerId]
+                    if (avatarUrl.isNullOrBlank() && userObj != null && !userObj.avatarUrl.isNullOrBlank()) {
+                        avatarUrl = userObj.avatarUrl
+                    }
+                    val resolvedDisplayName = when {
+                        userObj != null && !userObj.displayName.isNullOrBlank() -> userObj.displayName
+                        rec.hasUsername() && rec.username.value.isNotBlank() -> rec.username.value
+                        else -> "Duelist"
+                    }
+
+                    LeaderboardEntry(
+                        rank = rec.rank.toInt().takeIf { it != 0 } ?: (index + 1),
+                        userId = rec.ownerId,
+                        username = if (rec.hasUsername()) rec.username.value else "Duelist",
+                        displayName = resolvedDisplayName,
+                        trophies = rec.score.toInt(),
+                        wins = rec.subscore.toInt(),
+                        level = (rec.score.toInt() / 200) + 1,
+                        avatarUrl = avatarUrl
+                    )
+                }
             }
-            _leaderboard.value = list
-            list
         } catch (e: Exception) {
-            Log.w("NakamaRepository", "Error fetching leaderboard: ${e.message}")
-            emptyList()
+            Log.w("NakamaRepository", "Leaderboard 'global_rankings' query failed or not found: ${e.message}")
         }
+
+        // 2. Fallback: If leaderboard has no records or is not created on server, list all users from public stats storage
+        if (entries.isEmpty()) {
+            try {
+                val storageResult = client.listStorageObjects(s, "user_data", 100).await()
+                val statsObjects = storageResult.objectsList.filter { it.key == "stats" }
+                if (statsObjects.isNotEmpty()) {
+                    // Deduplicate by userId
+                    val uniqueStats = statsObjects.groupBy { it.userId }.map { (_, list) -> list.last() }
+                    val userIds = uniqueStats.map { it.userId }.filter { it.isNotBlank() }.distinct()
+                    val userMap = mutableMapOf<String, com.heroiclabs.nakama.api.User>()
+                    if (userIds.isNotEmpty()) {
+                        try {
+                            val usersResult = client.getUsers(s, userIds).await()
+                            usersResult.usersList?.forEach { u ->
+                                userMap[u.id] = u
+                            }
+                        } catch (e: Exception) {
+                            Log.w("NakamaRepository", "Failed to fetch users for storage objects: ${e.message}")
+                        }
+                    }
+
+                    val storageEntries = uniqueStats.mapNotNull { obj ->
+                        try {
+                            val json = JSONObject(obj.value)
+                            val trophies = json.optInt("trophies", 0)
+                            val wins = json.optInt("wins", 0)
+                            val level = json.optInt("level", (trophies / 200) + 1)
+                            val u = userMap[obj.userId]
+                            val name = when {
+                                u != null && !u.displayName.isNullOrBlank() -> u.displayName
+                                u != null && !u.username.isNullOrBlank() -> u.username
+                                else -> "Duelist"
+                            }
+                            val avatar = u?.avatarUrl?.takeIf { it.isNotBlank() }
+                            LeaderboardEntry(
+                                rank = 0,
+                                userId = obj.userId,
+                                username = u?.username ?: name,
+                                displayName = name,
+                                trophies = trophies,
+                                wins = wins,
+                                level = level,
+                                avatarUrl = avatar
+                            )
+                        } catch (e: Exception) {
+                            null
+                        }
+                    }
+
+                    // Sort by trophies desc, then wins desc
+                    entries = storageEntries
+                        .sortedWith(
+                            compareByDescending<LeaderboardEntry> { it.trophies }
+                                .thenByDescending { it.wins }
+                        )
+                        .mapIndexed { idx, item ->
+                            item.copy(rank = idx + 1)
+                        }
+                }
+            } catch (e: Exception) {
+                Log.w("NakamaRepository", "Failed to list storage objects for leaderboard: ${e.message}")
+            }
+        }
+
+        _leaderboard.value = entries
+        entries
     }
 
     // 4. Friends

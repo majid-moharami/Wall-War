@@ -113,6 +113,9 @@ fun RankingScreen(
         return
     }
 
+    val currentUserPlayer = leaderboard.firstOrNull { it.isUser }
+    val isUserInTop5 = currentUserPlayer != null && currentUserPlayer.rank <= 5
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -197,7 +200,162 @@ fun RankingScreen(
                 LeaderboardCard(player = player)
             }
             item {
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        // Show player rank at bottom of screen if not in top 5
+        if (currentUserPlayer != null && !isUserInTop5) {
+            UserBottomRankCard(player = currentUserPlayer)
+        }
+    }
+}
+
+@Composable
+private fun UserBottomRankCard(player: LeaderboardPlayer) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp, bottom = 8.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E2642)),
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.5.dp,
+            brush = Brush.horizontalGradient(listOf(NeonCyan, NeonPurple, NeonMagenta))
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Brush.horizontalGradient(listOf(NeonCyan, NeonPurple)))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ranking_your_rank_label),
+                            color = Color.Black,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 0.5.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "#${player.rank}",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = NeonCyan,
+                        fontSize = 15.sp
+                    )
+                }
+
+                Text(
+                    text = "${player.trophies} 🏆",
+                    fontWeight = FontWeight.Bold,
+                    color = NeonAmber,
+                    fontSize = 14.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(NeonDarkSurface)
+                        .border(1.5.dp, NeonCyan, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (!player.avatarUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = player.avatarUrl,
+                            contentDescription = player.name,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = player.name,
+                            tint = NeonCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Name & Tier
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = player.name,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            maxLines = 1
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(NeonCyan)
+                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                text = stringResource(R.string.ranking_you_badge),
+                                color = Color.Black,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.ExtraBold
+                            )
+                        }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(player.titleResId),
+                            color = Color(0xFFA0ACCC),
+                            fontSize = 11.sp
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.ranking_lvl_format, player.level),
+                            color = NeonEmerald,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                // Wins & Win Rate
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${player.wins} W",
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = stringResource(R.string.ranking_win_rate_format, player.winRate),
+                        color = Color(0xFFA0ACCC),
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
     }

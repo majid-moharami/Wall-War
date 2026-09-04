@@ -421,6 +421,7 @@
     <string name="ranking_sign_in_desc">برای مشاهده جدول رتبه‌بندی جهانی، پیگیری جایگاه خود و رقابت در فصل جاری وارد شوید.</string>
     <string name="ranking_sign_in_btn">ورود برای مشاهده رتبه‌بندی</string>
     <string name="ranking_you_badge">شما</string>
+    <string name="ranking_your_rank_label">رتبه شما</string>
     <string name="ranking_lvl_format">•  سطح %1$d</string>
     <string name="ranking_win_rate_format">%1$d٪ برد</string>
 

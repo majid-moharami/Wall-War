@@ -51,23 +51,50 @@ class RankingViewModel @Inject constructor(
         gameRepository.playerWins,
         _nakamaLeaderboard
     ) { user: UserProfile, winsCount: Int, nakamaList: List<LeaderboardPlayer> ->
-        if (nakamaList.isNotEmpty()) {
-            nakamaList
-        } else {
-            val userWins = winsCount.coerceAtLeast(user.wins)
-            val userPlayer = LeaderboardPlayer(
-                rank = 1,
-                name = if (user.isLoggedIn) user.displayName else "${user.displayName} (You)",
-                avatarUrl = user.photoUrl,
-                isUser = true,
-                trophies = user.trophies,
-                wins = userWins,
-                winRate = if (user.totalMatches > 0) ((userWins.toFloat() / user.totalMatches) * 100).toInt() else 0,
-                title = user.rankTitle,
-                level = user.level
-            )
+        val userWins = winsCount.coerceAtLeast(user.wins)
+        val userPlayer = LeaderboardPlayer(
+            rank = 1,
+            name = if (user.displayName.isNotBlank()) user.displayName else "Duelist",
+            avatarUrl = user.photoUrl,
+            isUser = true,
+            trophies = user.trophies,
+            wins = userWins,
+            winRate = if (user.totalMatches > 0) ((userWins.toFloat() / user.totalMatches) * 100).toInt() else 0,
+            title = user.rankTitle,
+            level = user.level
+        )
 
+        if (nakamaList.isEmpty()) {
             listOf(userPlayer)
+        } else {
+            val hasUserInList = nakamaList.any { it.isUser }
+            val mergedList = if (hasUserInList) {
+                nakamaList.map { player ->
+                    if (player.isUser) {
+                        player.copy(
+                            name = if (user.displayName.isNotBlank()) user.displayName else player.name,
+                            avatarUrl = user.photoUrl ?: player.avatarUrl,
+                            trophies = maxOf(player.trophies, user.trophies),
+                            wins = maxOf(player.wins, userWins),
+                            level = maxOf(player.level, user.level)
+                        )
+                    } else {
+                        player
+                    }
+                }
+            } else {
+                nakamaList + userPlayer
+            }
+
+            // Always sort in global ranking order: Trophies (primary), Wins (secondary)
+            mergedList
+                .sortedWith(
+                    compareByDescending<LeaderboardPlayer> { it.trophies }
+                        .thenByDescending { it.wins }
+                )
+                .mapIndexed { index, player ->
+                    player.copy(rank = index + 1)
+                }
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -77,26 +104,39 @@ class RankingViewModel @Inject constructor(
 
     fun refreshLeaderboard() {
         viewModelScope.launch {
-            val entries = nakamaRepository.fetchGlobalLeaderboard()
             val user = userProfile.value
+            try {
+                if (user.isLoggedIn || !user.displayName.isNullOrBlank()) {
+                    nakamaRepository.syncUserProfileToNakama(user)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("RankingViewModel", "Error syncing profile before leaderboard fetch: ${e.message}")
+            }
+
+            val entries = nakamaRepository.fetchGlobalLeaderboard()
             if (entries.isNotEmpty()) {
                 val mapped = entries.map { entry ->
+                    val isCurr = (!user.nakamaUserId.isNullOrBlank() && entry.userId == user.nakamaUserId) ||
+                            (user.displayName.isNotBlank() && entry.displayName.equals(user.displayName, ignoreCase = true)) ||
+                            (user.displayName.isNotBlank() && entry.username.equals(user.displayName, ignoreCase = true)) ||
+                            (!user.email.isNullOrBlank() && entry.username.equals(user.email, ignoreCase = true))
+
+                    val trophies = if (isCurr) maxOf(entry.trophies, user.trophies) else entry.trophies
+                    val wins = if (isCurr) maxOf(entry.wins, user.wins) else entry.wins
+                    val winRate = if (wins > 0) 75 else 0
+
                     LeaderboardPlayer(
                         rank = entry.rank,
-                        name = entry.displayName,
-                        avatarUrl = if (entry.username.equals(user.displayName, ignoreCase = true)) {
-                            user.photoUrl ?: entry.avatarUrl
-                        } else {
-                            entry.avatarUrl
-                        },
-                        isUser = entry.username.equals(user.displayName, ignoreCase = true),
-                        trophies = entry.trophies,
-                        wins = entry.wins,
-                        winRate = 75,
+                        name = if (isCurr && user.displayName.isNotBlank()) user.displayName else entry.displayName,
+                        avatarUrl = if (isCurr) (user.photoUrl ?: entry.avatarUrl) else entry.avatarUrl,
+                        isUser = isCurr,
+                        trophies = trophies,
+                        wins = wins,
+                        winRate = winRate,
                         title = when {
-                            entry.trophies >= 1000 -> "Apex Cybermaster"
-                            entry.trophies >= 500 -> "Neon Grandmaster"
-                            entry.trophies >= 200 -> "Neon Knight"
+                            trophies >= 1000 -> "Apex Cybermaster"
+                            trophies >= 500 -> "Neon Grandmaster"
+                            trophies >= 200 -> "Neon Knight"
                             else -> "Novice Duelist"
                         },
                         level = entry.level

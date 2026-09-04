@@ -1059,6 +1059,7 @@ class AuthRepository @Inject constructor(
                     durationSeconds = 60L
                 )
             )
+            nakamaRepository.syncUserProfileToNakama(updated)
         }
 
         return MatchResultDelta(
@@ -1132,6 +1133,7 @@ class AuthRepository @Inject constructor(
                     durationSeconds = 60L
                 )
             )
+            nakamaRepository.syncUserProfileToNakama(updated)
         }
 
         return MatchResultDelta(
