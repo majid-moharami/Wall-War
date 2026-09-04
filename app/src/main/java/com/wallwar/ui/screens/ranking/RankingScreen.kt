@@ -253,7 +253,7 @@ fun RankingScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.weight(1f)
         ) {
-            items(leaderboard, key = { it.name + it.rank }) { player ->
+            items(leaderboard, key = { if (it.id.isNotBlank()) "${it.id}_${it.rank}" else "${it.rank}_${it.name}" }) { player ->
                 LeaderboardCard(player = player)
             }
             item {

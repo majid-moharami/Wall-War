@@ -1030,21 +1030,38 @@ class NakamaRepository @Inject constructor(
         // 2. Fallback: If leaderboard has no records or is not created on server, list all users from public stats storage
         if (entries.isEmpty()) {
             try {
-                val storageResult = client.listStorageObjects(s, "user_data", 100).await()
-                val statsObjects = storageResult.objectsList.filter { it.key == "stats" }
+                // Fetch all user storage objects with pagination support
+                val allStorageObjects = mutableListOf<com.heroiclabs.nakama.api.StorageObject>()
+                var cursor: String? = null
+                var page = 0
+                do {
+                    page++
+                    val storageResult = if (cursor.isNullOrBlank()) {
+                        client.listStorageObjects(s, "user_data", 100).await()
+                    } else {
+                        client.listStorageObjects(s, "user_data", 100, cursor).await()
+                    }
+                    allStorageObjects.addAll(storageResult.objectsList)
+                    cursor = storageResult.cursor?.takeIf { it.isNotBlank() }
+                } while (!cursor.isNullOrBlank() && page < 10)
+
+                val statsObjects = allStorageObjects.filter { it.key == "stats" }
                 if (statsObjects.isNotEmpty()) {
                     // Deduplicate by userId
                     val uniqueStats = statsObjects.groupBy { it.userId }.map { (_, list) -> list.last() }
                     val userIds = uniqueStats.map { it.userId }.filter { it.isNotBlank() }.distinct()
                     val userMap = mutableMapOf<String, com.heroiclabs.nakama.api.User>()
                     if (userIds.isNotEmpty()) {
-                        try {
-                            val usersResult = client.getUsers(s, userIds).await()
-                            usersResult.usersList?.forEach { u ->
-                                userMap[u.id] = u
+                        // Chunk userIds in batches of 50 to prevent gRPC/HTTP payload size limits
+                        for (batch in userIds.chunked(50)) {
+                            try {
+                                val usersResult = client.getUsers(s, batch).await()
+                                usersResult.usersList?.forEach { u ->
+                                    userMap[u.id] = u
+                                }
+                            } catch (e: Exception) {
+                                Log.w("NakamaRepository", "Failed to fetch user batch for storage objects: ${e.message}")
                             }
-                        } catch (e: Exception) {
-                            Log.w("NakamaRepository", "Failed to fetch users for storage objects: ${e.message}")
                         }
                     }
 

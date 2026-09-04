@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class LeaderboardPlayer(
+    val id: String = "",
     val rank: Int,
     val name: String,
     val avatarUrl: String?,
@@ -56,6 +57,7 @@ class RankingViewModel @Inject constructor(
     ) { user: UserProfile, winsCount: Int, nakamaList: List<LeaderboardPlayer> ->
         val userWins = winsCount.coerceAtLeast(user.wins)
         val userPlayer = LeaderboardPlayer(
+            id = user.nakamaUserId ?: "local_user",
             rank = 1,
             name = if (user.displayName.isNotBlank()) user.displayName else "Duelist",
             avatarUrl = user.photoUrl,
@@ -70,13 +72,16 @@ class RankingViewModel @Inject constructor(
         if (nakamaList.isEmpty()) {
             listOf(userPlayer)
         } else {
-            val hasUserInList = nakamaList.any { it.isUser }
+            val hasUserInList = nakamaList.any { it.isUser || (!user.nakamaUserId.isNullOrBlank() && it.id == user.nakamaUserId) }
             val mergedList = if (hasUserInList) {
                 nakamaList.map { player ->
-                    if (player.isUser) {
+                    val isMatch = player.isUser || (!user.nakamaUserId.isNullOrBlank() && player.id == user.nakamaUserId)
+                    if (isMatch) {
                         player.copy(
+                            id = if (player.id.isNotBlank()) player.id else (user.nakamaUserId ?: "local_user"),
                             name = if (user.displayName.isNotBlank()) user.displayName else player.name,
                             avatarUrl = user.photoUrl ?: player.avatarUrl,
+                            isUser = true,
                             trophies = maxOf(player.trophies, user.trophies),
                             wins = maxOf(player.wins, userWins),
                             level = maxOf(player.level, user.level)
@@ -110,6 +115,7 @@ class RankingViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 val user = userProfile.value
+                val currentNakamaUserId = user.nakamaUserId ?: nakamaRepository.getNakamaUserId()
                 try {
                     if (user.isLoggedIn || !user.displayName.isNullOrBlank()) {
                         nakamaRepository.syncUserProfileToNakama(user)
@@ -121,16 +127,15 @@ class RankingViewModel @Inject constructor(
                 val entries = nakamaRepository.fetchGlobalLeaderboard()
                 if (entries.isNotEmpty()) {
                     val mapped = entries.map { entry ->
-                        val isCurr = (!user.nakamaUserId.isNullOrBlank() && entry.userId == user.nakamaUserId) ||
-                                (user.displayName.isNotBlank() && entry.displayName.equals(user.displayName, ignoreCase = true)) ||
-                                (user.displayName.isNotBlank() && entry.username.equals(user.displayName, ignoreCase = true)) ||
-                                (!user.email.isNullOrBlank() && entry.username.equals(user.email, ignoreCase = true))
+                        // Match current user strictly by Nakama user ID to avoid overwriting or collapsing other accounts with the same display name
+                        val isCurr = !currentNakamaUserId.isNullOrBlank() && entry.userId == currentNakamaUserId
 
                         val trophies = if (isCurr) maxOf(entry.trophies, user.trophies) else entry.trophies
                         val wins = if (isCurr) maxOf(entry.wins, user.wins) else entry.wins
                         val winRate = if (wins > 0) 75 else 0
 
                         LeaderboardPlayer(
+                            id = entry.userId,
                             rank = entry.rank,
                             name = if (isCurr && user.displayName.isNotBlank()) user.displayName else entry.displayName,
                             avatarUrl = if (isCurr) (user.photoUrl ?: entry.avatarUrl) else entry.avatarUrl,
